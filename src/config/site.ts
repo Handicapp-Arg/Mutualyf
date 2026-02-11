@@ -7,22 +7,34 @@ export const siteConfig = {
   fullName: 'Centro de Imágenes y Odontología Radiológica',
   description:
     'Centro de excelencia en imágenes odontológicas con tecnología de escaneo volumétrico 3D.',
-  url: 'https://cior.com.ar',
+  url: 'https://www.ciorimagenes.com.ar',
   github: 'https://github.com/Ciorimagen-ARG/app',
   contact: {
-    phone: '+54 11 4567-8900',
-    email: 'info@cior.com.ar',
-    whatsapp: '+5491123456789',
+    phone: '0341 425-8501',
+    phoneSecondary: '0341 421-1408',
+    email: 'contacto@ciorimagenes.com.ar',
+    whatsapp: '+5493413017960',
+    whatsappDisplay: '341 301-7960',
+  },
+  schedule: {
+    weekdays: 'Lunes a Viernes',
+    hours: '08:00 - 19:00 h',
+    saturday: 'Cerrado',
+    sunday: 'Cerrado',
   },
   locations: [
     {
       id: 1,
-      name: 'CIOR Belgrano',
-      address: 'Av. Cabildo 1234, CABA',
-      phone: '+54 11 4567-8900',
-      coordinates: { lat: -34.5631, lng: -58.4548 },
+      name: 'CIOR Rosario',
+      address: 'Balcarce 1001',
+      city: 'Rosario',
+      province: 'Santa Fe',
+      postalCode: '2000',
+      fullAddress: 'Balcarce 1001, 2000 Rosario',
+      phone: '0341 425-8501',
+      phoneSecondary: '0341 421-1408',
+      coordinates: { lat: -32.9442, lng: -60.6505 },
     },
-    // Agregar más sedes según sea necesario
   ],
   socialMedia: {
     facebook: 'https://facebook.com/cior',

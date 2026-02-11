@@ -1,6 +1,8 @@
 import { Header, Footer } from '@/components/layout';
 import { NexusBot } from '@/features/nexus-bot';
 import { HeroSection, InfoSection } from '@/features/home';
+import { TeamSection } from '@/features/team';
+import { ContactSection } from '@/features/contact';
 
 /**
  * Página Principal de CIOR
@@ -13,6 +15,8 @@ export function HomePage() {
       <main>
         <HeroSection />
         <InfoSection />
+        <TeamSection />
+        <ContactSection />
       </main>
 
       <Footer />

@@ -50,25 +50,17 @@ export function Header() {
     <nav
       className={cn(
         'fixed z-[60] w-full transition-all duration-500',
-        scrolled
-          ? 'glass-morphism py-3 shadow-sm'
-          : 'bg-transparent py-6'
+        scrolled ? 'glass-morphism py-3 shadow-sm' : 'bg-transparent py-6'
       )}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
         {/* Logo */}
-        <a href="/" className="group flex cursor-pointer items-center gap-3">
-          <div className="flex h-12 w-12 transform items-center justify-center rounded-2xl bg-corporate shadow-lg shadow-corporate/30 transition-all group-hover:rotate-6">
-            <Activity className="h-7 w-7 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-black tracking-tighter text-corporate">
-              {siteConfig.name}
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-              Imágenes
-            </span>
-          </div>
+        <a href="/" className="group flex cursor-pointer items-center gap-4">
+          <img
+            src="/images/logo/logo.png"
+            alt="CIOR Logo"
+            className="h-14 w-auto transform transition-all duration-300 group-hover:scale-105"
+          />
         </a>
 
         {/* Desktop Navigation */}
