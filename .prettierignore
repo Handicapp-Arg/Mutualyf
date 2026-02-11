@@ -1,0 +1,6 @@
+dist
+node_modules
+coverage
+.husky
+pnpm-lock.yaml
+*.min.js
