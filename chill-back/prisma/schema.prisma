@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/chat.db"
+}
+
+model UserIdentity {
+  id           Int            @id @default(autoincrement())
+  ipAddress    String         @map("ip_address")
+  fingerprint  String         @unique
+  userName     String?        @map("user_name")
+  userAgent    String?        @map("user_agent")
+  timezone     String?
+  language     String?
+  firstVisit   String         @map("first_visit")
+  lastVisit    String         @map("last_visit")
+  visitCount   Int            @default(1) @map("visit_count")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  
+  // Relaciones
+  sessions     UserSession[]
+  conversations Conversation[]
+
+  @@index([ipAddress])
+  @@map("user_identities")
+}
+
+model Conversation {
+  id             Int           @id @default(autoincrement())
+  sessionId      String        @map("session_id")
+  userMessage    String        @map("user_message")
+  botResponse    String        @map("bot_response")
+  timestamp      String
+  aiModel        String?       @map("ai_model")
+  userFeedback   Boolean?      @map("user_feedback")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  
+  // Relación con UserIdentity
+  userIdentityId Int?          @map("user_identity_id")
+  userIdentity   UserIdentity? @relation(fields: [userIdentityId], references: [id])
+
+  @@index([sessionId])
+  @@index([userIdentityId])
+  @@map("conversations")
+}
+
+model UserSession {
+  id             Int           @id @default(autoincrement())
+  sessionId      String        @unique @map("session_id")
+  userName       String?       @map("user_name")
+  lastSeen       String        @map("last_seen")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  
+  // Relación con UserIdentity
+  userIdentityId Int?          @map("user_identity_id")
+  userIdentity   UserIdentity? @relation(fields: [userIdentityId], references: [id])
+
+  @@index([userIdentityId])
+  @@map("user_sessions")
+}
+
+model Feedback {
+  id            Int      @id @default(autoincrement())
+  feedback      String   // "positive" o "negative"
+  userMessage   String?  @map("user_message")
+  botResponse   String?  @map("bot_response")
+  userSessionId String?  @map("user_session_id")
+  ip            String?
+  userName      String?  @map("user_name")
+  timestamp     DateTime @default(now())
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([feedback])
+  @@index([userSessionId])
+  @@map("feedbacks")
+}
