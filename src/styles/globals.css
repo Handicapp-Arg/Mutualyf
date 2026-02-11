@@ -3,8 +3,13 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+  }
+
   body {
-    @apply bg-[#FDFDFD] text-slate-900 antialiased;
+    @apply bg-white text-slate-900 antialiased;
     font-feature-settings:
       'rlig' 1,
       'calt' 1;

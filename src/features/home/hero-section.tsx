@@ -1,56 +1,93 @@
-import { ChevronRight, Sparkles } from 'lucide-react';
+﻿import { ChevronRight, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { Badge, Button } from '@/components/ui';
 
 /**
  * Hero Section - Sección principal de CIOR
+ * Diseño limpio y profesional de alto impacto.
  */
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-white pb-20 pt-32 lg:pb-32 lg:pt-52">
-      {/* Decoraciones de fondo */}
+    <section className="relative overflow-hidden bg-white pb-24 pt-40 lg:pb-32 lg:pt-56">
+      {/* Decoraciones de fondo sutiles */}
       <div className="absolute right-0 top-0 -z-10 h-full w-1/2 rounded-l-[150px] bg-corporate/5" />
       <div className="absolute left-20 top-20 -z-10 h-72 w-72 rounded-full bg-blue-100/30 blur-[100px]" />
 
       <div className="mx-auto grid max-w-7xl items-center gap-16 px-6 lg:grid-cols-2">
-        {/* Contenido */}
+        {/* Contenido - Texto */}
         <div className="space-y-8">
-          <Badge variant="info">
-            <Sparkles size={14} className="text-blue-400" />
-            Inteligencia en Diagnóstico
-          </Badge>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Badge variant="info">
+              <Sparkles size={14} className="text-blue-400" />
+              Alta Complejidad Diagnóstica
+            </Badge>
+          </motion.div>
 
-          <h1 className="text-6xl font-black leading-[0.9] tracking-tighter text-slate-900 lg:text-8xl">
-            El futuro de tu <br />
-            <span className="text-corporate">salud dental.</span>
-          </h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-5xl font-black leading-[0.95] tracking-tighter text-slate-900 lg:text-7xl"
+          >
+            Centro de imágenes <span className="text-corporate">odontológicas</span>
+            <br />y maxilofaciales
+          </motion.h1>
 
-          <p className="max-w-lg text-xl font-medium leading-relaxed text-slate-500">
-            Centro de excelencia en imágenes odontológicas con tecnología de
-            escaneo volumétrico 3D.
-          </p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="max-w-lg text-lg font-medium leading-relaxed text-slate-500"
+          >
+            Único en la región con tecnología Planmeca de última generación para diagnósticos dento-maxilo-faciales precisos.
+          </motion.p>
 
-          <div className="flex flex-col gap-5 sm:flex-row">
-            <Button size="lg">
-              VER ESTUDIOS <ChevronRight size={18} />
-            </Button>
-            <Button variant="secondary" size="lg">
-              NUESTRAS SEDES
-            </Button>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="flex flex-col gap-4 sm:flex-row"
+          >
+            <a href="#servicios">
+              <Button size="lg" className="w-full sm:w-auto">
+                VER ESTUDIOS <ChevronRight size={18} />
+              </Button>
+            </a>
+            <a href="#contact-section">
+              <Button variant="secondary" size="lg" className="w-full sm:w-auto">
+                SOLICITAR TURNO
+              </Button>
+            </a>
+          </motion.div>
         </div>
 
-        {/* Imagen */}
-        <div className="group relative">
-          <div className="scan-effect relative z-10 aspect-square overflow-hidden rounded-[4rem] border-[15px] border-white shadow-2xl lg:h-[600px]">
+        {/* Imagen Estática - Profesional y Limpia */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8 }}
+          className="relative mx-auto max-w-[500px] lg:max-w-none"
+        >
+          <div className="relative z-10 aspect-square overflow-hidden rounded-[3rem] shadow-2xl shadow-blue-900/10">
+             {/* Imagen principal estática de alta calidad */}
             <img
-              src="https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=1000"
-              className="h-full w-full object-cover grayscale-[0.2] transition-all duration-1000 group-hover:grayscale-0"
-              alt="Scanner Dental CIOR"
+              src="/images/technology/planmeca-promax-3d-classic.jpg"
+              alt="Scanner Dental CIOR Planmeca"
+              className="h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-corporate/40 via-transparent to-transparent" />
+            {/* Gradiente sutil para integración */}
+            <div className="absolute inset-0 bg-gradient-to-t from-corporate/20 via-transparent to-transparent" />
           </div>
-        </div>
+          
+          {/* Elementos decorativos minimalistas detrás */}
+          <div className="absolute -bottom-10 -right-10 -z-10 h-64 w-64 rounded-full bg-corporate/10 blur-3xl" />
+          <div className="absolute -top-10 -left-10 h-32 w-32 rounded-full border-2 border-corporate/20" />
+        </motion.div>
       </div>
     </section>
   );

@@ -13,12 +13,7 @@ interface MobileMenuProps {
 /**
  * Menú móvil fullscreen
  */
-export function MobileMenu({
-  isOpen,
-  onClose,
-  services,
-  patientLinks,
-}: MobileMenuProps) {
+export function MobileMenu({ isOpen, onClose, services, patientLinks }: MobileMenuProps) {
   if (!isOpen) return null;
 
   return (
@@ -27,7 +22,7 @@ export function MobileMenu({
         {/* Navigation Links */}
         <div className="mt-20 space-y-6">
           <a
-            href="#"
+            href="#inicio"
             onClick={onClose}
             className="block text-2xl font-black text-slate-800"
           >
@@ -46,9 +41,7 @@ export function MobileMenu({
                 className="mb-3 flex items-center justify-between rounded-2xl bg-slate-50 p-4"
               >
                 <div>
-                  <div className="text-sm font-bold text-slate-800">
-                    {service.title}
-                  </div>
+                  <div className="text-sm font-bold text-slate-800">{service.title}</div>
                   <div className="text-xs text-slate-500">{service.desc}</div>
                 </div>
                 <ChevronRight className="text-corporate" size={20} />
@@ -56,29 +49,22 @@ export function MobileMenu({
             ))}
           </div>
 
-          <div>
-            <div className="mb-4 text-xs font-black uppercase tracking-widest text-slate-400">
-              Pacientes
-            </div>
-            {patientLinks.map((link, index) => (
-              <a
-                key={index}
-                href={link.href}
-                onClick={onClose}
-                className="mb-2 block rounded-xl bg-slate-50 p-4 text-sm font-bold text-slate-800"
-              >
-                {link.title}
-              </a>
-            ))}
-          </div>
-
           <a
-            href="#profesionales"
+            href="#tecnologia"
             onClick={onClose}
             className="block text-2xl font-black text-slate-800"
           >
-            Profesionales
+            Tecnología
           </a>
+
+          <a
+            href="#equipo"
+            onClick={onClose}
+            className="block text-2xl font-black text-slate-800"
+          >
+            Equipo Médico
+          </a>
+
           <a
             href="#contacto"
             onClick={onClose}

@@ -15,14 +15,10 @@ export function Footer() {
         <div className="grid gap-12 border-b border-white/5 pb-12 md:grid-cols-2 lg:grid-cols-4">
           {/* Logo & Description */}
           <div className="lg:col-span-2">
-            <img
-              src="/images/logo/logo.png"
-              alt="CIOR"
-              className="mb-6 h-12 w-auto"
-            />
+            <img src="/images/logo/logo.png" alt="CIOR" className="mb-6 h-12 w-auto" />
             <p className="mb-6 max-w-md text-sm font-medium text-white/70">
-              {siteConfig.fullName}. Centro de excelencia en diagnóstico por
-              imágenes odontológicas con tecnología de vanguardia.
+              {siteConfig.fullName}. Centro de excelencia en diagnóstico por imágenes
+              odontológicas con tecnología de vanguardia.
             </p>
           </div>
 
@@ -57,17 +53,13 @@ export function Footer() {
             <div className="space-y-4">
               <div className="flex items-start gap-3 text-sm font-medium text-white/80">
                 <MapPin size={16} className="mt-0.5 text-blue-400" />
-                <div>
-                  {siteConfig.locations[0].fullAddress}
-                </div>
+                <div>{siteConfig.locations[0].fullAddress}</div>
               </div>
               <div className="flex items-start gap-3 text-sm font-medium text-white/80">
                 <Clock size={16} className="mt-0.5 text-blue-400" />
                 <div>
                   <div>{siteConfig.schedule.weekdays}</div>
-                  <div className="text-xs text-white/60">
-                    {siteConfig.schedule.hours}
-                  </div>
+                  <div className="text-xs text-white/60">{siteConfig.schedule.hours}</div>
                 </div>
               </div>
             </div>
@@ -80,10 +72,7 @@ export function Footer() {
             © {currentYear} {siteConfig.name.toUpperCase()} IMÁGENES • Rosario, Santa Fe
           </div>
           <div className="flex gap-8">
-            <a
-              href="#terminos"
-              className="font-bold transition-colors hover:text-white"
-            >
+            <a href="#terminos" className="font-bold transition-colors hover:text-white">
               Términos
             </a>
             <a

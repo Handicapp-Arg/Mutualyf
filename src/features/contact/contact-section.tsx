@@ -90,8 +90,7 @@ export function ContactSection() {
                   {siteConfig.locations[0].address}
                 </p>
                 <p className="mb-4 text-lg font-medium text-white/70">
-                  {siteConfig.locations[0].postalCode}{' '}
-                  {siteConfig.locations[0].city},{' '}
+                  {siteConfig.locations[0].postalCode} {siteConfig.locations[0].city},{' '}
                   {siteConfig.locations[0].province}
                 </p>
 
@@ -100,7 +99,10 @@ export function ContactSection() {
                   className="group/btn flex items-center gap-2 text-sm font-bold text-cyan-400 transition-all hover:gap-3"
                 >
                   Ver en Google Maps
-                  <Navigation size={16} className="transition-transform group-hover/btn:rotate-45" />
+                  <Navigation
+                    size={16}
+                    className="transition-transform group-hover/btn:rotate-45"
+                  />
                 </button>
               </div>
             </div>
@@ -173,7 +175,7 @@ export function ContactSection() {
           {/* Columna Horarios + Mapa */}
           <div className="space-y-6">
             {/* Card de Horarios */}
-            <div className="group relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-white/10 to-white/5 p-8 backdrop-blur-xl">
+            <div className="group relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-white/10 to-white/5 p-8 backdrop-blur-xl transition-all hover:bg-white/10">
               <div className="absolute right-0 top-0 h-40 w-40 -translate-y-10 translate-x-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-transparent blur-3xl transition-all group-hover:scale-150" />
 
               <div className="relative">
@@ -221,36 +223,28 @@ export function ContactSection() {
               </div>
             </div>
 
-            {/* Mapa placeholder con estilo moderno */}
-            <div className="group relative overflow-hidden rounded-[3rem] bg-white/5 p-2 backdrop-blur-xl">
-              <div
-                onClick={handleMap}
-                className="relative flex h-96 cursor-pointer items-center justify-center overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-900 transition-all hover:scale-[0.98]"
-              >
-                {/* Placeholder con patrón */}
-                <div className="absolute inset-0 opacity-20">
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-                      backgroundSize: '30px 30px',
-                    }}
-                  />
-                </div>
+            {/* Mapa Interactivo */}
+            <div className="group relative overflow-hidden rounded-[3rem] bg-white/5 p-2 backdrop-blur-xl transition-all hover:bg-white/10">
+              <div className="relative h-[400px] w-full overflow-hidden rounded-[2.5rem]">
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3348.077274092497!2d-60.64835692429688!3d-32.94903347359218!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95b7ab11d0eb49c3%3A0x11f1d3d54f950dd0!2sBalcarce%201001%2C%20S2000%20Rosario%2C%20Santa%20Fe!5e0!3m2!1sen!2sar!4v1707753956384!5m2!1sen!2sar"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="grayscale transition-all duration-500 hover:grayscale-0"
+                />
 
-                <div className="relative text-center">
-                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-500/20">
-                    <MapPin size={40} className="text-blue-400" />
-                  </div>
-                  <div className="text-xl font-black text-white">
-                    Ver ubicación en Google Maps
-                  </div>
-                  <div className="mt-2 text-sm font-medium text-white/60">
-                    Balcarce 1001, Rosario
-                  </div>
-                  <button className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-blue-600">
-                    Abrir Mapa
+                {/* Overlay Interactivo */}
+                <div className="absolute bottom-4 right-4 flex gap-2">
+                  <button
+                    onClick={handleMap}
+                    className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-900 shadow-lg transition-all hover:scale-105 hover:bg-slate-50"
+                  >
                     <ExternalLink size={14} />
+                    Ampliar
                   </button>
                 </div>
               </div>
@@ -261,9 +255,7 @@ export function ContactSection() {
         {/* CTA Final */}
         <div className="mt-12 text-center">
           <div className="mx-auto max-w-3xl rounded-[3rem] border border-white/10 bg-white/5 p-12 backdrop-blur-xl">
-            <h3 className="mb-4 text-3xl font-black text-white">
-              ¿Necesitás un turno?
-            </h3>
+            <h3 className="mb-4 text-3xl font-black text-white">¿Necesitás un turno?</h3>
             <p className="mb-8 text-lg font-medium text-white/80">
               Contactanos por WhatsApp y te respondemos al instante.
             </p>

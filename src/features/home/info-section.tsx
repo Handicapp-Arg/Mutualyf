@@ -8,27 +8,27 @@ import { Card } from '@/components/ui';
 export function InfoSection() {
   const features = [
     {
-      title: 'PORTAL PACIENTES',
-      description: 'Descarga tus estudios con tu DNI.',
+      title: 'EXCELENCIA PROFESIONAL',
+      description: 'Personal capacitado y especializado promoviendo educación continua.',
       icon: Search,
       color: 'text-blue-500',
     },
     {
-      title: 'MÍNIMA DOSIS',
-      description: 'Tecnología que protege tu salud.',
+      title: 'ATENCIÓN PERSONALIZADA',
+      description: 'Compromiso con el paciente y el colega profesional.',
       icon: Zap,
       color: 'text-amber-400',
     },
     {
-      title: 'ENTREGA DIGITAL',
-      description: 'Resultados en 24h vía Web.',
+      title: 'TECNOLOGÍA AVANZADA',
+      description: 'Equipamiento de última generación para diagnósticos precisos.',
       icon: Clock,
       color: 'text-green-500',
     },
   ];
 
   return (
-    <section className="bg-slate-50 py-24">
+    <section className="bg-slate-50 py-20 lg:py-28">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-3">
         {features.map((feature, index) => {
           const Icon = feature.icon;

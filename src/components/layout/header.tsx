@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { Activity, ChevronDown, Menu, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 
 import { Button } from '@/components/ui';
-import { siteConfig } from '@/config/site';
 import { useScrolled } from '@/hooks';
 import { cn } from '@/lib/utils';
 
@@ -11,39 +10,75 @@ import { NavDropdown } from './nav-dropdown';
 
 /**
  * Header principal de CIOR
- * Implementa navegación responsiva con glass morphism
+ * Implementa navegación responsiva con glass morphism y smooth scroll
  */
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const scrolled = useScrolled(50);
 
+  // Smooth scroll handler
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLAnchorElement;
+      if (target.hash && target.hash.startsWith('#')) {
+        e.preventDefault();
+        const element = document.querySelector(target.hash);
+        if (element) {
+          const offset = 80;
+          const elementPosition =
+            element.getBoundingClientRect().top + window.pageYOffset;
+          window.scrollTo({
+            top: elementPosition - offset,
+            behavior: 'smooth',
+          });
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
   const services = [
     {
-      title: 'Tomografía 3D',
-      desc: 'Precisión volumétrica Cone Beam.',
-      href: '#tomografia',
+      title: 'Ver Todos los Estudios',
+      desc: 'Explorar catálogo completo de diagnósticos.',
+      href: '#servicios',
     },
     {
-      title: 'Panorámica HD',
-      desc: 'Visión completa en un solo escaneo.',
-      href: '#panoramica',
+      title: 'Tomografías 3D',
+      desc: 'Cone Beam de alta precisión.',
+      href: '#servicios',
     },
     {
-      title: 'Alineadores Invisibles',
-      desc: 'Ortodoncia estética de alta gama.',
-      href: '#alineadores',
-    },
-    {
-      title: 'Impresiones 3D',
-      desc: 'Modelado digital de alta resolución.',
-      href: '#impresiones',
+      title: 'Tecnología',
+      desc: 'Equipamiento de vanguardia.',
+      href: '#tecnologia',
     },
   ];
 
   const patientLinks = [
-    { title: 'Obras Sociales', href: '#obras-sociales' },
-    { title: 'Resultados Online', href: '#resultados' },
-    { title: 'Preparación', href: '#preparacion' },
+    { title: 'Equipo Médico', href: '#equipo' },
+    { title: 'Contacto', href: '#contacto' },
+  ];
+
+  const professionalLinks = [
+    {
+      title: 'Email Profesional',
+      href: 'https://www.ciorimagenes.com.ar/webmail',
+      external: true,
+    },
+    {
+      title: 'Descargar Órdenes',
+      href: 'https://www.ciorimagenes.com.ar/wp-content/uploads/2019/09/Prescripciones_de_practicas.pdf',
+      external: true,
+    },
+    {
+      title: 'Tutoriales YouTube',
+      href: 'https://www.youtube.com/channel/UCIX2lAdk6nYgpL4tw6Xmgzg',
+      external: true,
+    },
   ];
 
   return (
@@ -66,7 +101,7 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="hidden items-center gap-10 lg:flex">
           <a
-            href="#"
+            href="#inicio"
             className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-corporate"
           >
             Inicio
@@ -82,22 +117,30 @@ export function Header() {
             className="w-72"
           />
 
+          <a
+            href="#tecnologia"
+            className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-corporate"
+          >
+            Tecnología
+          </a>
+
+          <a
+            href="#equipo"
+            className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-corporate"
+          >
+            Equipo
+          </a>
+
           <NavDropdown
             trigger={
               <button className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-corporate">
-                Pacientes <ChevronDown size={14} />
+                Profesionales <ChevronDown size={14} />
               </button>
             }
-            items={patientLinks}
-            className="w-56"
+            items={professionalLinks}
+            className="w-64"
           />
 
-          <a
-            href="#profesionales"
-            className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-corporate"
-          >
-            Profesionales
-          </a>
           <a
             href="#contacto"
             className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-corporate"
