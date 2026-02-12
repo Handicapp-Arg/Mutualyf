@@ -1,0 +1,208 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateSessionDto } from './dto/session.dto';
+import {
+  DatabaseException,
+  ResourceNotFoundException,
+} from '../common/exceptions/business.exception';
+
+@Injectable()
+export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name);
+
+  constructor(private prisma: PrismaService) {}
+
+  /**
+   * Crear o actualizar sesión de usuario
+   * Si la sesión existe, actualiza lastSeen y userName (si se proporciona)
+   * Si no existe, crea una nueva sesión
+   * Ahora incluye relación con UserIdentity via fingerprint o IP
+   * Y propaga el nombre a sesiones anteriores del mismo usuario
+   */
+  async createOrUpdate(data: CreateSessionDto) {
+    try {
+      this.logger.debug(`Procesando sesión: ${data.sessionId}`);
+
+      // Buscar UserIdentity para relacionar (por fingerprint o IP)
+      let userIdentityId: number | null = null;
+      let userIdentity: any = null;
+      
+      if (data.fingerprint) {
+        userIdentity = await this.prisma.userIdentity.findUnique({
+          where: { fingerprint: data.fingerprint },
+        });
+        if (userIdentity) {
+          userIdentityId = userIdentity.id;
+          this.logger.debug(`Relacionando sesión con UserIdentity ID: ${userIdentityId}`);
+        }
+      } else if (data.ipAddress) {
+        userIdentity = await this.prisma.userIdentity.findFirst({
+          where: { ipAddress: data.ipAddress },
+          orderBy: { lastVisit: 'desc' },
+        });
+        if (userIdentity) {
+          userIdentityId = userIdentity.id;
+          this.logger.debug(`Relacionando sesión con UserIdentity ID: ${userIdentityId} (por IP)`);
+        }
+      }
+
+      // Determinar el nombre final (prioridad: nuevo > existente en Identity)
+      const finalUserName = data.userName || userIdentity?.userName || null;
+
+      // Primero crear/actualizar la sesión
+      const session = await this.prisma.userSession.upsert({
+        where: { sessionId: data.sessionId },
+        create: {
+          sessionId: data.sessionId,
+          userName: finalUserName,
+          lastSeen: data.lastSeen,
+        },
+        update: {
+          userName: finalUserName,
+          lastSeen: data.lastSeen,
+        },
+      });
+
+      // Luego actualizar la relación con raw SQL si hay userIdentityId
+      if (userIdentityId) {
+        await this.prisma.$executeRaw`UPDATE user_sessions SET user_identity_id = ${userIdentityId} WHERE session_id = ${data.sessionId}`;
+        
+        // 🔄 Si esta sesión tiene nombre, propagarlo a TODAS las sesiones del mismo usuario
+        if (finalUserName) {
+          const propagated = await this.prisma.userSession.updateMany({
+            where: { userIdentityId: userIdentityId },
+            data: { userName: finalUserName },
+          });
+          
+          // También actualizar UserIdentity si no tenía nombre
+          if (!userIdentity?.userName) {
+            await this.prisma.userIdentity.update({
+              where: { id: userIdentityId },
+              data: { userName: finalUserName },
+            });
+            this.logger.log(`✅ Nombre "${finalUserName}" guardado en UserIdentity`);
+          }
+          
+          this.logger.log(`✅ Nombre "${finalUserName}" propagado a ${propagated.count} sesiones`);
+        }
+      }
+
+      this.logger.log(`Sesión actualizada: ${session.sessionId} (UserIdentity: ${userIdentityId || 'ninguno'})`);
+      return {
+        message: 'Sesión actualizada exitosamente',
+        data: session,
+      };
+    } catch (error) {
+      this.logger.error(`Error al procesar sesión: ${error.message}`);
+      throw new DatabaseException('createOrUpdate session', error.message);
+    }
+  }
+
+  /**
+   * Obtener información de una sesión por ID
+   * @throws ResourceNotFoundException si la sesión no existe
+   */
+  async findById(sessionId: string) {
+    try {
+      this.logger.debug(`Buscando sesión: ${sessionId}`);
+
+      const session = await this.prisma.userSession.findUnique({
+        where: { sessionId },
+      });
+
+      if (!session) {
+        throw new ResourceNotFoundException('Sesión', sessionId);
+      }
+
+      this.logger.log(`Sesión encontrada: ${session.sessionId}`);
+      return {
+        message: 'Sesión encontrada',
+        data: session,
+      };
+    } catch (error) {
+      if (error instanceof ResourceNotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(`Error al buscar sesión: ${error.message}`);
+      throw new DatabaseException('findById session', error.message);
+    }
+  }
+
+  /**
+   * Obtener sesiones activas (últimas 24 horas)
+   */
+  async getActiveSessions() {
+    try {
+      this.logger.debug('Obteniendo sesiones activas');
+
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const activeSessions = await this.prisma.userSession.findMany({
+        where: {
+          lastSeen: {
+            gte: oneDayAgo,
+          },
+        },
+        orderBy: {
+          lastSeen: 'desc',
+        },
+      });
+
+      this.logger.log(`Se encontraron ${activeSessions.length} sesiones activas`);
+      return {
+        message: 'Sesiones activas obtenidas exitosamente',
+        data: activeSessions,
+        count: activeSessions.length,
+      };
+    } catch (error) {
+      this.logger.error(`Error al obtener sesiones activas: ${error.message}`);
+      throw new DatabaseException('getActiveSessions', error.message);
+    }
+  }
+
+  /**
+   * Obtener estadísticas de sesiones
+   */
+  async getStats() {
+    try {
+      this.logger.debug('Calculando estadísticas de sesiones');
+
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [
+        totalSessions,
+        activeToday,
+        activeThisWeek,
+      ] = await Promise.all([
+        this.prisma.userSession.count(),
+        this.prisma.userSession.count({
+          where: { lastSeen: { gte: oneDayAgo } },
+        }),
+        this.prisma.userSession.count({
+          where: { lastSeen: { gte: oneWeekAgo } },
+        }),
+      ]);
+
+      const stats = {
+        totalSessions,
+        activeToday,
+        activeThisWeek,
+        activityRateToday:
+          totalSessions > 0
+            ? ((activeToday / totalSessions) * 100).toFixed(2) + '%'
+            : '0%',
+      };
+
+      this.logger.log(`Estadísticas calculadas: ${JSON.stringify(stats)}`);
+      return {
+        message: 'Estadísticas obtenidas exitosamente',
+        data: stats,
+      };
+    } catch (error) {
+      this.logger.error(`Error al calcular estadísticas: ${error.message}`);
+      throw new DatabaseException('getStats', error.message);
+    }
+  }
+}

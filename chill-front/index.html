@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guille Dev - Portfolio Interactivo | Full Stack Developer</title>
+    <meta name="description" content="Portfolio interactivo de Guillermo Fernández, Full Stack Developer especializado en Backend. Explora proyectos en producción, tecnologías y agenda una entrevista.">
+    <meta name="keywords" content="Full Stack Developer, Backend Developer, Node.js, React, Portfolio, Guillermo Fernández">
+    <meta name="author" content="Guillermo Fernández">
+    
+    <!-- Import Map - Must be first -->
+    <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "@tabler/icons-react": "https://aistudiocdn.com/@tabler/icons-react@^3.35.0"
+  }
+}
+    </script>
+    
+    <!-- Google Tag Manager - Comentado hasta configurar GA ID real
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX', {
+        page_title: 'Portfolio Interactivo - Guillermo Fernández',
+        custom_map: {'custom_parameter_1': 'chat_interaction'}
+      });
+    </script>
+    -->
+
+    <!-- Microsoft Clarity - Comentado hasta configurar Clarity ID real
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "XXXXXXXXXX");
+    </script>
+    -->
+
+    <!-- Hotjar Tracking - Comentado hasta configurar Hotjar ID real
+    <script>
+      (function(h,o,t,j,a,r){
+        h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+        h._hjSettings={hjid:XXXXXXX,hjsv:6};
+        a=o.getElementsByTagName('head')[0];
+        r=o.createElement('script');r.async=1;
+        r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+        a.appendChild(r);
+      })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+    </script>
+    -->
+
+    <!-- Web Vitals - Comentado hasta configurar analytics
+    <script type="module">
+      import {getCLS, getFID, getFCP, getLCP, getTTFB} from 'https://unpkg.com/web-vitals@3/dist/web-vitals.js';
+
+      function sendToAnalytics(metric) {
+        gtag('event', metric.name, {
+          value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
+          event_category: 'Web Vitals',
+          event_label: metric.id,
+          non_interaction: true,
+        });
+      }
+
+      getCLS(sendToAnalytics);
+      getFID(sendToAnalytics);
+      getFCP(sendToAnalytics);
+      getLCP(sendToAnalytics);
+      getTTFB(sendToAnalytics);
+    </script>
+    -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              gray: {
+                850: '#1f2937',
+                925: '#111827',
+                975: '#030712'
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.6s ease-out',
+              'slide-up': 'slideUp 0.5s ease-out',
+              'bounce-slow': 'bounce 2s infinite',
+              'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+              'float': 'float 3s ease-in-out infinite'
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' }
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' }
+              },
+              pulseGlow: {
+                '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+                '50%': { opacity: '1', transform: 'scale(1.05)' }
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0px)' },
+                '50%': { transform: 'translateY(-5px)' }
+              }
+            },
+            backdropBlur: {
+              'xs': '2px'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #0b0f19;
+        color: #e5e7eb;
+      }
+      /* Custom scrollbar for Webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #374151;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #4b5563;
+      }
+      
+      /* Animación de slide de izquierda a derecha */
+      @keyframes slideInFromLeft {
+        0% {
+          transform: translateX(-100%);
+          opacity: 0;
+        }
+        100% {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes slideInFromRight {
+        0% {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        100% {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      /* Animación de float continuo */
+      @keyframes floatLeftRight {
+        0%, 100% {
+          transform: translateX(0);
+        }
+        50% {
+          transform: translateX(20px);
+        }
+      }
+      
+      /* Animación de bounce para el botón */
+      @keyframes bounceIn {
+        0% {
+          transform: scale(0);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      
+      /* Animación de caída del botón desde el personaje */
+      @keyframes dropFromCharacter {
+        0% {
+          position: fixed;
+          bottom: 20vh;
+          left: 50%;
+          transform: translateX(-50%) scale(0.5) rotate(0deg);
+          opacity: 0;
+          filter: blur(3px);
+        }
+        5% {
+          position: fixed;
+          bottom: 20vh;
+          left: 50%;
+          transform: translateX(-50%) scale(0.7) rotate(-5deg);
+          opacity: 1;
+          filter: blur(2px);
+        }
+        50% {
+          position: fixed;
+          bottom: 10vh;
+          left: 50%;
+          transform: translateX(-50%) scale(0.9) rotate(-2deg);
+          filter: blur(1px);
+        }
+        75% {
+          position: fixed;
+          bottom: 5vh;
+          left: 50%;
+          transform: translateX(-50%) scale(1.0) rotate(0deg);
+          filter: blur(0px);
+        }
+        95% {
+          position: fixed;
+          bottom: 0vh;
+          left: 50%;
+          transform: translateX(-50%) scale(1.1) rotate(0deg);
+          filter: blur(0px);
+        }
+        100% {
+          position: relative;
+          bottom: auto;
+          left: auto;
+          transform: translateX(0) translateY(0) scale(1) rotate(0deg);
+          opacity: 1;
+          filter: blur(0px);
+        }
+      }
+      
+      /* Animación fade-in suave */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      /* Animación de pulse suave */
+      @keyframes softPulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.8;
+          transform: scale(1.02);
+        }
+      }
+      
+      /* Glow effect */
+      @keyframes glow {
+        0%, 100% {
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+        }
+      }
+      
+      .animate-slide-in-left {
+        animation: slideInFromLeft 0.5s ease-out;
+      }
+      
+      .animate-slide-in-right {
+        animation: slideInFromRight 0.5s ease-out;
+      }
+      
+      .animate-float-lr {
+        animation: floatLeftRight 3s ease-in-out infinite;
+      }
+      
+      .animate-bounce-in {
+        animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+      
+      .animate-drop-from-character {
+        animation: dropFromCharacter 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+      
+      .animate-fade-in {
+        animation: fadeIn 0.6s ease-out;
+      }
+      
+      .animate-soft-pulse {
+        animation: softPulse 2s ease-in-out infinite;
+      }
+      
+      .animate-glow {
+        animation: glow 2s ease-in-out infinite;
+      }
+      
+      /* Smooth scroll behavior */
+      html {
+        scroll-behavior: smooth;
+      }
+      
+      /* Transiciones suaves en hover */
+      * {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+    </style>
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
