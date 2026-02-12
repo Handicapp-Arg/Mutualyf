@@ -1,7 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 
 import { Button } from '@/components/ui';
-import { cn } from '@/lib/utils';
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -13,7 +12,7 @@ interface MobileMenuProps {
 /**
  * Menú móvil fullscreen
  */
-export function MobileMenu({ isOpen, onClose, services, patientLinks }: MobileMenuProps) {
+export function MobileMenu({ isOpen, onClose, services }: MobileMenuProps) {
   if (!isOpen) return null;
 
   return (

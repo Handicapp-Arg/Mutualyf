@@ -24,21 +24,28 @@ export class ConversationsService {
     try {
       this.logger.debug(`Creando conversación para sessionId: ${data.sessionId}`);
 
+      // Extraer último mensaje del usuario y última respuesta del bot
+      const userMessages = data.messages.filter((m) => m.role === 'user');
+      const assistantMessages = data.messages.filter((m) => m.role === 'assistant');
+
+      const userMessage = userMessages[userMessages.length - 1]?.content || '';
+      const botResponse = assistantMessages[assistantMessages.length - 1]?.content || '';
+
       // Validación de negocio adicional
-      if (data.userMessage.trim().length === 0) {
+      if (userMessage.trim().length === 0) {
         throw new BusinessException('El mensaje del usuario no puede estar vacío');
       }
 
-      if (data.botResponse.trim().length === 0) {
+      if (botResponse.trim().length === 0) {
         throw new BusinessException('La respuesta del bot no puede estar vacía');
       }
 
       const conversation = await this.prisma.conversation.create({
         data: {
           sessionId: data.sessionId,
-          userMessage: data.userMessage,
-          botResponse: data.botResponse,
-          timestamp: data.timestamp,
+          userMessage: userMessage,
+          botResponse: botResponse,
+          timestamp: data.timestamp || new Date().toISOString(),
           aiModel: data.aiModel || null,
           userFeedback: data.userFeedback ?? null,
         },
@@ -46,6 +53,7 @@ export class ConversationsService {
 
       this.logger.log(`Conversación creada exitosamente: ${conversation.id}`);
       return {
+        id: conversation.id,
         message: 'Conversación guardada exitosamente',
         data: conversation,
       };
@@ -126,6 +134,7 @@ export class ConversationsService {
         conversationsWithFeedback,
         positiveFeedback,
         negativeFeedback,
+        allConversations,
       ] = await Promise.all([
         this.prisma.conversation.count(),
         this.prisma.conversation.count({
@@ -137,9 +146,38 @@ export class ConversationsService {
         this.prisma.conversation.count({
           where: { userFeedback: false },
         }),
+        this.prisma.conversation.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }),
       ]);
 
-      const stats = {
+      // Calcular total de mensajes
+      const totalMessages = allConversations.length * 2; // cada conversación = 1 user + 1 bot
+
+      // Formatear conversaciones para el frontend
+      const conversations = allConversations.map((conv) => ({
+        id: conv.id.toString(),
+        sessionId: conv.sessionId,
+        messages: [
+          {
+            role: 'user',
+            content: conv.userMessage,
+            timestamp: conv.timestamp,
+          },
+          {
+            role: 'assistant',
+            content: conv.botResponse,
+            timestamp: conv.timestamp,
+          },
+        ],
+        timestamp: conv.timestamp,
+      }));
+
+      const result = {
+        total: totalConversations,
+        totalMessages: totalMessages,
+        conversations: conversations,
         totalConversations,
         conversationsWithFeedback,
         positiveFeedback,
@@ -154,11 +192,10 @@ export class ConversationsService {
             : '0%',
       };
 
-      this.logger.log(`Estadísticas calculadas: ${JSON.stringify(stats)}`);
-      return {
-        message: 'Estadísticas obtenidas exitosamente',
-        data: stats,
-      };
+      this.logger.log(
+        `Estadísticas calculadas: ${JSON.stringify({ total: result.total, conversations: result.conversations.length })}`
+      );
+      return result;
     } catch (error) {
       this.logger.error(`Error al calcular estadísticas: ${error.message}`);
       throw new DatabaseException('getStats', error.message);

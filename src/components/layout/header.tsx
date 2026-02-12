@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui';
 import { useScrolled } from '@/hooks';
@@ -149,10 +150,12 @@ export function Header() {
           </a>
         </div>
 
-        {/* CTA Button */}
-        <Button className="hidden lg:block" size="md">
-          PORTAL PACIENTE
-        </Button>
+        {/* Admin Portal Button */}
+        <Link to="/admin">
+          <Button className="hidden lg:block" size="md">
+            ADMIN PORTAL
+          </Button>
+        </Link>
 
         {/* Mobile Menu Toggle */}
         <button

@@ -1,11 +1,10 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { ChevronLeft, ChevronRight, Award } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 const technologies = [
   {
@@ -94,7 +93,9 @@ const technologies = [
 ];
 
 export function TechnologySection() {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 5000, stopOnInteraction: false })]);
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start' }, [
+    Autoplay({ delay: 5000, stopOnInteraction: false }),
+  ]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
 
@@ -123,13 +124,15 @@ export function TechnologySection() {
           viewport={{ once: true }}
           className="mb-16 text-center"
         >
-          <Badge variant="default" className="mb-4">Innovación Digital</Badge>
+          <Badge variant="default" className="mb-4">
+            Innovación Digital
+          </Badge>
           <h2 className="text-4xl font-bold tracking-tight text-slate-900 lg:text-5xl">
             Tecnología de <span className="text-corporate">Vanguardia</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
-            Equipamiento de última generación para garantizar diagnósticos precisos
-            y tratamientos exitosos.
+            Equipamiento de última generación para garantizar diagnósticos precisos y
+            tratamientos exitosos.
           </p>
         </motion.div>
 
@@ -138,7 +141,10 @@ export function TechnologySection() {
           <div className="overflow-hidden px-2" ref={emblaRef}>
             <div className="-ml-4 flex touch-pan-y py-4">
               {technologies.map((tech) => (
-                <div key={tech.id} className="flex min-w-0 flex-[0_0_100%] pl-4 sm:flex-[0_0_50%] lg:flex-[0_0_33.333%]">
+                <div
+                  key={tech.id}
+                  className="flex min-w-0 flex-[0_0_100%] pl-4 sm:flex-[0_0_50%] lg:flex-[0_0_33.333%]"
+                >
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     whileInView={{ opacity: 1, scale: 1 }}
@@ -160,14 +166,19 @@ export function TechnologySection() {
                     </div>
 
                     <div className="p-6">
-                      <h3 className="mb-2 text-xl font-bold text-slate-900 group-hover:text-corporate transition-colors">{tech.name}</h3>
+                      <h3 className="mb-2 text-xl font-bold text-slate-900 transition-colors group-hover:text-corporate">
+                        {tech.name}
+                      </h3>
                       <p className="mb-4 text-sm leading-relaxed text-slate-600">
                         {tech.description}
                       </p>
 
                       <div className="mb-4 space-y-2">
                         {tech.specs.map((spec, idx) => (
-                          <div key={idx} className="flex items-center text-xs text-slate-500">
+                          <div
+                            key={idx}
+                            className="flex items-center text-xs text-slate-500"
+                          >
                             <ChevronRight size={12} className="mr-1 text-corporate" />
                             {spec}
                           </div>
@@ -176,8 +187,8 @@ export function TechnologySection() {
 
                       <div className="flex items-center justify-between border-t border-slate-100 pt-4">
                         <div className="flex items-center gap-2 text-sm font-semibold text-corporate">
-                           <Award size={16} />
-                           {tech.highlight}
+                          <Award size={16} />
+                          {tech.highlight}
                         </div>
                       </div>
                     </div>
@@ -211,7 +222,9 @@ export function TechnologySection() {
               key={index}
               onClick={() => emblaApi?.scrollTo(index)}
               className={`h-2.5 w-2.5 rounded-full transition-all ${
-                index === selectedIndex ? 'bg-corporate w-8' : 'bg-slate-300 hover:bg-slate-400'
+                index === selectedIndex
+                  ? 'w-8 bg-corporate'
+                  : 'bg-slate-300 hover:bg-slate-400'
               }`}
               aria-label={`Ir a diapositiva ${index + 1}`}
             />

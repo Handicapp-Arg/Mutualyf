@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Bot, UploadCloud, Clock, Phone, Terminal } from 'lucide-react';
-
-import { Button } from '@/components/ui';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { BotFace } from './bot-face';
@@ -43,17 +41,11 @@ export function NexusBot() {
           className={cn(
             'relative flex h-24 w-24 items-center justify-center rounded-full shadow-2xl transition-all duration-700',
             'animate-[bot-glow_3s_infinite]',
-            isBotActive
-              ? 'rotate-90 bg-slate-900'
-              : 'bg-corporate group'
+            isBotActive ? 'rotate-90 bg-slate-900' : 'group bg-corporate'
           )}
           aria-label={isBotActive ? 'Cerrar Nexus Bot' : 'Abrir Nexus Bot'}
         >
-          {isBotActive ? (
-            <X size={32} className="text-white" />
-          ) : (
-            <BotFace />
-          )}
+          {isBotActive ? <X size={32} className="text-white" /> : <BotFace />}
         </button>
       </div>
 

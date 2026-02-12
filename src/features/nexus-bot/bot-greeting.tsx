@@ -1,5 +1,3 @@
-import { cn } from '@/lib/utils';
-
 interface BotGreetingProps {
   show: boolean;
 }
@@ -20,9 +18,8 @@ export function BotGreeting({ show }: BotGreetingProps) {
           </span>
         </div>
         <p className="text-xs font-bold leading-tight text-slate-600">
-          ¡Hola! Soy Nexus.{' '}
-          <span className="text-corporate">Carga tu órden aquí</span> para
-          agilizar tu trámite.
+          ¡Hola! Soy Nexus. <span className="text-corporate">Carga tu órden aquí</span>{' '}
+          para agilizar tu trámite.
         </p>
         {/* Flecha del globo */}
         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border-b border-r border-blue-50 bg-white" />

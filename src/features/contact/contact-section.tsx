@@ -8,9 +8,8 @@ import {
   Navigation,
 } from 'lucide-react';
 
-import { Badge, Button } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { siteConfig } from '@/config/site';
-import { cn } from '@/lib/utils';
 
 /**
  * Contact Section - Sección de Contacto CIOR
