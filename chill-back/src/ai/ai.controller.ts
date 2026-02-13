@@ -49,7 +49,10 @@ export class AiController {
         throw new InternalServerErrorException(errorMsg);
       }
       const data = await res.json();
-      return { response: data?.choices?.[0]?.message?.content || 'Sin respuesta de Groq.' };
+      if (data && typeof data === 'object' && Array.isArray((data as any).choices)) {
+        return { response: (data as any).choices[0]?.message?.content || 'Sin respuesta de Groq.' };
+      }
+      return { response: 'Sin respuesta de Groq.' };
     } catch (e) {
       throw new InternalServerErrorException('Error al consultar Groq: ' + (e instanceof Error ? e.message : e));
     }

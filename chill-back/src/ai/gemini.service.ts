@@ -33,7 +33,9 @@ export class GeminiService {
       const data = await res.json();
       // Gemini responde en data.candidates[0].content.parts[0].text
       return (
-        data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.'
+        (data && typeof data === 'object' && Array.isArray((data as any).candidates))
+          ? (data as any).candidates[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.'
+          : 'Sin respuesta de Gemini.'
       );
     } catch (e) {
       throw new InternalServerErrorException('Error al consultar Gemini: ' + (e instanceof Error ? e.message : e));

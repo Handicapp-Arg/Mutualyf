@@ -48,25 +48,25 @@ export function ChatInterface() {
           }))
         );
       } else {
-        // Mensaje de bienvenida si no hay historial
+        // Saludo profesional y guía de temas si no hay historial
         setMessages([
           {
             id: '1',
             role: 'assistant',
             content:
-              '¡Hola! Soy Nexus, el asistente virtual de CIOR Imágenes. Estoy aquí para ayudarte con información sobre nuestros estudios, turnos y servicios. ¿Cómo podría llamarte?',
+              '👋 ¡Hola! Soy NexusBot de **CIOR** - Centro de Imágenes y Odontología Radiológica.\n\n¿En qué puedo ayudarte hoy?\n\n📋 **Puedo informarte sobre:**\n• Servicios y estudios disponibles\n• Horarios y ubicación\n• Cómo subir tu orden médica\n• Agendar turnos\n• Tecnología y procedimientos\n\nPor favor, dime tu consulta específica.',
             timestamp: new Date(),
           },
         ]);
       }
     } catch (error) {
-      // Si falla la carga, mostrar mensaje de bienvenida
+      // Si falla la carga, mostrar saludo profesional
       setMessages([
         {
           id: '1',
           role: 'assistant',
           content:
-            '¡Hola! Soy Nexus, el asistente virtual de CIOR Imágenes. Estoy aquí para ayudarte con información sobre nuestros estudios, turnos y servicios. ¿Cómo podría llamarte?',
+            '👋 ¡Hola! Soy NexusBot de **CIOR** - Centro de Imágenes y Odontología Radiológica.\n\n¿En qué puedo ayudarte hoy?\n\n📋 **Puedo informarte sobre:**\n• Servicios y estudios disponibles\n• Horarios y ubicación\n• Cómo subir tu orden médica\n• Agendar turnos\n• Tecnología y procedimientos\n\nPor favor, dime tu consulta específica.',
           timestamp: new Date(),
         },
       ]);
@@ -284,7 +284,10 @@ export function ChatInterface() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4">
+      <div
+        className="flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4"
+        style={{ maxHeight: '350px', minHeight: '200px' }}
+      >
         {messages.map((message) => (
           <div
             key={message.id}
@@ -348,7 +351,7 @@ export function ChatInterface() {
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+  <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
