@@ -41,10 +41,14 @@ export class BackendAPIService {
   /**
    * Guardar conversación en el backend
    */
-  async saveConversation(messages: ConversationData['messages']): Promise<void> {
+  async saveConversation(
+    messages: ConversationData['messages'],
+    userName?: string
+  ): Promise<void> {
     try {
       const payload = {
         sessionId: this.sessionId,
+        userName: userName || undefined,
         messages,
         timestamp: new Date(),
       };

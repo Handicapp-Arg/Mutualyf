@@ -31,6 +31,10 @@ export class CreateConversationDto {
   @IsNotEmpty({ message: 'El sessionId es obligatorio' })
   sessionId: string;
 
+  @IsOptional()
+  @IsString()
+  userName?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => MessageDto)

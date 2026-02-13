@@ -64,24 +64,6 @@ export function Header() {
     { title: 'Contacto', href: '#contacto' },
   ];
 
-  const professionalLinks = [
-    {
-      title: 'Email Profesional',
-      href: 'https://www.ciorimagenes.com.ar/webmail',
-      external: true,
-    },
-    {
-      title: 'Descargar Órdenes',
-      href: 'https://www.ciorimagenes.com.ar/wp-content/uploads/2019/09/Prescripciones_de_practicas.pdf',
-      external: true,
-    },
-    {
-      title: 'Tutoriales YouTube',
-      href: 'https://www.youtube.com/channel/UCIX2lAdk6nYgpL4tw6Xmgzg',
-      external: true,
-    },
-  ];
-
   return (
     <nav
       className={cn(
@@ -129,18 +111,8 @@ export function Header() {
             href="#equipo"
             className="text-[11px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-corporate"
           >
-            Equipo
+            Profesionales
           </a>
-
-          <NavDropdown
-            trigger={
-              <button className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-corporate">
-                Profesionales <ChevronDown size={14} />
-              </button>
-            }
-            items={professionalLinks}
-            className="w-64"
-          />
 
           <a
             href="#contacto"

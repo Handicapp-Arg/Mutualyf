@@ -35,6 +35,7 @@ model UserIdentity {
 model Conversation {
   id             Int           @id @default(autoincrement())
   sessionId      String        @map("session_id")
+  userName       String?       @map("user_name")
   userMessage    String        @map("user_message")
   botResponse    String        @map("bot_response")
   timestamp      String

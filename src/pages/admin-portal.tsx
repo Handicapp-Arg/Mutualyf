@@ -18,6 +18,7 @@ interface Message {
 interface Conversation {
   id: string;
   sessionId: string;
+  userName?: string;
   messages: Message[];
   timestamp: Date;
 }
@@ -99,8 +100,10 @@ export function AdminPortal() {
       const uploadsRes = await fetch(`${BACKEND_URL}/uploads/all`);
       if (uploadsRes.ok) {
         const uploadsData = await uploadsRes.json();
-        setUploads(uploadsData);
-        setStats((prev) => ({ ...prev, totalUploads: uploadsData.length }));
+        // Asegurarse de que uploadsData sea un array
+        const uploadsArray = Array.isArray(uploadsData) ? uploadsData : [];
+        setUploads(uploadsArray);
+        setStats((prev) => ({ ...prev, totalUploads: uploadsArray.length }));
       }
     } catch (error) {
       console.error('Error cargando datos:', error);
@@ -332,10 +335,15 @@ export function AdminPortal() {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <p className="text-xs font-bold text-slate-500">
+                              <div className="mb-1 flex items-center gap-2">
+                                <p className="text-sm font-bold text-corporate">
+                                  {conv.userName || 'Anónimo'}
+                                </p>
+                              </div>
+                              <p className="text-xs text-slate-500">
                                 Sesión: {conv.sessionId.substring(0, 20)}...
                               </p>
-                              <p className="mt-1 text-sm font-bold text-slate-700">
+                              <p className="mt-1 text-sm font-medium text-slate-700">
                                 {conv.messages.length} mensajes
                               </p>
                               <p className="mt-1 text-xs text-slate-400">

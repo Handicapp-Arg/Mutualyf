@@ -26,7 +26,7 @@ export function NexusBot() {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end gap-4">
+    <div className="fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-4 sm:bottom-8 sm:right-8">
       {/* Burbuja de Saludo */}
       <BotGreeting show={showGreeting && !isBotActive} />
 
@@ -39,13 +39,17 @@ export function NexusBot() {
         <button
           onClick={handleToggle}
           className={cn(
-            'relative flex h-24 w-24 items-center justify-center rounded-full shadow-2xl transition-all duration-700',
+            'relative flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all duration-700 sm:h-24 sm:w-24',
             'animate-[bot-glow_3s_infinite]',
             isBotActive ? 'rotate-90 bg-slate-900' : 'group bg-corporate'
           )}
           aria-label={isBotActive ? 'Cerrar Nexus Bot' : 'Abrir Nexus Bot'}
         >
-          {isBotActive ? <X size={32} className="text-white" /> : <BotFace />}
+          {isBotActive ? (
+            <X size={24} className="text-white sm:h-8 sm:w-8" />
+          ) : (
+            <BotFace />
+          )}
         </button>
       </div>
 

@@ -54,7 +54,7 @@ export function ChatInterface() {
             id: '1',
             role: 'assistant',
             content:
-              '¡Hola! Soy el asistente virtual de CIOR. ¿En qué puedo ayudarte hoy?',
+              '¡Hola! Soy Nexus, el asistente virtual de CIOR Imágenes. Estoy aquí para ayudarte con información sobre nuestros estudios, turnos y servicios. ¿Cómo podría llamarte?',
             timestamp: new Date(),
           },
         ]);
@@ -65,7 +65,8 @@ export function ChatInterface() {
         {
           id: '1',
           role: 'assistant',
-          content: '¡Hola! Soy el asistente virtual de CIOR. ¿En qué puedo ayudarte hoy?',
+          content:
+            '¡Hola! Soy Nexus, el asistente virtual de CIOR Imágenes. Estoy aquí para ayudarte con información sobre nuestros estudios, turnos y servicios. ¿Cómo podría llamarte?',
           timestamp: new Date(),
         },
       ]);
@@ -104,14 +105,31 @@ export function ChatInterface() {
 
   // Detectar nombre en el mensaje del usuario
   const detectName = (text: string) => {
+    const trimmed = text.trim();
+    const words = trimmed.split(/\s+/);
+
+    // Patrones para detectar nombre
     const namePatterns = [
       /(?:me llamo|soy|mi nombre es)\s+([a-záéíóúñ]+)/i,
-      /^([a-záéíóúñ]+)$/i, // Solo si es un mensaje de una palabra
+      /^([a-záéíóúñ]{3,20})$/i, // Una sola palabra (nombre)
+      /^([a-záéíóúñ]{3,20})\s+([a-záéíóúñ]{3,20})$/i, // Nombre y apellido
     ];
 
+    // Si es respuesta corta (1-2 palabras), probablemente sea el nombre
+    if (words.length === 1 && /^[a-záéíóúñ]{3,20}$/i.test(trimmed)) {
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    }
+
+    if (words.length === 2 && words.every((w) => /^[a-záéíóúñ]{3,20}$/i.test(w))) {
+      return words
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+
+    // Patrones con frases explícitas
     for (const pattern of namePatterns) {
-      const match = text.match(pattern);
-      if (match && match[1] && text.split(' ').length <= 3) {
+      const match = trimmed.match(pattern);
+      if (match && match[1]) {
         const detectedName =
           match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
         if (detectedName.length >= 3 && detectedName.length <= 20) {
@@ -119,6 +137,7 @@ export function ChatInterface() {
         }
       }
     }
+
     return null;
   };
 
@@ -179,7 +198,7 @@ export function ChatInterface() {
         userMessage,
         { ...assistantMessage, content: assistantContent },
       ];
-      backendService.current.saveConversation(currentMessages);
+      backendService.current.saveConversation(currentMessages, userName);
     } catch (error) {
       console.error('Error:', error);
       setMessages((prev) => [
@@ -249,37 +268,37 @@ export function ChatInterface() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-slate-100 p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-corporate text-white">
-            <MessageCircle size={20} />
+      <div className="flex-shrink-0 border-b border-slate-100 p-3 sm:p-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-corporate text-white sm:h-10 sm:w-10">
+            <MessageCircle size={16} className="sm:h-5 sm:w-5" />
           </div>
           <div>
-            <h4 className="font-bold text-slate-800">Chat CIOR</h4>
+            <h4 className="text-sm font-bold text-slate-800 sm:text-base">Chat CIOR</h4>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500" />
-              <span className="text-xs text-slate-400">En línea</span>
+              <div className="h-1.5 w-1.5 rounded-full bg-green-500 sm:h-2 sm:w-2" />
+              <span className="text-[10px] text-slate-400 sm:text-xs">En línea</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-4">
         {messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div className="max-w-[80%]">
+            <div className="max-w-[85%] sm:max-w-[80%]">
               <div
-                className={`rounded-2xl px-4 py-2 ${
+                className={`rounded-2xl px-3 py-2 sm:px-4 ${
                   message.role === 'user'
                     ? 'bg-corporate text-white'
                     : 'bg-slate-100 text-slate-800'
                 }`}
               >
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                <p className="whitespace-pre-wrap text-xs leading-relaxed sm:text-sm">
                   {message.content}
                 </p>
               </div>
@@ -323,9 +342,9 @@ export function ChatInterface() {
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2">
-              <Loader2 size={16} className="animate-spin text-corporate" />
-              <span className="text-sm text-slate-600">Escribiendo...</span>
+            <div className="flex items-center gap-1.5 rounded-2xl bg-slate-100 px-3 py-2 sm:gap-2 sm:px-4">
+              <Loader2 size={14} className="animate-spin text-corporate sm:h-4 sm:w-4" />
+              <span className="text-xs text-slate-600 sm:text-sm">Escribiendo...</span>
             </div>
           </div>
         )}
@@ -333,8 +352,11 @@ export function ChatInterface() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-slate-100 p-4">
-        <div className="mb-3 flex gap-2">
+      <form
+        onSubmit={handleSubmit}
+        className="flex-shrink-0 border-t border-slate-100 p-3 sm:p-4"
+      >
+        <div className="mb-2 flex gap-2 sm:mb-3">
           <input
             type="file"
             ref={fileInputRef}
@@ -368,15 +390,15 @@ export function ChatInterface() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Escribe tu consulta..."
-            className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm focus:border-corporate focus:outline-none focus:ring-2 focus:ring-corporate/20"
+            className="flex-1 rounded-full border border-slate-200 px-3 py-2 text-xs focus:border-corporate focus:outline-none focus:ring-2 focus:ring-corporate/20 sm:px-4 sm:text-sm"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !inputText.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-corporate text-white transition-all hover:bg-corporate/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-corporate text-white transition-all hover:bg-corporate/90 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
           >
-            <Send size={18} />
+            <Send size={16} className="sm:h-[18px] sm:w-[18px]" />
           </button>
         </div>
       </form>

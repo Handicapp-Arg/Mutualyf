@@ -43,6 +43,7 @@ export class ConversationsService {
       const conversation = await this.prisma.conversation.create({
         data: {
           sessionId: data.sessionId,
+          userName: data.userName || null,
           userMessage: userMessage,
           botResponse: botResponse,
           timestamp: data.timestamp || new Date().toISOString(),
@@ -159,6 +160,7 @@ export class ConversationsService {
       const conversations = allConversations.map((conv) => ({
         id: conv.id.toString(),
         sessionId: conv.sessionId,
+        userName: conv.userName || 'Anónimo',
         messages: [
           {
             role: 'user',
