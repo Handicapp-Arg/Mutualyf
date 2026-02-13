@@ -159,19 +159,21 @@ Pregunta del usuario: ${message}`,
       ubicacion:
         '📍 **Ubicación de CIOR:**\n\n🏥 Dirección: [Insertar dirección completa]\n📞 Teléfono: [Teléfono]\n📧 Email: contacto@cior.com.ar\n\n🚗 Contamos con estacionamiento disponible. ¿Necesitas indicaciones para llegar?',
       cbct: '🔬 **Tomografía CBCT (Cone Beam):**\n\nEs un estudio 3D de alta resolución que permite:\n✓ Visualización completa de estructuras dentales\n✓ Planificación precisa de implantes\n✓ Evaluación de hueso y nervios\n✓ Diagnóstico de patologías\n\n⏱️ Duración: 15-20 min\n📊 Resultados: 24-48hs\n☢️ Mínima radiación\n\n¿Tienes orden médica para este estudio?',
-      default:
-        '👋 ¡Hola! Soy NexusBot de **CIOR** - Centro de Imágenes y Odontología Radiológica.\n\n¿En qué puedo ayudarte hoy?\n\n📋 **Puedo informarte sobre:**\n• Servicios y estudios disponibles\n• Horarios y ubicación\n• Cómo subir tu orden médica\n• Agendar turnos\n• Tecnología y procedimientos\n\n¿Qué te gustaría saber?',
+      fallback:
+        '🤖 No encontré información específica para tu consulta, pero puedo ayudarte con servicios, turnos, estudios, tecnología, ubicación y más. Por favor, intenta ser más específico o pregunta por un servicio concreto.',
     };
 
     const lowerMessage = message.toLowerCase();
-    let response: string;
+    let response: string | null = null;
 
     if (lowerMessage.includes('horario') || lowerMessage.includes('hora'))
       response = responses.horario;
     else if (
       lowerMessage.includes('servicio') ||
+      lowerMessage.includes('estudio') ||
       lowerMessage.includes('que hacen') ||
-      lowerMessage.includes('qué hacen')
+      lowerMessage.includes('qué hacen') ||
+      lowerMessage.includes('ofrecen')
     )
       response = responses.servicios;
     else if (
@@ -201,7 +203,10 @@ Pregunta del usuario: ${message}`,
       lowerMessage.includes('3d')
     )
       response = responses.cbct;
-    else response = responses.default;
+
+    if (!response) {
+      response = responses.fallback;
+    }
 
     // Simular streaming
     for (const char of response) {

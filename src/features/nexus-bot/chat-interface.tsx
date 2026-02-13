@@ -145,7 +145,26 @@ export function ChatInterface() {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
 
-    // Detectar nombre si aún no lo tenemos
+    // Si el usuario solo dice "hola" o variantes, mostrar solo el saludo profesional y guía
+    const normalized = inputText.trim().toLowerCase();
+    if (["hola", "buenas", "buenos días", "buenas tardes", "buenas noches"].includes(normalized)) {
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: inputText,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: '👋 ¡Hola! Soy NexusBot de **CIOR** - Centro de Imágenes y Odontología Radiológica.\n\n¿En qué puedo ayudarte hoy?\n\n📋 **Puedo informarte sobre:**\n• Servicios y estudios disponibles\n• Horarios y ubicación\n• Cómo subir tu orden médica\n• Agendar turnos\n• Tecnología y procedimientos\n\nPor favor, dime tu consulta específica.',
+        timestamp: new Date(),
+      }]);
+      setInputText('');
+      return;
+    }
+
+    // Detectar nombre si aún no lo tenemos (solo si no es saludo)
     if (!userName) {
       const detected = detectName(inputText);
       if (detected) {
@@ -168,45 +187,39 @@ export function ChatInterface() {
 
     try {
       let assistantContent = '';
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // Personalizar mensaje si detectamos el nombre
-      let messageToSend = currentInput;
-      if (userName && currentInput.toLowerCase().includes('me llamo')) {
-        messageToSend = `${currentInput} (Ya tengo tu nombre guardado: ${userName})`;
-      }
-
-      for await (const chunk of chatService.current.sendMessage(messageToSend)) {
+      // Obtener respuesta de la IA (streaming o fallback)
+      for await (const chunk of chatService.current.sendMessage(inputText)) {
         assistantContent += chunk;
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessage.id ? { ...msg, content: assistantContent } : msg
-          )
-        );
+        setMessages((prev) => {
+          // Actualiza el último mensaje del asistente, o lo agrega si no existe
+          const lastIdx = prev.length - 1;
+          if (prev[lastIdx]?.role === 'assistant') {
+            // Actualiza el último mensaje del asistente
+            return [
+              ...prev.slice(0, lastIdx),
+              { ...prev[lastIdx], content: assistantContent },
+            ];
+          } else {
+            // Agrega un nuevo mensaje del asistente
+            return [
+              ...prev,
+              {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: assistantContent,
+                timestamp: new Date(),
+              },
+            ];
+          }
+        });
       }
-
-      // Guardar conversación en el backend
-      const currentMessages = [
-        ...messages,
-        userMessage,
-        { ...assistantMessage, content: assistantContent },
-      ];
-      backendService.current.saveConversation(currentMessages, userName);
     } catch (error) {
-      console.error('Error:', error);
       setMessages((prev) => [
         ...prev,
         {
-          id: (Date.now() + 2).toString(),
+          id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'Lo siento, hubo un error. Por favor intenta nuevamente.',
+          content: '❌ Hubo un error procesando tu consulta. Por favor, intenta nuevamente.',
           timestamp: new Date(),
         },
       ]);

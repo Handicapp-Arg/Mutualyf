@@ -35,7 +35,7 @@ export function responderCIOR(mensaje: string): string {
     return nombre && lower.includes(nombre);
   });
   if (match) {
-    return `${match.nombre}: ${match.descripcion} Precio: ${match.precio}`;
+    return `${match.nombre}: ${match.descripcion}\n💲 Precio: ${match.precio}\n💳 Descuentos y reintegros: Consultá por descuentos con obras sociales y prepagas. Muchos estudios tienen reintegro parcial o total según tu cobertura. Si tenés obra social, podés presentar tu credencial y consultar por reintegros.`;
   }
   // Default
   return '¿En qué puedo ayudarte sobre CIOR Imágenes?';
