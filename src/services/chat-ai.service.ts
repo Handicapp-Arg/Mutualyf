@@ -10,6 +10,7 @@ interface ChatMessage {
 
 // @ts-ignore - Vite env variables
 const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY || '';
+const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
 /**
  * Servicio principal de chat con IA
@@ -19,28 +20,54 @@ export class ChatAIService {
 
   /**
    * Enviar mensaje y obtener respuesta streaming
+   * Cascada: Grok → Gemini → Fallback
    */
   async *sendMessage(userMessage: string): AsyncGenerator<string, void, unknown> {
     this.history.push({ role: 'user', content: userMessage });
 
+    // Nivel 1: Intentar con Grok primero (vía backend con Groq API)
     try {
-      // Intentar con Gemini primero
-      if (GEMINI_API_KEY) {
-        yield* this.streamWithGemini(userMessage);
-      } else {
-        // Fallback: respuesta básica
-        yield* this.fallbackResponse(userMessage);
-      }
+      console.log('🤖 Intentando con Grok (Groq API)...');
+      yield* this.streamWithGrok(userMessage);
+      return; // Si funciona, salir
     } catch (error) {
-      console.error('Error en chat:', error);
-      yield* this.fallbackResponse(userMessage);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn('⚠️ Grok falló:', errorMsg);
+      console.log('🔄 Intentando con Gemini...');
     }
+
+    // Nivel 2: Intentar con Gemini como fallback
+    if (GEMINI_API_KEY) {
+      try {
+        yield* this.streamWithGemini(userMessage);
+        return; // Si funciona, salir
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes('404')) {
+          console.error('❌ Gemini: API key inválida o modelo no disponible');
+        } else if (errorMsg.includes('429')) {
+          console.error('⚠️ Gemini: Cuota de requests excedida');
+        } else {
+          console.warn('⚠️ Gemini falló:', errorMsg);
+        }
+        console.log('🔄 Usando respuestas predefinidas...');
+      }
+    }
+
+    // Nivel 3: Fallback local
+    console.log('📋 Usando respuestas automáticas (IA no disponible)');
+    yield* this.fallbackResponse(userMessage);
   }
 
   /**
    * Stream con Gemini API
    */
   private async *streamWithGemini(message: string): AsyncGenerator<string> {
+    // System prompt compacto incluido en el mensaje
+    const fullPrompt = `Contexto: Eres Nexus, asistente de CIOR Imágenes (Balcarce 1001, Rosario). Tel: (0341) 425-8501. WhatsApp: 341 301 7960. Horario: L-V 8-19hs. Servicios: radiología odontológica, tomografía 3D CBCT, ortodoncia digital. NO requieren turno previo. Equipo: Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal. NO agendás turnos (derivá a WhatsApp), NO hacés diagnósticos. Tono: amable, profesional.
+
+Pregunta: ${message}`;
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${GEMINI_API_KEY}`,
       {
@@ -50,66 +77,25 @@ export class ChatAIService {
           contents: [
             {
               role: 'user',
-              parts: [
-                {
-                  text: `Eres Nexus, el asistente virtual oficial del Centro CIOR (Centro de Imágenes y Odontología Radiológica).
-
-**CONTEXTO DEL USUARIO:**
-- Si aún no conoces su nombre, salúdalo y pregúntale cómo se llama de forma natural
-- Si ya te dio su nombre, úsalo en la conversación para personalizar
-- Cuando te diga su nombre, responde con algo como: "¡Encantado [Nombre]! ¿En qué puedo ayudarte hoy?"
-
-**INFORMACIÓN CLAVE DE CIOR:**
-
-📍 **Ubicación**: [Insertar dirección real]
-📞 **Teléfono**: [Insertar teléfono]
-📧 **Email**: contacto@cior.com.ar
-⏰ **Horario**: Lunes a Viernes 8:00-20:00hs | Sábados 9:00-13:00hs
-
-**SERVICIOS PRINCIPALES:**
-- Tomografía Computada Cone Beam (CBCT) - Alta resolución 3D
-- Radiografías panorámicas digitales
-- Telerradiografías cefalométricas
-- Radiografías periapicales
-- Escaneo intraoral digital
-- Modelos digitales 3D
-- Planificación de implantes
-- Análisis ortodóncico completo
-
-**TECNOLOGÍA:**
-- Equipos de última generación con mínima radiación
-- Resultados en formato digital inmediato
-- Plataforma segura para médicos
-- Software de diagnóstico avanzado
-
-**PROCESO DE ATENCIÓN:**
-1. El paciente trae orden médica (física o puede subirla aquí)
-2. Se agenda turno (mismo día disponible)
-3. Estudio realizado en 15-20 minutos
-4. Resultados digitales en 24-48hs
-5. Entrega a odontólogo tratante vía plataforma segura
-
-**TU FUNCIÓN:**
-- Responder consultas sobre servicios y tecnología
-- Explicar procedimientos y tiempos
-- Guiar sobre cómo subir órdenes médicas
-- Proporcionar información de contacto y ubicación
-- Resolver dudas sobre estudios específicos
-
-⚠️ **IMPORTANTE**: NO puedes agendar turnos directamente. Para turnos, el paciente debe llamar al teléfono o usar WhatsApp.
-
-**TONO**: Amable, profesional, cercano. Usa el nombre del usuario cuando lo conozcas. Emojis ocasionales para claridad.
-
-Pregunta del usuario: ${message}`,
-                },
-              ],
+              parts: [{ text: fullPrompt }],
             },
           ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+          },
         }),
       }
     );
 
-    if (!response.ok) throw new Error('Gemini API error');
+    if (!response.ok) {
+      const status = response.status;
+      if (status === 404)
+        throw new Error('404: Gemini API key inválida o modelo no disponible');
+      if (status === 429) throw new Error('429: Cuota de Gemini excedida');
+      if (status === 403) throw new Error('403: Acceso denegado a Gemini API');
+      throw new Error(`Gemini API error: ${status}`);
+    }
 
     const reader = response.body?.getReader();
     if (!reader) throw new Error('No reader available');
@@ -138,6 +124,67 @@ Pregunta del usuario: ${message}`,
           }
         }
       }
+    }
+
+    this.history.push({ role: 'assistant', content: fullResponse });
+  }
+
+  /**
+   * Stream con Grok API (vía backend)
+   */
+  private async *streamWithGrok(message: string): AsyncGenerator<string> {
+    const systemPrompt = `Eres Nexus, el asistente virtual oficial de CIOR Imágenes, centro de diagnóstico por imágenes odontológicas y maxilofaciales en Rosario, Argentina.
+
+**INFORMACIÓN DE CONTACTO:**
+📍 Dirección: Balcarce 1001, Rosario, Santa Fe, Argentina
+📞 Teléfonos: (0341) 425-8501 / 421-1408
+💬 WhatsApp: 341 301 7960
+⏰ Horario: Lunes a Viernes de 8:00 a 19:00hs
+
+**SERVICIOS:** Radiología odontológica, ortodoncia, tomografía 3D CBCT, odontología digital.
+**EQUIPO:** Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal Jaef.
+
+La mayoría de estudios NO requieren turno previo. Para confirmar: WhatsApp 341 301 7960.
+NO agendás turnos, NO hacés diagnósticos. Sé amable, profesional y conciso.`;
+
+    const response = await fetch(`${BACKEND_URL}/ai/grok`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        history: this.history.slice(0, -1), // Sin el último mensaje (ya está en newMessage)
+        newMessage: message,
+        systemPrompt: systemPrompt,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Grok API error: ${response.status}`);
+
+    const result = await response.json();
+    console.log('✅ Respuesta completa:', result);
+
+    // Extraer la respuesta del backend (estructura: { success, data: { response } })
+    let fullResponse = '';
+
+    if (result.data) {
+      fullResponse = result.data.response || '';
+      console.log('📦 Extraído de result.data.response:', fullResponse);
+    } else if (result.response) {
+      fullResponse = result.response;
+      console.log('📦 Extraído de result.response:', fullResponse);
+    }
+
+    if (!fullResponse || typeof fullResponse !== 'string' || fullResponse.trim() === '') {
+      console.error('❌ No se pudo extraer texto válido:', { result, fullResponse });
+      throw new Error('Respuesta vacía de Grok');
+    }
+
+    console.log('✅ ÉXITO - Texto a mostrar:', fullResponse.substring(0, 100));
+
+    // Simular streaming para consistencia
+    for (let i = 0; i < fullResponse.length; i += 5) {
+      const chunk = fullResponse.slice(i, i + 5);
+      yield chunk;
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
 
     this.history.push({ role: 'assistant', content: fullResponse });

@@ -9,7 +9,11 @@ export class AiController {
   @Post('gemini')
   async gemini(@Body() body: any) {
     const { history, newMessage, userName } = body;
-    const response = await this.geminiService.generateResponse(history, newMessage, userName);
+    const response = await this.geminiService.generateResponse(
+      history,
+      newMessage,
+      userName
+    );
     return { response };
   }
 
@@ -17,28 +21,28 @@ export class AiController {
   async grok(@Body() body: any) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new InternalServerErrorException('Groq API key not configured');
-    const { history, newMessage, userName } = body;
-    // Construir el prompt para Groq (modelo llama3-8b)
-    const prompt = [
-      ...(history || []).map((msg) => `${msg.role === 'user' ? 'Usuario' : 'Bot'}: ${msg.content}`),
-      userName ? `Usuario (${userName}): ${newMessage}` : `Usuario: ${newMessage}`
-    ].join('\n');
+    const { history, newMessage, userName, systemPrompt } = body;
+
+    // Usar el systemPrompt enviado desde el frontend, o uno por defecto
+    const finalSystemPrompt = systemPrompt || 'Eres un asistente útil y profesional.';
+
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'llama3-8b-8192',
+          model: 'llama-3.3-70b-versatile',
           messages: [
-            { role: 'system', content: 'Eres un asistente útil y profesional.' },
-            ...((history || []).map((msg) => ({ role: msg.role, content: msg.content }))),
-            { role: 'user', content: newMessage }
+            { role: 'system', content: finalSystemPrompt },
+            ...(history || []).map((msg) => ({ role: msg.role, content: msg.content })),
+            { role: 'user', content: newMessage },
           ],
-          max_tokens: 512
-        })
+          max_tokens: 800,
+          temperature: 0.7,
+        }),
       });
       if (!res.ok) {
         let errorMsg = `Groq API error: ${res.status}`;
@@ -50,11 +54,16 @@ export class AiController {
       }
       const data = await res.json();
       if (data && typeof data === 'object' && Array.isArray((data as any).choices)) {
-        return { response: (data as any).choices[0]?.message?.content || 'Sin respuesta de Groq.' };
+        return {
+          response:
+            (data as any).choices[0]?.message?.content || 'Sin respuesta de Groq.',
+        };
       }
       return { response: 'Sin respuesta de Groq.' };
     } catch (e) {
-      throw new InternalServerErrorException('Error al consultar Groq: ' + (e instanceof Error ? e.message : e));
+      throw new InternalServerErrorException(
+        'Error al consultar Groq: ' + (e instanceof Error ? e.message : e)
+      );
     }
   }
 
