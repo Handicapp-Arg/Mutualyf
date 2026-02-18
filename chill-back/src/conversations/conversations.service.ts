@@ -149,7 +149,7 @@ export class ConversationsService {
         }),
         this.prisma.conversation.findMany({
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          take: 500,
         }),
       ]);
 

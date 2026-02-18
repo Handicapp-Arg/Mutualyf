@@ -54,7 +54,7 @@ export function NexusBot() {
       </div>
 
       {/* Hub de Nexus */}
-      {isBotActive && <BotHub />}
+      {isBotActive && <BotHub onClose={handleToggle} />}
     </div>
   );
 }

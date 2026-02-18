@@ -82,3 +82,41 @@ model Feedback {
   @@index([userSessionId])
   @@map("feedbacks")
 }
+
+model MedicalOrder {
+  id                Int       @id @default(autoincrement())
+  sessionId         String    @map("session_id")
+  
+  // Datos del paciente
+  patientDNI        String    @map("patient_dni")
+  patientName       String    @map("patient_name")
+  patientPhone      String?   @map("patient_phone")
+  
+  // Datos de la orden
+  orderDate         String    @map("order_date")
+  doctorName        String?   @map("doctor_name")
+  doctorLicense     String?   @map("doctor_license")
+  healthInsurance   String?   @map("health_insurance")
+  requestedStudies  String    @map("requested_studies") // JSON string con array de estudios
+  
+  // Archivo
+  fileName          String    @map("file_name")
+  filePath          String    @map("file_path")
+  fileSize          Int       @map("file_size")
+  fileType          String    @map("file_type")
+  
+  // Validación
+  validationStatus  String    @default("pending") @map("validation_status") // pending, validated, rejected
+  validatedBy       String?   @map("validated_by")
+  validatedAt       DateTime? @map("validated_at")
+  rejectionReason   String?   @map("rejection_reason")
+  
+  // Metadata
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([sessionId])
+  @@index([patientDNI])
+  @@index([validationStatus])
+  @@map("medical_orders")
+}

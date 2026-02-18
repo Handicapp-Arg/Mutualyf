@@ -73,13 +73,16 @@ export function Header() {
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
         {/* Logo */}
-        <a href="/" className="group flex cursor-pointer items-center gap-4">
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="group flex cursor-pointer items-center gap-4"
+        >
           <img
             src="/images/logo/logo.png"
             alt="CIOR Logo"
             className="h-14 w-auto transform transition-all duration-300 group-hover:scale-105"
           />
-        </a>
+        </button>
 
         {/* Desktop Navigation */}
         <div className="hidden items-center gap-10 lg:flex">
