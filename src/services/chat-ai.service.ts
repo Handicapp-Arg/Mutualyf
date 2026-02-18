@@ -64,7 +64,7 @@ export class ChatAIService {
    */
   private async *streamWithGemini(message: string): AsyncGenerator<string> {
     // System prompt compacto incluido en el mensaje
-    const fullPrompt = `Contexto: Eres Nexus, asistente de CIOR Imágenes (Balcarce 1001, Rosario). Tel: (0341) 425-8501. WhatsApp: 341 301 7960. Horario: L-V 8-19hs. Servicios: radiología odontológica, tomografía 3D CBCT, ortodoncia digital. NO requieren turno previo. Equipo: Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal. NO agendás turnos (derivá a WhatsApp), NO hacés diagnósticos. Tono: amable, profesional.
+    const fullPrompt = `Contexto: Eres Nexus, asistente de CIOR Imágenes (Balcarce 1001, Rosario). Tel: (0341) 425-8501. WhatsApp: 3413017960. Horario: L-V 8-19hs. IMPORTANTE: Trabajamos por ORDEN DE LLEGADA, NO hay sistema de turnos. Los pacientes pueden venir directamente. Para AGILIZAR su atención, recomendá cargar la orden médica desde este chat antes de venir, así evitan esperas en mesa de entrada. Servicios: radiología odontológica, tomografía 3D CBCT, ortodoncia digital. Equipo: Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal. NO hacés diagnósticos. Tono: amable, profesional.
 
 Pregunta: ${message}`;
 
@@ -138,14 +138,19 @@ Pregunta: ${message}`;
 **INFORMACIÓN DE CONTACTO:**
 📍 Dirección: Balcarce 1001, Rosario, Santa Fe, Argentina
 📞 Teléfonos: (0341) 425-8501 / 421-1408
-💬 WhatsApp: 341 301 7960
+💬 WhatsApp: 3413017960
 ⏰ Horario: Lunes a Viernes de 8:00 a 19:00hs
 
 **SERVICIOS:** Radiología odontológica, ortodoncia, tomografía 3D CBCT, odontología digital.
 **EQUIPO:** Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal Jaef.
 
-La mayoría de estudios NO requieren turno previo. Para confirmar: WhatsApp 341 301 7960.
-NO agendás turnos, NO hacés diagnósticos. Sé amable, profesional y conciso.`;
+**SISTEMA DE ATENCIÓN MUY IMPORTANTE:**
+- CIOR trabaja por ORDEN DE LLEGADA, NO hay sistema de turnos
+- Los pacientes pueden acercarse directamente en el horario de atención
+- Para AGILIZAR la atención y EVITAR ESPERAS en mesa de entrada, siempre recomendá que carguen su orden médica desde este chat ANTES de venir
+- La orden queda registrada en el sistema, lo que acelera el proceso
+
+NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesional y conciso.`;
 
     const response = await fetch(`${BACKEND_URL}/ai/grok`, {
       method: 'POST',
@@ -196,15 +201,15 @@ NO agendás turnos, NO hacés diagnósticos. Sé amable, profesional y conciso.`
   private async *fallbackResponse(message: string): AsyncGenerator<string> {
     const responses = {
       horario:
-        '⏰ Nuestros horarios de atención son:\n\n📅 **Lunes a Viernes**: 8:00 a 20:00hs\n📅 **Sábados**: 9:00 a 13:00hs\n📅 **Domingos**: Cerrado\n\n¿Necesitas agendar un turno?',
+        '⏰ **Nuestros horarios de atención son:**\n\n📅 **Lunes a Viernes**: 8:00 a 19:00hs\n\n🏥 Trabajamos por **orden de llegada**, no es necesario sacar turno previo. Para agilizar tu atención, te recomendamos subir tu orden médica desde este chat antes de venir. ¿Quéres cargar tu orden ahora?',
       servicios:
-        '🦷 **Servicios de CIOR:**\n\n✓ Tomografía CBCT 3D\n✓ Radiografías panorámicas\n✓ Telerradiografías\n✓ Escaneo intraoral digital\n✓ Modelos 3D\n✓ Planificación de implantes\n\nTodos con tecnología de última generación y mínima radiación. ¿Te interesa algún estudio en particular?',
+        '🦷 **Servicios de CIOR:**\n\n✓ Tomografía CBCT 3D\n✓ Radiografías panorámicas\n✓ Telerradiografías\n✓ Escaneo intraoral digital\n✓ Modelos 3D\n✓ Planificación de implantes\n\n🏥 **Atención por orden de llegada** - No necesitás turno previo\n⚡ **Agilizá tu atención** cargando tu orden médica desde este chat\n\n¿Te interesa algún estudio en particular?',
       orden:
-        '📄 **Para subir tu orden médica:**\n\n1. Haz clic en "SUBIR ORDEN MÉDICA" en este chat\n2. Selecciona la foto o PDF de tu orden\n3. Confirma el envío\n\nEs rápido, seguro y te contactaremos para agendar tu turno. ¿Tienes tu orden lista?',
+        '� **Para subir tu orden médica:**\n\n1. Haz clic en "SUBIR ORDEN MÉDICA" en este chat\n2. Selecciona la foto o PDF de tu orden\n3. Completa los datos y confirma el envío\n\n⚡ **¿Por qué cargar tu orden aquí?**\n✓ Evitás esperas en mesa de entrada\n✓ Tu orden queda registrada en nuestro sistema\n✓ Agilizamos tu atención cuando llegues al centro\n\n🏥 Trabajamos por orden de llegada - No necesitás turno previo\n\n¿Tienes tu orden lista?',
       turno:
-        '📞 **Para agendar turnos:**\n\n• Llamanos: [Teléfono]\n• WhatsApp: [Número]\n• Email: contacto@cior.com.ar\n\n⚡ Tenemos disponibilidad para el mismo día en la mayoría de los casos. ¿Prefieres que te contactemos?',
+        '🏥 **Atención por orden de llegada:**\n\nEn CIOR trabajamos **sin sistema de turnos**. Podés acercarte directamente en nuestro horario de atención:\n\n⏰ **Lunes a Viernes**: 8:00 a 19:00hs\n📍 **Dirección**: Balcarce 1001, Rosario\n\n⚡ **Tip**: Para agilizar tu atención y evitar esperas en mesa de entrada, te recomendamos **cargar tu orden médica desde este chat** antes de venir.\n\n📞 **Consultas**: \n• Teléfono: (0341) 425-8501 / 421-1408\n• WhatsApp: 3413017960\n\n¿Querés subir tu orden ahora?',
       ubicacion:
-        '📍 **Ubicación de CIOR:**\n\n🏥 Dirección: [Insertar dirección completa]\n📞 Teléfono: [Teléfono]\n📧 Email: contacto@cior.com.ar\n\n🚗 Contamos con estacionamiento disponible. ¿Necesitas indicaciones para llegar?',
+        '📍 **Ubicación de CIOR:**\n\n🏥 Dirección: Balcarce 1001, Rosario, Santa Fe\n📞 Teléfono: (0341) 425-8501 / 421-1408\n📱 WhatsApp: 3413017960\n⏰ Horario: Lunes a Viernes de 8:00 a 19:00\n\n🚗 Contamos con estacionamiento disponible\n🏥 Atención por orden de llegada (sin turnos)\n\n⚡ Agilizá tu atención cargando tu orden médica desde este chat. ¿Necesitas indicaciones para llegar?',
       cbct: '🔬 **Tomografía CBCT (Cone Beam):**\n\nEs un estudio 3D de alta resolución que permite:\n✓ Visualización completa de estructuras dentales\n✓ Planificación precisa de implantes\n✓ Evaluación de hueso y nervios\n✓ Diagnóstico de patologías\n\n⏱️ Duración: 15-20 min\n📊 Resultados: 24-48hs\n☢️ Mínima radiación\n\n¿Tienes orden médica para este estudio?',
       fallback:
         '🤖 No encontré información específica para tu consulta, pero puedo ayudarte con servicios, turnos, estudios, tecnología, ubicación y más. Por favor, intenta ser más específico o pregunta por un servicio concreto.',

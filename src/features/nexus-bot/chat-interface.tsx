@@ -43,8 +43,30 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatService = useRef(new ChatAIService());
   const backendService = useRef(new BackendAPIService());
+  const isSaving = useRef(false);
+  const isInitialized = useRef(false);
+  const messagesRef = useRef(messages);
+  const userNameRef = useRef(userName);
+  const userDNIRef = useRef(userDNI);
+
+  // Mantener refs actualizados
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
+    userNameRef.current = userName;
+  }, [userName]);
+
+  useEffect(() => {
+    userDNIRef.current = userDNI;
+  }, [userDNI]);
+
+  // Inicializar solo una vez
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
     // Cargar nombre y DNI guardados
     const savedName = localStorage.getItem('cior_user_name');
     const savedDNI = localStorage.getItem('cior_user_dni');
@@ -53,6 +75,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     // Intentar cargar historial del backend
     loadConversationHistory();
+
+    // NO guardar en el cleanup del useEffect, solo al cerrar explícitamente
   }, []);
 
   const loadConversationHistory = async () => {
@@ -88,7 +112,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     // Mensaje de bienvenida
     const welcomeMessage =
-      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿Qué necesitás hoy?\n\n🦷 Agendar turno para un estudio\n📋 Subir mi orden médica\n📍 Consultar ubicación y horarios\n📞 Información de contacto\n🔬 Conocer nuestros servicios\n\nContame en qué puedo ayudarte 😊';
+      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿Qué necesitás hoy?\n\n📋 Subir mi orden médica para agilizar tu atención\n📍 Consultar ubicación y horarios\n📞 Información de contacto\n🔬 Conocer nuestros servicios\n⏰ Información sobre atención por orden de llegada\n\nContame en qué puedo ayudarte 😊';
 
     // Agregar el mensaje completo (el efecto de typing lo maneja el CSS)
     setMessages([
@@ -262,7 +286,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿Qué necesitás hoy?\n\n🦷 Agendar turno para un estudio\n📋 Subir mi orden médica\n📍 Consultar ubicación y horarios\n📞 Información de contacto\n🔬 Conocer nuestros servicios\n\nContame en qué puedo ayudarte 😊`,
+          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿Qué necesitás hoy?\n\n📋 Subir mi orden médica para agilizar tu atención\n📍 Consultar ubicación y horarios\n📞 Información de contacto\n🔬 Conocer nuestros servicios\n⏰ Información sobre atención por orden de llegada\n\nContame en qué puedo ayudarte 😊`,
           timestamp: new Date(),
         },
       ]);
@@ -387,17 +411,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           }
         });
       }
-
-      // 🔹 Guardar conversación en el backend después de completar la respuesta
-      setMessages((prev) => {
-        const finalMessages = prev;
-        // Llamar a backend de forma asíncrona sin bloquear
-        backendService.current
-          .saveConversation(finalMessages, userName || userDNI || undefined)
-          .catch((err) => console.warn('Error guardando conversación:', err));
-
-        return finalMessages;
-      });
     } catch (error) {
       setMessages((prev) => [
         ...prev,
@@ -533,7 +546,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           {
             id: Date.now().toString(),
             role: 'assistant',
-            content: `✅ ¡Orden médica validada exitosamente! \n\nNúmero de orden: #${result.orderId}\n\nHemos registrado tu solicitud para: ${orderData.requestedStudies.join(', ')}.\n\nNos contactaremos al ${orderData.patientPhone} para coordinar tu turno. ¿Necesitas algo más?`,
+            content: `✅ ¡Orden médica validada exitosamente! \n\nNúmero de orden: #${result.orderId}\n\nHemos registrado tu solicitud para: ${orderData.requestedStudies.join(', ')}.\n\n🏥 Podés acercarte directamente a CIOR en nuestro horario de atención. Ya tenemos tu orden cargada, lo que agilizará tu atención en mesa de entrada.\n\n📍 Balcarce 1001, Rosario\n⏰ Lunes a Viernes: 8:00 a 19:00\n\n¿Necesitas algo más?`,
             timestamp: new Date(),
           },
         ]);
@@ -585,6 +598,49 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     ]);
   };
 
+  const handleClose = () => {
+    // Evitar múltiples guardados
+    if (isSaving.current) {
+      console.log('⚠️ Ya se está guardando, cerrando sin duplicar');
+      onClose();
+      return;
+    }
+    
+    isSaving.current = true;
+    const currentMessages = messagesRef.current;
+    const currentUserName = userNameRef.current || userDNIRef.current;
+    
+    console.log('❌ ========== CERRANDO CHAT ==========');
+    console.log('📊 Total mensajes en ref:', currentMessages.length);
+    console.log('👤 Usuario:', currentUserName);
+    console.log('🆔 SessionId:', backendService.current['sessionId']);
+    console.log('📝 Lista de mensajes:');
+    currentMessages.forEach((msg, idx) => {
+      console.log(`  ${idx + 1}. [${msg.role}] ${msg.content.substring(0, 50)}...`);
+    });
+    
+    // Guardar inmediatamente antes de cerrar
+    if (currentMessages.length > 0) {
+      console.log('💾 Iniciando guardado...');
+      backendService.current
+        .saveConversation(currentMessages, currentUserName)
+        .then(() => {
+          console.log('✅ Conversación guardada, cerrando chat');
+          isSaving.current = false;
+          onClose();
+        })
+        .catch((err) => {
+          console.error('❌ Error guardando:', err);
+          isSaving.current = false;
+          onClose();
+        });
+    } else {
+      console.log('⚠️ No hay mensajes, cerrando sin guardar');
+      isSaving.current = false;
+      onClose();
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Header mejorado */}
@@ -601,7 +657,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all hover:rotate-90 hover:bg-white/20"
             aria-label="Cerrar chat"
           >

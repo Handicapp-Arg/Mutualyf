@@ -24,10 +24,20 @@ interface Conversation {
 }
 
 interface UploadedFile {
-  id: string;
+  id: number;
   sessionId: string;
   fileName: string;
-  uploadedAt: Date;
+  patientDNI: string;
+  patientName: string;
+  patientPhone?: string;
+  orderDate: string;
+  doctorName?: string;
+  doctorLicense?: string;
+  healthInsurance?: string;
+  requestedStudies: string[];
+  validationStatus: string;
+  createdAt: Date;
+  uploadedAt?: Date;
 }
 
 interface Stats {
@@ -69,10 +79,27 @@ export function AdminPortal() {
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
+        console.log('📊 Stats data completo:', JSON.stringify(statsData, null, 2));
 
         // El backend puede devolver { conversations: [...] } o { data: { conversations: [...] } }
         const data = statsData.data || statsData;
         const allConversations: Conversation[] = data.conversations || [];
+
+        console.log('💬 Total conversaciones encontradas:', allConversations.length);
+        allConversations.forEach((conv, idx) => {
+          if (idx < 3) {
+            // Solo mostrar las primeras 3 en detalle
+            console.log(`Conversación ${idx + 1} DETALLE:`, {
+              id: conv.id,
+              sessionId: conv.sessionId,
+              userName: conv.userName,
+              totalMensajes: conv.messages?.length || 0,
+              mensajesTipo: typeof conv.messages,
+              esArray: Array.isArray(conv.messages),
+              mensajes: conv.messages,
+            });
+          }
+        });
 
         setConversations(allConversations);
 
@@ -97,11 +124,20 @@ export function AdminPortal() {
       }
 
       // Cargar archivos subidos
-      const uploadsRes = await fetch(`${BACKEND_URL}/uploads/all`);
+      const uploadsRes = await fetch(`${BACKEND_URL}/uploads/medical-orders`);
       if (uploadsRes.ok) {
         const uploadsData = await uploadsRes.json();
-        // Asegurarse de que uploadsData sea un array
-        const uploadsArray = Array.isArray(uploadsData) ? uploadsData : [];
+        console.log('📦 Uploads data:', uploadsData);
+
+        // El backend devuelve { success: true, data: [...] }
+        let uploadsArray = [];
+        if (uploadsData.success && Array.isArray(uploadsData.data)) {
+          uploadsArray = uploadsData.data;
+        } else if (Array.isArray(uploadsData)) {
+          uploadsArray = uploadsData;
+        }
+
+        console.log('📋 Uploads array:', uploadsArray);
         setUploads(uploadsArray);
         setStats((prev) => ({ ...prev, totalUploads: uploadsArray.length }));
       }
@@ -142,6 +178,11 @@ export function AdminPortal() {
     a.href = url;
     a.download = `conversaciones_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+  };
+
+  const handleDownloadOrder = (orderId: number) => {
+    const url = `${BACKEND_URL}/uploads/medical-orders/file/${orderId}`;
+    window.open(url, '_blank');
   };
 
   return (
@@ -326,7 +367,17 @@ export function AdminPortal() {
                       conversations.map((conv) => (
                         <button
                           key={conv.id}
-                          onClick={() => setSelectedConversation(conv)}
+                          onClick={() => {
+                            console.log('🖱️ Conversación seleccionada:', {
+                              id: conv.id,
+                              sessionId: conv.sessionId,
+                              userName: conv.userName,
+                              totalMensajes: conv.messages?.length,
+                              esArray: Array.isArray(conv.messages),
+                              mensajes: conv.messages,
+                            });
+                            setSelectedConversation(conv);
+                          }}
                           className={`w-full rounded-lg border p-4 text-left transition-all hover:shadow-md ${
                             selectedConversation?.id === conv.id
                               ? 'border-corporate bg-blue-50'
@@ -369,26 +420,50 @@ export function AdminPortal() {
                   </h2>
                   {selectedConversation ? (
                     <div className="max-h-[600px] space-y-4 overflow-y-auto">
-                      {selectedConversation.messages.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          className={`rounded-lg p-4 ${
-                            msg.role === 'user'
-                              ? 'bg-corporate text-white'
-                              : 'bg-slate-100 text-slate-800'
-                          }`}
-                        >
-                          <div className="mb-1 flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase opacity-70">
-                              {msg.role === 'user' ? 'Usuario' : 'Asistente'}
-                            </span>
-                            <span className="text-xs opacity-70">
-                              {formatDate(msg.timestamp)}
-                            </span>
+                      {(() => {
+                        console.log('🎨 Renderizando mensajes:', {
+                          total: selectedConversation.messages?.length,
+                          esArray: Array.isArray(selectedConversation.messages),
+                          primerMensaje: selectedConversation.messages?.[0],
+                          mensajes: selectedConversation.messages,
+                        });
+                        return null;
+                      })()}
+                      {selectedConversation.messages &&
+                      Array.isArray(selectedConversation.messages) &&
+                      selectedConversation.messages.length > 0 ? (
+                        selectedConversation.messages.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`rounded-lg p-4 ${
+                              msg.role === 'user'
+                                ? 'bg-corporate text-white'
+                                : 'bg-slate-100 text-slate-800'
+                            }`}
+                          >
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase opacity-70">
+                                {msg.role === 'user' ? 'Usuario' : 'Asistente'}
+                              </span>
+                              <span className="text-xs opacity-70">
+                                {formatDate(msg.timestamp)}
+                              </span>
+                            </div>
+                            <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                           </div>
-                          <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                        ))
+                      ) : (
+                        <div className="rounded-lg bg-yellow-50 p-4 text-center">
+                          <p className="text-sm text-yellow-800">
+                            ⚠️ No hay mensajes disponibles o formato incorrecto
+                          </p>
+                          <p className="mt-2 text-xs text-yellow-600">
+                            Tipo: {typeof selectedConversation.messages} | Es Array:{' '}
+                            {Array.isArray(selectedConversation.messages) ? 'Sí' : 'No'} |
+                            Longitud: {selectedConversation.messages?.length || 0}
+                          </p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   ) : (
                     <div className="flex h-64 items-center justify-center">
@@ -412,16 +487,22 @@ export function AdminPortal() {
                     <thead>
                       <tr className="border-b">
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
-                          Archivo
+                          Paciente
                         </th>
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
-                          Sesión
+                          DNI
+                        </th>
+                        <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
+                          Estudios
+                        </th>
+                        <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
+                          Estado
                         </th>
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
                           Fecha
                         </th>
-                        <th className="pb-3 text-right text-xs font-bold uppercase text-slate-500">
-                          Acciones
+                        <th className="pb-3 text-center text-xs font-bold uppercase text-slate-500">
+                          Descargar
                         </th>
                       </tr>
                     </thead>
@@ -429,10 +510,10 @@ export function AdminPortal() {
                       {uploads.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={6}
                             className="py-8 text-center text-sm text-slate-400"
                           >
-                            No hay archivos subidos
+                            No hay órdenes médicas cargadas
                           </td>
                         </tr>
                       ) : (
@@ -441,25 +522,61 @@ export function AdminPortal() {
                             <td className="py-4">
                               <div className="flex items-center gap-2">
                                 <FileText size={16} className="text-corporate" />
-                                <span className="text-sm font-bold text-slate-700">
-                                  {upload.fileName}
-                                </span>
+                                <div>
+                                  <p className="text-sm font-bold text-slate-700">
+                                    {upload.patientName}
+                                  </p>
+                                  {upload.patientPhone && (
+                                    <p className="text-xs text-slate-500">
+                                      Tel: {upload.patientPhone}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td className="py-4">
-                              <span className="text-xs text-slate-500">
-                                {upload.sessionId.substring(0, 15)}...
+                              <span className="text-sm font-medium text-slate-600">
+                                {upload.patientDNI}
+                              </span>
+                            </td>
+                            <td className="py-4">
+                              <div className="max-w-xs">
+                                <p className="text-xs text-slate-600">
+                                  {upload.requestedStudies.join(', ')}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="py-4">
+                              <span
+                                className={`rounded-full px-2 py-1 text-xs font-bold ${
+                                  upload.validationStatus === 'approved'
+                                    ? 'bg-green-100 text-green-700'
+                                    : upload.validationStatus === 'rejected'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                }`}
+                              >
+                                {upload.validationStatus === 'approved'
+                                  ? 'Aprobada'
+                                  : upload.validationStatus === 'rejected'
+                                    ? 'Rechazada'
+                                    : 'Pendiente'}
                               </span>
                             </td>
                             <td className="py-4">
                               <span className="text-xs text-slate-500">
-                                {formatDate(upload.uploadedAt)}
+                                {formatDate(upload.createdAt || upload.uploadedAt)}
                               </span>
                             </td>
-                            <td className="py-4 text-right">
-                              <button className="rounded-lg bg-corporate px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-corporate/90">
-                                Descargar
-                              </button>
+                            <td className="py-4">
+                              <div className="flex items-center justify-center">
+                                <button
+                                  onClick={() => handleDownloadOrder(upload.id)}
+                                  className="rounded-lg bg-corporate px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-corporate/90"
+                                >
+                                  Descargar
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))

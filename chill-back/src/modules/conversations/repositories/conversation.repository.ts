@@ -4,14 +4,33 @@ import { IConversation } from '../interfaces/conversation.interface';
 
 @Injectable()
 export class ConversationRepository {
-  // Almacenamiento temporal en memoria (para desarrollo)
-  private conversations: any[] = [];
-
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(): Promise<any[]> {
-    // Retornar conversaciones en memoria
-    return this.conversations;
+    try {
+      // Obtener conversaciones de la base de datos
+      const conversations = await this.prisma.conversation.findMany({
+        include: {
+          userIdentity: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 100, // Limitar a las últimas 100 conversaciones
+      });
+
+      // Transformar al formato esperado
+      return conversations.map((conv) => ({
+        id: conv.id.toString(),
+        sessionId: conv.sessionId || `session_${conv.id}`,
+        userName: conv.userName || conv.userIdentity?.userName || 'Anónimo',
+        messages: conv.messages ? JSON.parse(conv.messages as string) : [],
+        timestamp: conv.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      return [];
+    }
   }
 
   async findById(id: number): Promise<IConversation | null> {
@@ -26,21 +45,81 @@ export class ConversationRepository {
   }
 
   async findBySessionId(sessionId: string): Promise<any | null> {
-    // Buscar en memoria
-    const conversation = this.conversations.find((conv) => conv.sessionId === sessionId);
-    return conversation || null;
+    try {
+      const conversation = await this.prisma.conversation.findFirst({
+        where: { sessionId },
+        include: {
+          userIdentity: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (!conversation) return null;
+
+      return {
+        id: conversation.id.toString(),
+        sessionId: conversation.sessionId,
+        userName: conversation.userName || conversation.userIdentity?.userName,
+        messages: conversation.messages
+          ? JSON.parse(conversation.messages as string)
+          : [],
+        timestamp: conversation.createdAt,
+      };
+    } catch (error) {
+      console.error('Error finding conversation by sessionId:', error);
+      return null;
+    }
   }
 
   async create(data: any): Promise<any> {
-    // Guardar en memoria
-    const newConversation = {
-      id: `conv_${Date.now()}`,
-      sessionId: data.sessionId,
-      messages: data.messages || [],
-      timestamp: data.timestamp || new Date(),
-    };
-    this.conversations.push(newConversation);
-    return newConversation;
+    try {
+      console.log('🔵 === INICIO GUARDADO ===');
+      console.log('SessionId recibido:', data.sessionId);
+      console.log('Total mensajes recibidos:', data.messages?.length || 0);
+
+      // ELIMINAR todas las conversaciones con este sessionId (limpiar duplicados)
+      const deleted = await this.prisma.conversation.deleteMany({
+        where: { sessionId: data.sessionId },
+      });
+
+      if (deleted.count > 0) {
+        console.log(
+          `🗑️ Eliminadas ${deleted.count} conversaciones duplicadas con este sessionId`
+        );
+      }
+
+      console.log('➕ CREANDO conversación NUEVA (única por sesión)');
+
+      // Crear UNA ÚNICA conversación para este sessionId
+      const newConversation = await this.prisma.conversation.create({
+        data: {
+          sessionId: data.sessionId,
+          userName: data.userName,
+          userMessage: data.messages?.[0]?.content || '',
+          botResponse: data.messages?.[1]?.content || '',
+          timestamp: (data.timestamp || new Date()).toISOString(),
+          messages: JSON.stringify(data.messages || []),
+          createdAt: data.timestamp || new Date(),
+        },
+      });
+
+      const savedMessages = JSON.parse(newConversation.messages as string);
+      console.log('✅ Conversación CREADA con', savedMessages.length, 'mensajes');
+      console.log('🔵 === FIN GUARDADO ===\n');
+
+      return {
+        id: newConversation.id.toString(),
+        sessionId: newConversation.sessionId,
+        userName: newConversation.userName,
+        messages: savedMessages,
+        timestamp: newConversation.createdAt,
+      };
+    } catch (error) {
+      console.error('❌ ERROR en create:', error);
+      throw error;
+    }
   }
 
   async update(id: number, data: Partial<IConversation>): Promise<IConversation> {

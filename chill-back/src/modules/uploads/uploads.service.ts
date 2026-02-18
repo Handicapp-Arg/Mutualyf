@@ -240,6 +240,34 @@ export class UploadsService {
   }
 
   /**
+   * Obtener orden por ID
+   */
+  async getOrderById(id: number) {
+    try {
+      this.logger.debug(`Buscando orden médica con ID: ${id}`);
+
+      const order = await this.prisma.medicalOrder.findUnique({
+        where: { id },
+      });
+
+      if (!order) {
+        this.logger.warn(`Orden médica no encontrada con ID: ${id}`);
+        return null;
+      }
+
+      this.logger.debug(`Orden encontrada: ${order.fileName}, Path: ${order.filePath}`);
+
+      return {
+        ...order,
+        requestedStudies: JSON.parse(order.requestedStudies),
+      };
+    } catch (error) {
+      this.logger.error(`Error al obtener orden: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Obtener órdenes por DNI
    */
   async getOrdersByDNI(dni: string) {

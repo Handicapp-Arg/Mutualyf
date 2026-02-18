@@ -38,10 +38,12 @@ model Conversation {
   userName       String?       @map("user_name")
   userMessage    String        @map("user_message")
   botResponse    String        @map("bot_response")
+  messages       String?       // JSON string con array completo de mensajes
   timestamp      String
   aiModel        String?       @map("ai_model")
   userFeedback   Boolean?      @map("user_feedback")
   createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
   
   // Relación con UserIdentity
   userIdentityId Int?          @map("user_identity_id")

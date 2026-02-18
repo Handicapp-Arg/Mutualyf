@@ -58,6 +58,16 @@ export class ConversationsService {
   async getStats() {
     try {
       const all = await this.conversationRepository.findAll();
+      console.log('📊 getStats - Total conversaciones:', all.length);
+      all.forEach((conv, idx) => {
+        console.log(`Conversación ${idx + 1}:`, {
+          id: conv.id,
+          sessionId: conv.sessionId,
+          userName: conv.userName,
+          messages: Array.isArray(conv.messages) ? conv.messages.length : 'NO ES ARRAY',
+        });
+      });
+
       return {
         total: all.length,
         totalMessages: all.reduce((sum, conv) => sum + (conv.messages?.length || 0), 0),

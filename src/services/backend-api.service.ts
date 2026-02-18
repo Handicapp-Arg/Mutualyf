@@ -53,6 +53,20 @@ export class BackendAPIService {
         timestamp: new Date(),
       };
 
+      console.log('💾 ========== GUARDANDO CONVERSACIÓN ==========');
+      console.log('📊 SessionId:', this.sessionId);
+      console.log('👤 Usuario:', userName || 'anónimo');
+      console.log('💬 Total mensajes:', messages.length);
+      console.log(
+        '📝 Mensajes completos:',
+        messages.map((m, i) => ({
+          index: i,
+          role: m.role,
+          content: m.content.substring(0, 50) + '...',
+          timestamp: m.timestamp,
+        }))
+      );
+
       const response = await fetch(`${BACKEND_URL}/conversations`, {
         method: 'POST',
         headers: {
@@ -62,11 +76,17 @@ export class BackendAPIService {
       });
 
       if (!response.ok) {
-        console.warn('Error guardando conversación:', response.status);
+        const errorText = await response.text();
+        console.error('⚠️ Error guardando conversación:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      } else {
+        const result = await response.json();
+        console.log('✅ Conversación guardada exitosamente:', result);
+        console.log('💾 ========== FIN GUARDADO ==========\n');
       }
     } catch (error) {
-      // Fallar silenciosamente - el chat funciona sin backend
-      console.warn('Backend no disponible para guardar conversación');
+      console.error('❌ Error completo al guardar:', error);
+      throw error;
     }
   }
 
