@@ -8,7 +8,6 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { AppController } from './app.controller';
 import { FeedbackModule } from './feedback/feedback.module';
-import { AdminModule } from './admin/admin.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { AiController } from './ai/ai.controller';
 import { GeminiService } from './ai/gemini.service';
@@ -36,7 +35,6 @@ import { GeminiService } from './ai/gemini.service';
     ConversationsModule,
     SessionsModule,
     FeedbackModule,
-    AdminModule,
     UploadsModule,
   ],
   controllers: [AppController, AiController],

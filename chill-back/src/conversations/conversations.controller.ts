@@ -1,3 +1,4 @@
+
 import {
   Controller,
   Post,
@@ -14,12 +15,20 @@ import {
   CreateConversationDto,
   UpdateConversationFeedbackDto,
 } from './dto/conversation.dto';
-
 @Controller('conversations')
 export class ConversationsController {
   constructor(
     private readonly conversationsService: ConversationsService,
   ) {}
+
+  /**
+   * Obtener todos los sessionId únicos
+   * GET /api/conversations/sessions
+   */
+  @Get('sessions')
+  async getAllSessions() {
+    return this.conversationsService.getAllSessions();
+  }
 
   /**
    * Crear nueva conversación

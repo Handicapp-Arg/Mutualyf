@@ -18,18 +18,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       this.logger.log('✅ Conexión a base de datos establecida');
 
-      // Middleware para logging de queries en desarrollo
+      // Logging de queries en desarrollo para Prisma 7
       if (process.env.NODE_ENV === 'development') {
-        this.$use(async (params, next) => {
-          const before = Date.now();
-          const result = await next(params);
-          const after = Date.now();
-          
-          this.logger.debug(
-            `Query ${params.model}.${params.action} - ${after - before}ms`,
-          );
-          
-          return result;
+        (this as any).$on('query', (e: any) => {
+          this.logger.debug(`Query: ${e.query} | Duration: ${e.duration}ms`);
         });
       }
     } catch (error) {

@@ -1,3 +1,5 @@
+
+
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -17,12 +19,33 @@ export class ConversationsService {
   constructor(private prisma: PrismaService) {}
 
   /**
+   * Obtener todos los sessionId únicos
+   */
+  async getAllSessions() {
+    try {
+      const sessions = await this.prisma.conversation.findMany({
+        select: { sessionId: true },
+        distinct: ['sessionId'],
+        orderBy: { sessionId: 'asc' },
+      });
+      return {
+        message: 'Sesiones obtenidas exitosamente',
+        data: sessions.map(s => s.sessionId),
+        count: sessions.length,
+      };
+    } catch (error) {
+      this.logger.error(`Error al obtener sesiones: ${error.message}`);
+      throw new DatabaseException('getAllSessions', error.message);
+    }
+  }
+
+  /**
    * Crear nueva conversación
    * Valida que el mensaje no esté vacío y que el sessionId sea válido
    */
   async create(data: CreateConversationDto) {
     try {
-      this.logger.debug(`Creando conversación para sessionId: ${data.sessionId}`);
+      this.logger.debug(`Upsert conversación para sessionId: ${data.sessionId}`);
 
       // Extraer último mensaje del usuario y última respuesta del bot
       const userMessages = data.messages.filter((m) => m.role === 'user');
@@ -40,19 +63,31 @@ export class ConversationsService {
         throw new BusinessException('La respuesta del bot no puede estar vacía');
       }
 
-      const conversation = await this.prisma.conversation.create({
-        data: {
+      // Upsert: si existe, actualiza; si no, crea
+      const conversation = await this.prisma.conversation.upsert({
+        where: { sessionId: data.sessionId },
+        update: {
+          userName: data.userName || null,
+          userMessage: userMessage,
+          botResponse: botResponse,
+          messages: JSON.stringify(data.messages),
+          timestamp: data.timestamp || new Date().toISOString(),
+          aiModel: data.aiModel || null,
+          userFeedback: data.userFeedback ?? null,
+        },
+        create: {
           sessionId: data.sessionId,
           userName: data.userName || null,
           userMessage: userMessage,
           botResponse: botResponse,
+          messages: JSON.stringify(data.messages),
           timestamp: data.timestamp || new Date().toISOString(),
           aiModel: data.aiModel || null,
           userFeedback: data.userFeedback ?? null,
         },
       });
 
-      this.logger.log(`Conversación creada exitosamente: ${conversation.id}`);
+      this.logger.log(`Conversación upserted exitosamente: ${conversation.id}`);
       return {
         id: conversation.id,
         message: 'Conversación guardada exitosamente',
@@ -63,8 +98,8 @@ export class ConversationsService {
         throw error;
       }
 
-      this.logger.error(`Error al crear conversación: ${error.message}`);
-      throw new DatabaseException('create conversation', error.message);
+      this.logger.error(`Error al upsert conversación: ${error.message}`);
+      throw new DatabaseException('upsert conversation', error.message);
     }
   }
 
@@ -161,18 +196,13 @@ export class ConversationsService {
         id: conv.id.toString(),
         sessionId: conv.sessionId,
         userName: conv.userName || 'Anónimo',
-        messages: [
-          {
-            role: 'user',
-            content: conv.userMessage,
-            timestamp: conv.timestamp,
-          },
-          {
-            role: 'assistant',
-            content: conv.botResponse,
-            timestamp: conv.timestamp,
-          },
-        ],
+        messages: (() => {
+          try {
+            return JSON.parse(conv.messages || '[]');
+          } catch {
+            return [];
+          }
+        })(),
         timestamp: conv.timestamp,
       }));
 

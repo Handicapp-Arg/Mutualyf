@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:../data/chat.db"
+  url      = env("DATABASE_URL")
 }
 
 model UserIdentity {
@@ -34,7 +34,7 @@ model UserIdentity {
 
 model Conversation {
   id             Int           @id @default(autoincrement())
-  sessionId      String        @map("session_id")
+  sessionId      String        @unique @map("session_id")
   userName       String?       @map("user_name")
   userMessage    String        @map("user_message")
   botResponse    String        @map("bot_response")
