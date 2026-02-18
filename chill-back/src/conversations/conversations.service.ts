@@ -63,19 +63,9 @@ export class ConversationsService {
         throw new BusinessException('La respuesta del bot no puede estar vacía');
       }
 
-      // Upsert: si existe, actualiza; si no, crea
-      const conversation = await this.prisma.conversation.upsert({
-        where: { sessionId: data.sessionId },
-        update: {
-          userName: data.userName || null,
-          userMessage: userMessage,
-          botResponse: botResponse,
-          messages: JSON.stringify(data.messages),
-          timestamp: data.timestamp || new Date().toISOString(),
-          aiModel: data.aiModel || null,
-          userFeedback: data.userFeedback ?? null,
-        },
-        create: {
+      // Siempre crear una nueva conversación
+      const conversation = await this.prisma.conversation.create({
+        data: {
           sessionId: data.sessionId,
           userName: data.userName || null,
           userMessage: userMessage,
