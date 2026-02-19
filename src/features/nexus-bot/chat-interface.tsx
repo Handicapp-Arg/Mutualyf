@@ -1,14 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  Send,
-  Loader2,
-  MessageCircle,
-  Upload,
-  FileText,
-  ThumbsUp,
-  ThumbsDown,
-  X,
-} from 'lucide-react';
+import { Send, Loader2, Upload, FileText, ThumbsUp, ThumbsDown, X } from 'lucide-react';
+import { Canvas } from '@react-three/fiber';
+import { Sparkles } from '@react-three/drei';
+import { BotFace } from './bot-face';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
 import { MedicalOrderFormOCR, MedicalOrderData } from './medical-order-form-ocr';
@@ -646,23 +640,46 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col overflow-hidden rounded-3xl">
+      {/* Efectos visuales de fondo (Partículas 3D flotando) */}
+      <div className="pointer-events-none absolute inset-0 z-0 opacity-40">
+        <Canvas camera={{ position: [0, 0, 1] }} gl={{ alpha: true }}>
+          <Sparkles
+            count={40}
+            scale={5}
+            size={3}
+            speed={0.4}
+            opacity={0.5}
+            color="#22d3ee"
+            noise={0.5}
+          />
+        </Canvas>
+      </div>
+
       {/* Header mejorado */}
-      <div className="flex-shrink-0 border-b border-slate-200 bg-gradient-to-r from-corporate to-corporate/90 p-4">
+      <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-gradient-to-r from-corporate to-corporate/90 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-            <MessageCircle size={20} className="text-white" />
+          {/* Icono de Muelita en Header */}
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 shadow-inner backdrop-blur-sm">
+            <div className="h-[140%] w-[140%]">
+              {/* Escalado para que la cámara del Canvas capture bien el modelo */}
+              <BotFace />
+            </div>
           </div>
           <div className="flex-1">
-            <h4 className="text-base font-bold text-white">Nexus Assistant</h4>
+            <h4 className="text-base font-bold text-white drop-shadow-sm">
+              Nexus Assistant
+            </h4>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-400 shadow-sm shadow-green-400/50" />
-              <span className="text-xs text-white/90">En línea - IA activa</span>
+              <div className="h-2 w-2 animate-pulse rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+              <span className="text-xs font-medium text-white/90">
+                En línea - IA activa
+              </span>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all hover:rotate-90 hover:bg-white/20"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all hover:rotate-90 hover:scale-110 hover:bg-white/20 active:scale-95"
             aria-label="Cerrar chat"
           >
             <X size={20} />
@@ -671,7 +688,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       </div>
 
       {/* Messages - sin límite de altura fijo */}
-      <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/50 p-4">
+      <div className="relative z-10 flex-1 space-y-4 overflow-y-auto bg-slate-50/80 p-4 backdrop-blur-[2px]">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -733,7 +750,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           <div className="animate-in fade-in slide-in-from-bottom-2 flex justify-start duration-300">
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-corporate/10">
-                <MessageCircle size={16} className="text-corporate" />
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-corporate"
+                >
+                  <path
+                    d="M8.5 2C6.5 2 5 3.5 5 5.5V8c0 1.5 1 2.5 1.5 3c-1 1-1.5 2.5-1.5 4v3c0 1.5 1.5 3 3 3h.5c1 0 1.5-.5 1.5-1.5V16c0-.5.5-1 1-1s1 .5 1 1v3.5c0 1 .5 1.5 1.5 1.5h.5c1.5 0 3-1.5 3-3v-3c0-1.5-.5-3-1.5-4c.5-.5 1.5-1.5 1.5-3V5.5C19 3.5 17.5 2 15.5 2c-1.5 0-2.5 1-3.5 2c-1-1-2-2-3.5-2z"
+                    fill="currentColor"
+                  />
+                </svg>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-sm font-medium text-slate-600">
