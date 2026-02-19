@@ -10,15 +10,46 @@ import { BotHub } from './bot-hub';
  * Nexus Bot 2.0 - Asistente Virtual CIOR
  * Bot flotante con inteligencia artificial para gestión de órdenes
  */
+
 export function NexusBot() {
   const [isBotActive, setIsBotActive] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
+  const [greetingIndex, setGreetingIndex] = useState(0);
+
+  // Mensajes intercalados para el globo
+  const greetingMessages = [
+    '¡Hola! Soy Nexus. Carga tu orden aquí para agilizar tu atención y evitar esperas.',
+    'Estoy aquí para ayudarte, ¿qué necesitas?',
+    '¿Tienes alguna consulta? ¡Estoy para ayudarte!',
+    '¿Necesitás ayuda con algo específico?',
+    'No dudes en preguntarme lo que quieras.',
+  ];
 
   useEffect(() => {
-    // El bot saluda después de 2 segundos
-    const timer = setTimeout(() => setShowGreeting(true), 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    let showTimeout: NodeJS.Timeout;
+    let hideTimeout: NodeJS.Timeout;
+    let cycleTimeout: NodeJS.Timeout;
+
+    // Inicia el ciclo después de 2 segundos
+    showTimeout = setTimeout(() => {
+      setShowGreeting(true);
+      // Oculta el globo después de 15s
+      hideTimeout = setTimeout(() => {
+        setShowGreeting(false);
+        // Cambia el mensaje y vuelve a mostrar después de 15s
+        cycleTimeout = setTimeout(() => {
+          setGreetingIndex((prev) => (prev + 1) % greetingMessages.length);
+          setShowGreeting(true);
+        }, 15000);
+      }, 15000);
+    }, 2000);
+
+    return () => {
+      clearTimeout(showTimeout);
+      clearTimeout(hideTimeout);
+      clearTimeout(cycleTimeout);
+    };
+  }, [greetingIndex]);
 
   const handleToggle = () => {
     setIsBotActive(!isBotActive);
@@ -28,7 +59,7 @@ export function NexusBot() {
   return (
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4 sm:bottom-12 sm:right-12">
       {/* Burbuja de Saludo */}
-      <BotGreeting show={showGreeting && !isBotActive} />
+  <BotGreeting show={showGreeting && !isBotActive} message={greetingMessages[greetingIndex] || greetingMessages[0]} />
 
       {/* Botón Flotante */}
       <div className="group relative">

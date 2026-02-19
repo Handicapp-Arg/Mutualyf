@@ -1,13 +1,15 @@
-interface BotGreetingProps {
+export interface BotGreetingProps {
   show: boolean;
+  message: string;
 }
+
 
 /**
  * Burbuja de saludo del bot Nexus
  */
-export function BotGreeting({ show }: BotGreetingProps) {
+export function BotGreeting(props: BotGreetingProps) {
+  const { show, message } = props;
   if (!show) return null;
-
   return (
     <div className="animate-in fade-in slide-in-from-right-10 duration-700">
       <div className="relative mb-4 max-w-[240px] rounded-[2rem] border border-blue-50 bg-white px-6 py-4 shadow-2xl">
@@ -18,8 +20,7 @@ export function BotGreeting({ show }: BotGreetingProps) {
           </span>
         </div>
         <p className="text-xs font-bold leading-tight text-slate-600">
-          ¡Hola! Soy Nexus. <span className="text-corporate">Carga tu orden aquí</span>{' '}
-          para agilizar tu atención y evitar esperas.
+          {message}
         </p>
         {/* Flecha del globo */}
         <div className="absolute -bottom-2 right-8 h-4 w-4 rotate-45 border-b border-r border-blue-50 bg-white" />
