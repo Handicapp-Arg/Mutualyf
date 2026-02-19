@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Upload, FileText, ThumbsUp, ThumbsDown, X } from 'lucide-react';
+import { Send, Loader2, Upload, ThumbsUp, ThumbsDown, X } from 'lucide-react';
 import { BotFace } from './bot-face';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
@@ -638,17 +638,13 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden rounded-3xl">
-      {/* Efectos visuales de fondo (Partículas 3D flotando) */}
-      {/* Overlay visual removido para evitar bloqueos y overlays */}
-
+  <div className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl">
       {/* Header mejorado */}
-  <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
+      <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
         <div className="flex items-center gap-3">
           {/* Icono de Muelita en Header */}
           <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white shadow-inner">
             <div className="h-[140%] w-[140%]">
-              {/* Escalado para que la cámara del Canvas capture bien el modelo */}
               <BotFace />
             </div>
           </div>
@@ -673,8 +669,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         </div>
       </div>
 
-      {/* Messages - sin límite de altura fijo */}
-  <div className="relative z-10 flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4">
+  {/* Mensajes con fondo glass y esquinas asimétricas, ahora más grande */}
+  <div className="relative z-10 flex-1 flex flex-col space-y-4 overflow-y-auto bg-transparent p-0 w-full h-full min-h-0 max-h-full">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -682,17 +678,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           >
             <div className="max-w-[85%]">
               <div
-                className={`rounded-2xl px-4 py-3 shadow-sm ${
+                className={`rounded-2xl px-4 py-3 shadow-md ${
                   message.role === 'user'
-                    ? 'bg-corporate text-white'
-                    : 'border border-slate-200 bg-white text-slate-800'
+                    ? 'bg-gradient-to-br from-corporate to-cyan-400 text-white border-0'
+                    : 'border-0 bg-white/80 text-slate-800'
                 }`}
+                style={message.role === 'user' ? { boxShadow: '0 0 16px 2px #22d3ee55' } : {}}
               >
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
                   {cleanMarkdown(message.content)}
                 </p>
               </div>
-
               {/* Feedback Buttons - Solo para mensajes del asistente */}
               {message.role === 'assistant' && message.content && (
                 <div className="mt-2 flex items-center gap-2 px-2">
@@ -730,12 +726,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             </div>
           </div>
         ))}
-
         {/* Indicador de "escribiendo" mejorado */}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-corporate/10">
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-md">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-200/40">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -753,39 +748,48 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                   Nexus está escribiendo
                 </span>
                 <span className="flex gap-1">
-                  <span
-                    className="text-corporate"
-                    style={{ animationDelay: '0ms' }}
-                  >
-                    .
-                  </span>
-                  <span
-                    className="text-corporate"
-                    style={{ animationDelay: '150ms' }}
-                  >
-                    .
-                  </span>
-                  <span
-                    className="text-corporate"
-                    style={{ animationDelay: '300ms' }}
-                  >
-                    .
-                  </span>
+                  <span className="text-cyan-400">.</span>
+                  <span className="text-cyan-400">.</span>
+                  <span className="text-cyan-400">.</span>
                 </span>
               </div>
             </div>
           </div>
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input mejorado */}
+      {/* Input y botón flotantes, fuera del recuadro, con glass y glow */}
       <form
         onSubmit={handleSubmit}
-        className="flex-shrink-0 border-t border-slate-200 bg-white p-4"
+        className="pointer-events-auto absolute left-1/2 -translate-x-1/2 bottom-6 w-[calc(100%-3rem)] max-w-[95vw] flex items-end justify-center z-30"
+        style={{ filter: 'drop-shadow(0 12px 48px #22d3ee77)', width: '100%' }}
       >
-        <div className="mb-3 flex gap-2">
+        <div className="relative flex w-full max-w-xl items-center gap-3">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Escribe tu consulta aquí..."
+            className="flex-1 rounded-2xl border-0 bg-white/70 px-6 py-4 text-base shadow-lg ring-2 ring-cyan-300/30 focus:ring-4 focus:ring-cyan-400/60 transition-all duration-300 backdrop-blur-xl placeholder:text-cyan-400/80 text-cyan-900 font-semibold"
+            disabled={isLoading}
+            style={{ backdropFilter: 'blur(12px)' }}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !inputText.trim()}
+            className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-corporate to-cyan-600 text-white shadow-[0_0_32px_0_#22d3ee99] hover:scale-110 active:scale-95 transition-all duration-200 border-4 border-white/40 focus:outline-none focus:ring-4 focus:ring-cyan-300/40"
+            style={{ boxShadow: '0 0 32px 0 #22d3ee99, 0 0 0 4px #fff3' }}
+          >
+            {isLoading ? (
+              <Loader2 size={28} className="animate-spin" />
+            ) : (
+              <Send size={28} />
+            )}
+            {/* Glow animado */}
+            <span className="absolute inset-0 rounded-full pointer-events-none animate-pulse bg-cyan-400/20" />
+          </button>
+          {/* Botón de subir archivo flotante */}
           <input
             type="file"
             ref={fileInputRef}
@@ -797,41 +801,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || isLoading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-corporate/40 bg-white px-4 py-3 text-sm font-semibold text-corporate disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center justify-center rounded-full bg-white/80 text-cyan-500 shadow-lg hover:bg-cyan-100 transition-all duration-200 w-12 h-12 absolute -left-14 bottom-2 border-2 border-cyan-200/60"
+            style={{ boxShadow: '0 0 16px 2px #22d3ee33' }}
           >
-            {isUploading ? (
-              <>
-                <Loader2 size={18} />
-                <span>Subiendo...</span>
-              </>
-            ) : (
-              <>
-                <Upload size={18} />
-                <span>Subir orden médica</span>
-                <FileText size={18} />
-              </>
-            )}
-          </button>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Escribe tu consulta aquí..."
-            className="flex-1 rounded-full border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm placeholder:text-slate-400 focus:border-corporate focus:bg-white focus:outline-none focus:ring-2 focus:ring-corporate/20"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !inputText.trim()}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-corporate text-white shadow-md shadow-corporate/30 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? (
-              <Loader2 size={20} />
-            ) : (
-              <Send size={20} />
-            )}
+            {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
           </button>
         </div>
       </form>

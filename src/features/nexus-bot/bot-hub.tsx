@@ -11,7 +11,13 @@ interface BotHubProps {
  * Ahora es movible (draggable)
  */
 export function BotHub({ onClose }: BotHubProps) {
-  const [position, setPosition] = useState({ x: window.innerWidth - 480, y: window.innerHeight - 660 });
+  // Tamaño grande para media pantalla
+  // Tamaño responsivo: nunca mayor al 95vw/90vh, mínimo 340x400
+  const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  const CHAT_WIDTH = Math.max(340, Math.min(640, Math.floor(vw * 0.48)));
+  const CHAT_HEIGHT = Math.max(400, Math.min(600, Math.floor(vh * 0.7)));
+  const [position, setPosition] = useState({ x: vw - CHAT_WIDTH - 32, y: vh - CHAT_HEIGHT - 32 });
   const [dragging, setDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
@@ -53,9 +59,9 @@ export function BotHub({ onClose }: BotHubProps) {
     let newX = clientX - dragOffset.current.x;
     let newY = clientY - dragOffset.current.y;
     // Limitar dentro de la ventana
-    newX = Math.max(0, Math.min(window.innerWidth - 420, newX));
-    newY = Math.max(0, Math.min(window.innerHeight - 600, newY));
-    setPosition({ x: newX, y: newY });
+  newX = Math.max(0, Math.min(vw - CHAT_WIDTH, newX));
+  newY = Math.max(0, Math.min(vh - CHAT_HEIGHT, newY));
+  setPosition({ x: newX, y: newY });
   };
 
   const handleMouseUp = () => {
@@ -87,8 +93,22 @@ export function BotHub({ onClose }: BotHubProps) {
 
   return (
     <div
-      className="z-[200] fixed flex h-[600px] max-h-[calc(100vh-3rem)] w-[420px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_70px_-10px_rgba(0,0,0,0.35)]"
-      style={{ left: position.x, top: position.y, bottom: 'auto', right: 'auto', cursor: dragging ? 'grabbing' : 'default' }}
+      className="z-[200] fixed flex flex-col w-full h-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_70px_-10px_rgba(0,0,0,0.35)]"
+      style={{
+        left: position.x,
+        top: position.y,
+        bottom: 'auto',
+        right: 'auto',
+        cursor: dragging ? 'grabbing' : 'default',
+        width: CHAT_WIDTH,
+        height: CHAT_HEIGHT,
+        maxWidth: '95vw',
+        maxHeight: '90vh',
+        minWidth: 340,
+        minHeight: 400,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
       {/* Barra superior para arrastrar */}
       <div
@@ -99,7 +119,7 @@ export function BotHub({ onClose }: BotHubProps) {
       >
         <span className="text-xs text-slate-500">Mover chat</span>
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 w-full h-full">
         <ChatInterface onClose={onClose} />
       </div>
     </div>
