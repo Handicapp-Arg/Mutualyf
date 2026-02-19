@@ -25,8 +25,6 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
-
-
   // Declaración única de todos los hooks y refs
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -534,6 +532,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     setIsUploading(true);
     setShowOrderForm(false);
 
+    // Guardar el nombre del paciente de la orden médica
+    if (orderData.patientName && !userName) {
+      setUserName(orderData.patientName);
+      localStorage.setItem('cior_user_name', orderData.patientName);
+    }
+
     try {
       const result = await backendService.current.uploadMedicalOrder(
         pendingFile,
@@ -605,11 +609,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       onClose();
       return;
     }
-    
+
     isSaving.current = true;
     const currentMessages = messagesRef.current;
-    const currentUserName = userNameRef.current || userDNIRef.current;
-    
+    const currentUserName = userNameRef.current || userDNIRef.current || 'Anónimo';
+
     console.log('❌ ========== CERRANDO CHAT ==========');
     console.log('📊 Total mensajes en ref:', currentMessages.length);
     console.log('👤 Usuario:', currentUserName);
@@ -618,7 +622,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     currentMessages.forEach((msg, idx) => {
       console.log(`  ${idx + 1}. [${msg.role}] ${msg.content.substring(0, 50)}...`);
     });
-    
+
     // Guardar inmediatamente antes de cerrar
     if (currentMessages.length > 0) {
       console.log('💾 Iniciando guardado...');

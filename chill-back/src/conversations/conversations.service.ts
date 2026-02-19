@@ -1,5 +1,3 @@
-
-
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -30,7 +28,7 @@ export class ConversationsService {
       });
       return {
         message: 'Sesiones obtenidas exitosamente',
-        data: sessions.map(s => s.sessionId),
+        data: sessions.map((s) => s.sessionId),
         count: sessions.length,
       };
     } catch (error) {
@@ -78,7 +76,9 @@ export class ConversationsService {
         },
       });
 
-      this.logger.log(`✅ Conversación guardada con ${data.messages?.length} mensajes (ID: ${conversation.id})`);
+      this.logger.log(
+        `✅ Conversación guardada con ${data.messages?.length} mensajes (ID: ${conversation.id})`
+      );
       return {
         id: conversation.id,
         message: 'Conversación guardada exitosamente',
