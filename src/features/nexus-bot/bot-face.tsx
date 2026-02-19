@@ -20,53 +20,87 @@ function ToothKawaiiModel({ animation }: ToothKawaiiModelProps) {
   const leftArm  = useRef<THREE.Group>(null);
   const rightArm = useRef<THREE.Group>(null);
   const eyeGroup = useRef<THREE.Group>(null);
+  const lastAnim = useRef<string>('idle');
+  const blend = useRef<number>(0); // 0: idle, 1: anim
+  const blendSpeed = 0.18; // blending rápido
+  const [holdAnim, setHoldAnim] = useState(false); // mantener pose final
+  const holdTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Cuando termina la animación, mantener la pose final 0.25s antes de volver a idle
+    if (animation !== 'idle') {
+      setHoldAnim(false);
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    } else if (lastAnim.current !== 'idle') {
+      setHoldAnim(true);
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      holdTimer.current = window.setTimeout(() => {
+        setHoldAnim(false);
+        lastAnim.current = 'idle';
+      }, 250); // 250ms en pose final
+    }
+    return () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    };
+  }, [animation]);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    // Reset
-    if (bodyRef.current) {
-      bodyRef.current.position.set(0, 0, 0);
-      bodyRef.current.rotation.set(0, 0, 0);
+    // Blending animación
+    if (animation !== lastAnim.current && animation !== 'idle') {
+      blend.current += blendSpeed;
+      if (blend.current > 1) blend.current = 1;
+      if (blend.current === 1) lastAnim.current = animation;
+    } else if ((animation === 'idle' && !holdAnim) && blend.current > 0) {
+      blend.current -= blendSpeed;
+      if (blend.current < 0) blend.current = 0;
     }
-    if (leftArm.current) leftArm.current.rotation.set(0, 0, 0.65);
-    if (rightArm.current) rightArm.current.rotation.set(0, 0, -0.15);
 
-    // Animaciones
-    switch (animation) {
-      case 'salto_mortal': // voltereta atrás
-        if (bodyRef.current) {
-          bodyRef.current.position.y = Math.abs(Math.sin(t * 2)) * 0.7;
-          bodyRef.current.rotation.x = Math.PI * 2 * (t % 1);
-        }
+    // Estados base
+    // Idle
+    const idle = {
+      posY: Math.sin(t * 2.2) * 0.05,
+      rotX: 0,
+      rotY: 0,
+      rotZ: Math.sin(t * 1.1) * 0.018,
+      leftArm: Math.sin(t * 5.5) * 0.35 + 0.65,
+      rightArm: -0.15 + Math.sin(t * 1.8) * 0.08,
+    };
+    // Animación destino
+    let anim = { ...idle };
+    switch (animation !== 'idle' ? animation : lastAnim.current) {
+      case 'salto_mortal':
+        anim.posY = Math.abs(Math.sin(t * 2)) * 0.7;
+        anim.rotX = Math.PI * 2 * (t % 1);
         break;
       case 'salto_alto':
-        if (bodyRef.current) {
-          bodyRef.current.position.y = Math.abs(Math.sin(t * 3)) * 0.9;
-        }
-        if (leftArm.current) leftArm.current.rotation.z = 1.5 + Math.sin(t * 6) * 0.2;
-        if (rightArm.current) rightArm.current.rotation.z = -1.5 + Math.sin(t * 6) * 0.2;
+        anim.posY = Math.abs(Math.sin(t * 3)) * 0.9;
+        anim.leftArm = 1.5 + Math.sin(t * 6) * 0.2;
+        anim.rightArm = -1.5 + Math.sin(t * 6) * 0.2;
         break;
       case 'giro':
-        if (bodyRef.current) {
-          bodyRef.current.rotation.y = Math.PI * 2 * (t % 1);
-        }
+        anim.rotY = Math.PI * 2 * (t % 1);
         break;
       case 'salto_divertido':
-        if (bodyRef.current) {
-          bodyRef.current.position.y = Math.abs(Math.sin(t * 2.5)) * 0.5;
-        }
-        if (leftArm.current) leftArm.current.rotation.z = 2.2 + Math.sin(t * 5) * 0.3;
-        if (rightArm.current) rightArm.current.rotation.z = -2.2 + Math.sin(t * 5) * 0.3;
-        break;
-      default: // idle
-        if (bodyRef.current) {
-          bodyRef.current.position.y = Math.sin(t * 2.2) * 0.05;
-          bodyRef.current.rotation.z = Math.sin(t * 1.1) * 0.018;
-        }
-        if (leftArm.current)  leftArm.current.rotation.z  = Math.sin(t * 5.5) * 0.35 + 0.65;
-        if (rightArm.current) rightArm.current.rotation.z = -0.15 + Math.sin(t * 1.8) * 0.08;
+        anim.posY = Math.abs(Math.sin(t * 2.5)) * 0.5;
+        anim.leftArm = 2.2 + Math.sin(t * 5) * 0.3;
+        anim.rightArm = -2.2 + Math.sin(t * 5) * 0.3;
         break;
     }
+
+    // Interpolación suave entre idle y animación
+    const b = blend.current;
+    const lerp = THREE.MathUtils.lerp;
+    if (bodyRef.current) {
+      bodyRef.current.position.y = lerp(idle.posY, anim.posY, b);
+      bodyRef.current.rotation.x = lerp(idle.rotX, anim.rotX, b);
+      bodyRef.current.rotation.y = lerp(idle.rotY, anim.rotY, b);
+      bodyRef.current.rotation.z = lerp(idle.rotZ, anim.rotZ, b);
+    }
+    if (leftArm.current) leftArm.current.rotation.z = lerp(idle.leftArm, anim.leftArm, b);
+    if (rightArm.current) rightArm.current.rotation.z = lerp(idle.rightArm, anim.rightArm, b);
+
+    // Ojos (blink)
     if (eyeGroup.current) {
       if (Math.random() > 0.993) eyeGroup.current.scale.y = 0.06;
       else eyeGroup.current.scale.y = THREE.MathUtils.lerp(eyeGroup.current.scale.y, 1, 0.35);
