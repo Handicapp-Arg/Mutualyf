@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Upload, FileText, ThumbsUp, ThumbsDown, X } from 'lucide-react';
-import { Canvas } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
 import { BotFace } from './bot-face';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
@@ -642,25 +640,13 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-3xl">
       {/* Efectos visuales de fondo (Partículas 3D flotando) */}
-      <div className="pointer-events-none absolute inset-0 z-0 opacity-40">
-        <Canvas camera={{ position: [0, 0, 1] }} gl={{ alpha: true }}>
-          <Sparkles
-            count={40}
-            scale={5}
-            size={3}
-            speed={0.4}
-            opacity={0.5}
-            color="#22d3ee"
-            noise={0.5}
-          />
-        </Canvas>
-      </div>
+      {/* Overlay visual removido para evitar bloqueos y overlays */}
 
       {/* Header mejorado */}
-      <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-gradient-to-r from-corporate to-corporate/90 p-4">
+  <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
         <div className="flex items-center gap-3">
           {/* Icono de Muelita en Header */}
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 shadow-inner backdrop-blur-sm">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white shadow-inner">
             <div className="h-[140%] w-[140%]">
               {/* Escalado para que la cámara del Canvas capture bien el modelo */}
               <BotFace />
@@ -671,7 +657,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
               Nexus Assistant
             </h4>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+              <div className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
               <span className="text-xs font-medium text-white/90">
                 En línea - IA activa
               </span>
@@ -688,7 +674,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       </div>
 
       {/* Messages - sin límite de altura fijo */}
-      <div className="relative z-10 flex-1 space-y-4 overflow-y-auto bg-slate-50/80 p-4 backdrop-blur-[2px]">
+  <div className="relative z-10 flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -747,7 +733,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
         {/* Indicador de "escribiendo" mejorado */}
         {isLoading && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 flex justify-start duration-300">
+          <div className="flex justify-start">
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-corporate/10">
                 <svg
@@ -768,19 +754,19 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                 </span>
                 <span className="flex gap-1">
                   <span
-                    className="animate-bounce text-corporate"
+                    className="text-corporate"
                     style={{ animationDelay: '0ms' }}
                   >
                     .
                   </span>
                   <span
-                    className="animate-bounce text-corporate"
+                    className="text-corporate"
                     style={{ animationDelay: '150ms' }}
                   >
                     .
                   </span>
                   <span
-                    className="animate-bounce text-corporate"
+                    className="text-corporate"
                     style={{ animationDelay: '300ms' }}
                   >
                     .
@@ -811,11 +797,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || isLoading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-corporate/40 bg-gradient-to-r from-corporate/5 to-corporate/10 px-4 py-3 text-sm font-semibold text-corporate transition-all hover:border-corporate/60 hover:from-corporate/10 hover:to-corporate/15 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-corporate/40 bg-white px-4 py-3 text-sm font-semibold text-corporate disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isUploading ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
+                <Loader2 size={18} />
                 <span>Subiendo...</span>
               </>
             ) : (
@@ -839,10 +825,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           <button
             type="submit"
             disabled={isLoading || !inputText.trim()}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-corporate to-corporate/90 text-white shadow-md shadow-corporate/30 transition-all hover:shadow-lg hover:shadow-corporate/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-corporate text-white shadow-md shadow-corporate/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
-              <Loader2 size={20} className="animate-spin" />
+              <Loader2 size={20} />
             ) : (
               <Send size={20} />
             )}

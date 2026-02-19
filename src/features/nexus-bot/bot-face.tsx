@@ -184,7 +184,7 @@ export function BotFace() {
   }, [animation]);
 
   return (
-    <div className="pointer-events-none h-full w-full">
+    <div className="h-full w-full">
       <Canvas camera={{ position: [0, 0.1, 6], fov: 52 }} dpr={[1, 2]} gl={{ alpha: true, antialias: true }}>
         <ambientLight intensity={1.3} />
         <spotLight position={[6, 8, 8]} angle={0.4} penumbra={1} intensity={1.8} color="white" />
