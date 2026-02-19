@@ -391,9 +391,6 @@ export function AdminPortal() {
                                   {conv.userName || 'Anónimo'}
                                 </p>
                               </div>
-                              <p className="text-xs text-slate-500">
-                                Sesión: {conv.sessionId.substring(0, 20)}...
-                              </p>
                               <p className="mt-1 text-sm font-medium text-slate-700">
                                 {conv.messages.length} mensajes
                               </p>

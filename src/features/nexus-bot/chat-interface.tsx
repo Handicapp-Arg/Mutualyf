@@ -49,21 +49,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const userNameRef = useRef(userName);
   const userDNIRef = useRef(userDNI);
 
-  // Guardar conversación en el backend con debounce para evitar spam de requests
-  useEffect(() => {
-    const hasUser = messages.some(m => m.role === 'user' && m.content.trim().length > 0);
-    const hasAssistant = messages.some(m => m.role === 'assistant' && m.content.trim().length > 0);
-    if (!hasUser || !hasAssistant) return;
-
-    const handler = setTimeout(() => {
-      backendService.current.saveConversation(messages, userNameRef.current || userDNIRef.current).catch((err) => {
-        console.error('❌ Error guardando conversación en tiempo real:', err);
-      });
-    }, 2000); // 2 segundos de espera tras el último cambio
-
-    return () => clearTimeout(handler);
-  }, [messages]);
-
   // Mantener refs actualizados
   useEffect(() => {
     messagesRef.current = messages;

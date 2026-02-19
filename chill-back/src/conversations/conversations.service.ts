@@ -41,11 +41,12 @@ export class ConversationsService {
 
   /**
    * Crear nueva conversación
-   * Valida que el mensaje no esté vacío y que el sessionId sea válido
+   * Cada vez que se cierra el chat, se crea una nueva conversación
    */
   async create(data: CreateConversationDto) {
     try {
-      this.logger.debug(`Upsert conversación para sessionId: ${data.sessionId}`);
+      this.logger.debug(`Guardando conversación para sessionId: ${data.sessionId}`);
+      this.logger.debug(`Total mensajes recibidos: ${data.messages?.length || 0}`);
 
       // Extraer último mensaje del usuario y última respuesta del bot
       const userMessages = data.messages.filter((m) => m.role === 'user');
@@ -63,7 +64,7 @@ export class ConversationsService {
         throw new BusinessException('La respuesta del bot no puede estar vacía');
       }
 
-      // Siempre crear una nueva conversación
+      // CREAR una nueva conversación (sin borrar las anteriores)
       const conversation = await this.prisma.conversation.create({
         data: {
           sessionId: data.sessionId,
@@ -77,7 +78,7 @@ export class ConversationsService {
         },
       });
 
-      this.logger.log(`Conversación upserted exitosamente: ${conversation.id}`);
+      this.logger.log(`✅ Conversación guardada con ${data.messages?.length} mensajes (ID: ${conversation.id})`);
       return {
         id: conversation.id,
         message: 'Conversación guardada exitosamente',
@@ -88,8 +89,8 @@ export class ConversationsService {
         throw error;
       }
 
-      this.logger.error(`Error al upsert conversación: ${error.message}`);
-      throw new DatabaseException('upsert conversation', error.message);
+      this.logger.error(`Error al guardar conversación: ${error.message}`);
+      throw new DatabaseException('guardar conversation', error.message);
     }
   }
 
