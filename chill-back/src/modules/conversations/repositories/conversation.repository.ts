@@ -92,13 +92,19 @@ export class ConversationRepository {
 
       console.log('➕ CREANDO conversación NUEVA (única por sesión)');
 
-      // Crear UNA ÚNICA conversación para este sessionId
+      // Tomar el último mensaje del usuario y del bot (si existen)
+      const userMessages = (data.messages || []).filter((m: any) => m.role === 'user');
+      const botMessages = (data.messages || []).filter((m: any) => m.role === 'assistant');
+      const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : '';
+      const lastBotMessage = botMessages.length > 0 ? botMessages[botMessages.length - 1].content : '';
+
+      // Guardar todos los mensajes en el campo messages
       const newConversation = await this.prisma.conversation.create({
         data: {
           sessionId: data.sessionId,
           userName: data.userName,
-          userMessage: data.messages?.[0]?.content || '',
-          botResponse: data.messages?.[1]?.content || '',
+          userMessage: lastUserMessage,
+          botResponse: lastBotMessage,
           timestamp: (data.timestamp || new Date()).toISOString(),
           messages: JSON.stringify(data.messages || []),
           createdAt: data.timestamp || new Date(),

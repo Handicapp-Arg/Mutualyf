@@ -32,6 +32,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatService = useRef(new ChatAIService());
+  // Forzar nuevo sessionId y conversación en cada recarga
+  useEffect(() => {
+    localStorage.removeItem('cior_session_id');
+  }, []);
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
   const isInitialized = useRef(false);
@@ -362,7 +366,15 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      const updated = [...prev, userMessage];
+      // Solo enviar las propiedades requeridas al backend
+      backendService.current.saveConversation(
+        updated.map(({ role, content, timestamp }) => ({ role, content, timestamp })),
+        userNameRef.current || userDNIRef.current || 'Anónimo'
+      );
+      return updated;
+    });
     setInputText('');
     setIsLoading(true);
 
@@ -379,26 +391,29 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
         assistantContent += chunk;
         setMessages((prev) => {
-          // Actualiza el último mensaje del asistente, o lo agrega si no existe
           const lastIdx = prev.length - 1;
+          let updated: Message[];
           if (prev[lastIdx]?.role === 'assistant') {
-            // Actualiza el último mensaje del asistente
-            return [
+            updated = [
               ...prev.slice(0, lastIdx),
               { ...prev[lastIdx], content: assistantContent },
             ];
           } else {
-            // Agrega un nuevo mensaje del asistente
-            return [
+            updated = [
               ...prev,
               {
                 id: (Date.now() + 1).toString(),
-                role: 'assistant',
+                role: 'assistant' as const,
                 content: assistantContent,
                 timestamp: new Date(),
               },
             ];
           }
+          backendService.current.saveConversation(
+            updated.map(({ role, content, timestamp }) => ({ role, content, timestamp })),
+            userNameRef.current || userDNIRef.current || 'Anónimo'
+          );
+          return updated;
         });
       }
     } catch (error) {
