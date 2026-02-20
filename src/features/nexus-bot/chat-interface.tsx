@@ -638,7 +638,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   };
 
   return (
-  <div className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl">
       {/* Header mejorado */}
       <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
         <div className="flex items-center gap-3">
@@ -669,63 +669,41 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         </div>
       </div>
 
-  {/* Mensajes con fondo glass y esquinas asimétricas, ahora más grande */}
-  <div className="relative z-10 flex-1 flex flex-col space-y-4 overflow-y-auto bg-transparent p-0 w-full h-full min-h-0 max-h-full">
+      {/* Mensajes con estilo chat moderno y limpio */}
+      <div className="relative z-10 flex h-full max-h-full min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4">
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
           >
-            <div className="max-w-[85%]">
+            <div
+              className={`flex max-w-[85%] flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
+            >
               <div
-                className={`rounded-2xl px-4 py-3 shadow-md ${
+                className={`px-5 py-3.5 shadow-sm ${
                   message.role === 'user'
-                    ? 'bg-gradient-to-br from-corporate to-cyan-400 text-white border-0'
-                    : 'border-0 bg-white/80 text-slate-800'
+                    ? 'rounded-[20px] rounded-tr-sm bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
+                    : 'rounded-[20px] rounded-tl-sm bg-white text-slate-700'
                 }`}
-                style={message.role === 'user' ? { boxShadow: '0 0 16px 2px #22d3ee55' } : {}}
               >
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
                   {cleanMarkdown(message.content)}
                 </p>
               </div>
-              {/* Feedback Buttons - Solo para mensajes del asistente */}
-              {message.role === 'assistant' && message.content && (
-                <div className="mt-2 flex items-center gap-2 px-2">
-                  <button
-                    onClick={() => handleFeedback(message.id, 'positive')}
-                    disabled={feedbackGiven.has(message.id)}
-                    className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-all ${
-                      feedbackGiven.has(message.id)
-                        ? 'cursor-not-allowed opacity-50'
-                        : 'text-slate-500 hover:bg-green-50 hover:text-green-600'
-                    }`}
-                    title="Útil"
-                  >
-                    <ThumbsUp size={12} />
-                    <span>Útil</span>
-                  </button>
-                  <button
-                    onClick={() => handleFeedback(message.id, 'negative')}
-                    disabled={feedbackGiven.has(message.id)}
-                    className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-all ${
-                      feedbackGiven.has(message.id)
-                        ? 'cursor-not-allowed opacity-50'
-                        : 'text-slate-500 hover:bg-red-50 hover:text-red-600'
-                    }`}
-                    title="Mejorar"
-                  >
-                    <ThumbsDown size={12} />
-                    <span>Mejorar</span>
-                  </button>
-                  {feedbackGiven.has(message.id) && (
-                    <span className="text-xs text-slate-400">✓ Gracias</span>
-                  )}
-                </div>
-              )}
+
+              {/* Timestamp discreto */}
+              <span
+                className={`mt-1 px-1 text-[10px] ${message.role === 'user' ? 'text-right text-slate-400' : 'text-left text-slate-400'}`}
+              >
+                {new Date(message.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
             </div>
           </div>
         ))}
+
         {/* Indicador de "escribiendo" mejorado */}
         {isLoading && (
           <div className="flex justify-start">
@@ -762,33 +740,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       {/* Input y botón flotantes, fuera del recuadro, con glass y glow */}
       <form
         onSubmit={handleSubmit}
-        className="pointer-events-auto absolute left-1/2 -translate-x-1/2 bottom-6 w-[calc(100%-3rem)] max-w-[95vw] flex items-end justify-center z-30"
-        style={{ filter: 'drop-shadow(0 12px 48px #22d3ee77)', width: '100%' }}
+        className="pointer-events-auto absolute bottom-0 left-0 right-0 z-30 flex items-end justify-center bg-gradient-to-t from-white to-transparent p-4 pb-6"
       >
-        <div className="relative flex w-full max-w-xl items-center gap-3">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Escribe tu consulta aquí..."
-            className="flex-1 rounded-2xl border-0 bg-white/70 px-6 py-4 text-base shadow-lg ring-2 ring-cyan-300/30 focus:ring-4 focus:ring-cyan-400/60 transition-all duration-300 backdrop-blur-xl placeholder:text-cyan-400/80 text-cyan-900 font-semibold"
-            disabled={isLoading}
-            style={{ backdropFilter: 'blur(12px)' }}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !inputText.trim()}
-            className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-corporate to-cyan-600 text-white shadow-[0_0_32px_0_#22d3ee99] hover:scale-110 active:scale-95 transition-all duration-200 border-4 border-white/40 focus:outline-none focus:ring-4 focus:ring-cyan-300/40"
-            style={{ boxShadow: '0 0 32px 0 #22d3ee99, 0 0 0 4px #fff3' }}
-          >
-            {isLoading ? (
-              <Loader2 size={28} className="animate-spin" />
-            ) : (
-              <Send size={28} />
-            )}
-            {/* Glow animado */}
-            <span className="absolute inset-0 rounded-full pointer-events-none animate-pulse bg-cyan-400/20" />
-          </button>
+        <div className="relative flex w-full max-w-xl items-end gap-2 drop-shadow-2xl">
           {/* Botón de subir archivo flotante */}
           <input
             type="file"
@@ -801,10 +755,47 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || isLoading}
-            className="flex items-center justify-center rounded-full bg-white/80 text-cyan-500 shadow-lg hover:bg-cyan-100 transition-all duration-200 w-12 h-12 absolute -left-14 bottom-2 border-2 border-cyan-200/60"
-            style={{ boxShadow: '0 0 16px 2px #22d3ee33' }}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-cyan-500 shadow-lg ring-1 ring-cyan-100 transition-all hover:bg-cyan-50 active:scale-95"
           >
-            {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+            {isUploading ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <Upload size={20} />
+            )}
+          </button>
+
+          <div className="relative flex-1 rounded-[24px] bg-white shadow-xl ring-1 ring-black/5 transition-shadow focus-within:ring-2 focus-within:ring-cyan-400/50">
+            <textarea
+              value={inputText}
+              onChange={(e) => {
+                setInputText(e.target.value);
+                // Auto-adjust height
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e as any);
+                }
+              }}
+              placeholder="Escribí tu consulta..."
+              className="flex max-h-[120px] min-h-[50px] w-full resize-none bg-transparent px-5 py-3.5 text-base text-slate-700 placeholder:text-slate-400 focus:outline-none"
+              disabled={isLoading}
+              rows={1}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || !inputText.trim()}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <Send size={20} className="ml-0.5" />
+            )}
           </button>
         </div>
       </form>

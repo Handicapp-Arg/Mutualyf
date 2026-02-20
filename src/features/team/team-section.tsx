@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Award, GraduationCap, Heart } from 'lucide-react';
+import { Award, GraduationCap, Heart, ChevronRight, Activity } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { Badge } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -15,7 +16,7 @@ interface TeamMember {
 
 /**
  * Team Section - Sección del equipo médico CIOR
- * Diseño ultra moderno 2026 con cards interactivas
+ * Diseño ultra moderno 2026 con cards interactivas y estilo Tech
  */
 export function TeamSection() {
   const [hoveredMember, setHoveredMember] = useState<number | null>(null);
@@ -60,22 +61,35 @@ export function TeamSection() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white py-32">
-      {/* Background decorativo */}
-      <div className="absolute left-0 top-20 h-96 w-96 rounded-full bg-blue-100/30 blur-[120px]" />
-      <div className="absolute bottom-20 right-0 h-96 w-96 rounded-full bg-cyan-100/30 blur-[120px]" />
+    <section className="relative overflow-hidden bg-slate-50 py-32">
+      {/* ══ BACKGROUND EFFECTS (TECH LIGHT) ══ */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(14,165,233,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,black_70%,transparent_100%)]" />
+      <div className="absolute left-0 top-20 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-corporate/5 blur-[120px]" />
+      <div className="absolute bottom-20 right-0 h-[500px] w-[500px] translate-x-1/2 rounded-full bg-cyan-400/10 blur-[100px]" />
 
-      <div className="relative mx-auto max-w-7xl px-6">
+      <div className="relative z-10 mx-auto max-w-7xl px-6">
         {/* Header */}
         <div className="mb-20 text-center">
-          <Badge variant="info" className="mb-6">
-            <Heart size={14} className="text-blue-400" />
+          <Badge
+            variant="default"
+            className="mb-6 border border-corporate/10 bg-white text-corporate shadow-sm"
+          >
+            <Heart size={14} className="text-corporate" />
             Excelencia Profesional
           </Badge>
 
-          <h2 className="mb-6 text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl">
-            Nuestro <span className="text-corporate">Equipo Médico</span>
-          </h2>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="mb-6 text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl"
+          >
+            Nuestro{' '}
+            <span className="bg-gradient-to-r from-corporate to-cyan-500 bg-clip-text text-transparent">
+              Equipo Médico
+            </span>
+          </motion.h2>
 
           <p className="mx-auto max-w-2xl text-xl font-medium text-slate-600">
             Profesionales altamente capacitados con tecnología de vanguardia para tu
@@ -83,54 +97,34 @@ export function TeamSection() {
           </p>
         </div>
 
-        {/* Team Grid Ultra Moderno */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {/* Team Grid Profesional y Uniforme */}
+        <div className="flex flex-wrap justify-center gap-8">
           {team.map((member, index) => (
-            <div
+            <motion.div
               key={index}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
               onMouseEnter={() => setHoveredMember(index)}
               onMouseLeave={() => setHoveredMember(null)}
-              className={cn(
-                'group relative overflow-hidden rounded-[3rem] bg-white p-8 shadow-lg transition-all duration-500',
-                hoveredMember === index
-                  ? 'scale-105 shadow-2xl shadow-corporate/20'
-                  : 'hover:shadow-xl',
-                member.highlight && 'ring-2 ring-corporate/20'
-              )}
+              className="group relative flex w-full max-w-[380px] flex-col overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-corporate/30 hover:shadow-[0_10px_40px_-10px_rgba(14,165,233,0.3)]"
             >
-              {/* Badge de destacado */}
-              {member.highlight && (
-                <div className="absolute right-6 top-6 z-10">
-                  <div className="flex items-center gap-2 rounded-full bg-corporate px-4 py-2 text-[9px] font-black uppercase tracking-widest text-white shadow-lg">
-                    <Award size={12} />
-                    Director
-                  </div>
-                </div>
-              )}
-
-              {/* Imagen con efecto moderno */}
-              <div className="relative mb-6 overflow-hidden rounded-[2rem]">
-                {/* Overlay gradient */}
-                <div
-                  className={cn(
-                    'absolute inset-0 z-10 bg-gradient-to-t from-corporate/80 via-corporate/20 to-transparent transition-opacity duration-500',
-                    hoveredMember === index ? 'opacity-100' : 'opacity-0'
-                  )}
-                />
-
-                {/* Foto */}
+              {/* Imagen con efecto Escáner Tech */}
+              <div className="relative h-80 w-full overflow-hidden bg-slate-900">
                 <img
                   src={member.image}
                   alt={member.name}
-                  className={cn(
-                    'h-80 w-full object-cover transition-all duration-700',
-                    hoveredMember === index
-                      ? 'scale-110 grayscale-0'
-                      : 'scale-100 grayscale-[0.3]'
-                  )}
+                  className="h-full w-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-110 group-hover:opacity-100"
                 />
 
-                {/* Info overlay en hover */}
+                {/* Luces/Glow sobre la imagen */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent opacity-80 transition-opacity group-hover:opacity-90" />
+
+                {/* Efecto Escáner (Línea que baja) */}
+                <div className="absolute left-0 right-0 top-0 h-1 bg-cyan-400/80 opacity-0 shadow-[0_0_15px_rgba(34,211,238,1)] transition-all duration-1000 ease-in-out group-hover:translate-y-[320px] group-hover:opacity-100" />
+
+                {/* Info overlay en hover (Credenciales) */}
                 <div
                   className={cn(
                     'absolute bottom-0 left-0 right-0 z-20 p-6 transition-all duration-500',
@@ -139,69 +133,92 @@ export function TeamSection() {
                       : 'translate-y-4 opacity-0'
                   )}
                 >
-                  <div className="flex items-center gap-2 text-white">
-                    <GraduationCap size={16} />
+                  <div className="mb-3 flex items-center gap-2 text-cyan-400">
+                    <Activity size={16} className="animate-pulse" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
-                      Credenciales
+                      Especialización
                     </span>
                   </div>
                   {member.credentials.map((credential, i) => (
-                    <div key={i} className="mt-2 text-xs font-bold text-white/90">
-                      • {credential}
+                    <div
+                      key={i}
+                      className="mt-1 flex items-center gap-2 text-xs font-bold text-white/90"
+                    >
+                      <div className="h-1 w-1 rounded-full bg-cyan-400 shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                      {credential}
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Info del profesional */}
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black tracking-tight text-slate-900">
-                  {member.name}
-                </h3>
-
-                <div className="space-y-1">
-                  <div className="text-sm font-black uppercase tracking-widest text-corporate">
+              <div className="relative flex flex-1 flex-col p-6 lg:p-8">
+                <div className="mb-4 space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-widest text-cyan-600">
                     {member.role}
                   </div>
-                  <div className="text-sm font-medium text-slate-600">
-                    {member.specialty}
-                  </div>
+                  <h3 className="text-2xl font-black tracking-tight text-slate-900 transition-colors group-hover:text-corporate">
+                    {member.name}
+                  </h3>
                 </div>
 
-                {/* Credentials badges */}
-                <div className="flex flex-wrap gap-2 pt-2">
+                <p className="mb-6 text-sm font-medium leading-relaxed text-slate-600">
+                  {member.specialty}
+                </p>
+
+                {/* Credentials badges (Tech style) */}
+                <div className="mt-auto flex flex-wrap gap-2">
                   {member.credentials.map((credential, i) => (
                     <span
                       key={i}
-                      className="rounded-full bg-slate-100 px-3 py-1 text-[9px] font-bold text-slate-600"
+                      className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-1.5 text-[10px] font-bold text-slate-700 shadow-sm"
                     >
                       {credential}
                     </span>
                   ))}
                 </div>
-              </div>
 
-              {/* Decoración de esquina */}
-              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br from-corporate/10 to-transparent blur-2xl transition-all duration-500 group-hover:scale-150" />
-            </div>
+                {/* Decoración de esquina animada */}
+                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br from-cyan-400/10 to-transparent blur-2xl transition-all duration-700 group-hover:scale-150 group-hover:bg-corporate/10" />
+              </div>
+            </motion.div>
           ))}
         </div>
 
-        {/* CTA Section */}
-        <div className="mt-20 text-center">
-          <div className="mx-auto max-w-3xl rounded-[3rem] bg-gradient-to-br from-corporate to-blue-900 p-12 shadow-2xl">
-            <h3 className="mb-4 text-3xl font-black text-white">
-              ¿Querés atención personalizada?
-            </h3>
-            <p className="mb-8 text-lg font-medium text-white/90">
-              Nuestro equipo está disponible para resolver todas tus consultas sobre
-              diagnóstico por imágenes.
-            </p>
-            <button className="rounded-2xl bg-white px-10 py-4 text-sm font-black uppercase tracking-widest text-corporate shadow-xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95">
-              Contactar al Equipo
-            </button>
+        {/* CTA Section Tech */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-24 text-center"
+        >
+          <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-12 shadow-2xl">
+            {/* Luces de fondo del CTA */}
+            <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-corporate/30 blur-[80px]" />
+            <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-cyan-500/20 blur-[80px]" />
+
+            <div className="relative z-10">
+              <h3 className="mb-4 text-3xl font-black text-white lg:text-4xl">
+                ¿Querés atención personalizada?
+              </h3>
+              <p className="mx-auto mb-8 max-w-2xl text-lg font-medium text-slate-300">
+                Nuestro equipo está disponible para resolver todas tus consultas sobre
+                diagnóstico por imágenes.
+              </p>
+
+              <button className="group/btn relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-white px-8 py-4 text-sm font-bold uppercase tracking-wide text-slate-900 transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+                <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover/btn:duration-1000 group-hover/btn:[transform:skew(-12deg)_translateX(150%)]">
+                  <div className="relative h-full w-8 bg-slate-200/50" />
+                </div>
+                <span className="relative z-10">Contactar al Equipo</span>
+                <ChevronRight
+                  size={18}
+                  className="relative z-10 text-corporate transition-transform group-hover/btn:translate-x-1"
+                />
+              </button>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

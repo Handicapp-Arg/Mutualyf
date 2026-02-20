@@ -154,10 +154,10 @@ export function TechnologySection() {
               playsInline
               preload="auto"
             />
-            
+
             {/* Overlay gradiente mejorado */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent" />
-            
+
             {/* Badge flotante premium */}
             <div className="absolute bottom-8 left-8">
               <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 backdrop-blur-xl transition-all hover:bg-white/20">
