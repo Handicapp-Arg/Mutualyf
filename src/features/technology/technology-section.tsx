@@ -127,13 +127,50 @@ export function TechnologySection() {
           <Badge variant="default" className="mb-4">
             Innovación Digital
           </Badge>
-          <h2 className="text-4xl font-bold tracking-tight text-slate-900 lg:text-5xl">
+          <h2 className="text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl">
             Tecnología de <span className="text-corporate">Vanguardia</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
             Equipamiento de última generación para garantizar diagnósticos precisos y
             tratamientos exitosos.
           </p>
+        </motion.div>
+
+        {/* Video Showcase - Máquinas en acción */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="relative mb-20"
+        >
+          <div className="group relative aspect-[21/9] w-full overflow-hidden rounded-3xl bg-slate-900 shadow-2xl">
+            <video
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+              src="/images/hero2.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+            />
+            
+            {/* Overlay gradiente mejorado */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent" />
+            
+            {/* Badge flotante premium */}
+            <div className="absolute bottom-8 left-8">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 backdrop-blur-xl transition-all hover:bg-white/20">
+                <Award className="text-corporate" size={20} strokeWidth={2.5} />
+                <span className="text-sm font-bold uppercase tracking-wider text-white">
+                  Equipamiento Planmeca
+                </span>
+              </div>
+            </div>
+
+            {/* Borde sutil interno */}
+            <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/10" />
+          </div>
         </motion.div>
 
         {/* Carousel Container */}

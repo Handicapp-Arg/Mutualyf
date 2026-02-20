@@ -250,32 +250,6 @@ export function ContactSection() {
             </div>
           </div>
         </div>
-
-        {/* CTA Final */}
-        <div className="mt-12 text-center">
-          <div className="mx-auto max-w-3xl rounded-[3rem] border border-white/10 bg-white/5 p-12 backdrop-blur-xl">
-            <h3 className="mb-4 text-3xl font-black text-white">¿Necesitás un turno?</h3>
-            <p className="mb-8 text-lg font-medium text-white/80">
-              Contactanos por WhatsApp y te respondemos al instante.
-            </p>
-            <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <button
-                onClick={handleWhatsApp}
-                className="inline-flex items-center justify-center gap-3 rounded-2xl bg-green-500 px-10 py-5 text-sm font-black uppercase tracking-widest text-white shadow-2xl shadow-green-500/30 transition-all hover:scale-105 hover:bg-green-600 active:scale-95"
-              >
-                <MessageCircle size={20} />
-                WhatsApp Turnos
-              </button>
-              <a
-                href={`tel:${siteConfig.contact.phone}`}
-                className="inline-flex items-center justify-center gap-3 rounded-2xl border-2 border-white/20 bg-white/5 px-10 py-5 text-sm font-black uppercase tracking-widest text-white backdrop-blur-xl transition-all hover:scale-105 hover:bg-white/10 active:scale-95"
-              >
-                <Phone size={20} />
-                Llamar Ahora
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

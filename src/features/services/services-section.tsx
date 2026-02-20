@@ -1,238 +1,266 @@
-import { useState } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Badge } from '@/components/ui/badge';
-import { Camera, Scan, Brain, Printer } from 'lucide-react';
+import { Scan, Brain, Printer, Activity, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Button, Badge } from '@/components/ui';
 
+// Categorías con íconos actualizados
 const categories = [
-  { id: 'diagnostico', label: 'Diagnóstico 2D/3D', icon: Camera },
-  { id: 'tomografia', label: 'Tomografía', icon: Scan },
+  { id: 'diagnostico', label: 'Diagnóstico 2D', icon: Activity },
+  { id: 'tomografia', label: 'Tomografía 3D', icon: Scan },
   { id: 'cefalometria', label: 'Cefalometría', icon: Brain },
-  { id: 'digital', label: 'Digital 3D', icon: Printer },
+  { id: 'digital', label: 'Modelos Digitales', icon: Printer },
 ];
 
 const services = [
+  // DIAGNÓSTICO
   {
-    id: 1,
+    id: 'rx-seriada',
     category: 'diagnostico',
     title: 'Radiografía Seriada',
-    description: 'Imágenes periapicales de alta precisión para diagnóstico detallado.',
+    subtitle: 'Periapicales de alta precisión',
+    description: 'Estudio detallado pieza por pieza para visualizar lesiones periapicales, nivel óseo y morfología radicular con máxima nitidez.',
     image: '/images/services/servicio01.jpg',
-    features: ['Nivel óseo', 'Morfología radicular', 'Lesiones periapicales'],
+    features: ['Evaluación periodontal', 'Detección de caries', 'Control de tratamientos'],
   },
   {
-    id: 2,
+    id: 'panoramica',
     category: 'diagnostico',
     title: 'Panorámica Digital',
-    description: 'Vista completa de estructuras dentarias y anatómicas.',
+    subtitle: 'Visión integral maxilofacial',
+    description: 'Panorama completo de estructuras dentarias, maxilares y senos paranasales en una sola toma con mínima radiación.',
     image: '/images/services/servicio02.jpg',
-    features: ['Rutina estándar', 'Baja radiación', 'Resultados inmediatos'],
+    features: ['Ortodoncia inicial', 'Cirugía de terceros molares', 'Evaluación general'],
   },
   {
-    id: 3,
+    id: 'atm',
     category: 'diagnostico',
-    title: 'Radiografía ATM',
-    description: 'Estudio de articulaciones temporo-mandibulares.',
+    title: 'Estudio de ATM',
+    subtitle: 'Articulación Temporomandibular',
+    description: 'Análisis dinámico de apertura y cierre para detectar disfunciones articulares y anomalías estructurales.',
     image: '/images/services/servicio03.jpg',
-    features: ['Oclusión', 'Apertura máxima', 'Análisis óseo'],
+    features: ['Análisis de cóndilos', 'Disfunción articular', 'Apertura y cierre'],
   },
+  
+  // TOMOGRAFÍA
   {
-    id: 4,
-    category: 'diagnostico',
-    title: 'Radiografía Carpal',
-    description: 'Estimación de edad ósea para ortodoncia y odontopediatría.',
-    image: '/images/services/servicio04.jpg',
-    features: ['Edad ósea', 'Planificación ortodoncia', 'Odontopediatría'],
-  },
-  {
-    id: 5,
-    category: 'cefalometria',
-    title: 'Telerradiografía Lateral',
-    description: 'Esencial para diagnóstico ortodóntico y cirugía ortognática.',
-    image: '/images/services/servicio05.jpg',
-    features: [
-      'Diagnóstico ortodóntico',
-      'Cirugía ortognática',
-      'Análisis cefalométrico',
-    ],
-  },
-  {
-    id: 6,
-    category: 'cefalometria',
-    title: 'Telerradiografía Frontal',
-    description: 'Estudio de asimetrías faciales y senos paranasales.',
-    image: '/images/services/servicio06.jpg',
-    features: ['Asimetrías faciales', 'Senos paranasales', 'Vista frontal'],
-  },
-  {
-    id: 7,
-    category: 'cefalometria',
-    title: 'Estudios Cefalométricos',
-    description: 'Análisis computarizado con precisión milimétrica.',
-    image: '/images/services/servicio07.jpg',
-    features: ['Medidas precisas', 'Puntos anatómicos', 'Software especializado'],
-  },
-  {
-    id: 8,
+    id: 'cbct-full',
     category: 'tomografia',
-    title: 'Tomografía Cone Beam',
-    description: 'Reconstrucción 3D con mínima radiación.',
+    title: 'Cone Beam Full 3D',
+    subtitle: 'Reconstrucción volumétrica total',
+    description: 'Tecnología Planmeca ProMax 3D para obtener volúmenes precisos con la menor dosis de radiación del mercado (Ultra Low Dose).',
     image: '/images/services/servicio08.jpg',
-    features: ['Alta complejidad', 'Menor radiación', 'Reconstrucción 3D'],
-    highlight: true,
+    features: ['Implantología guiada', 'Endodoncia compleja', 'Cirugía maxilofacial'],
   },
   {
-    id: 9,
+    id: 'cbct-sect',
+    category: 'tomografia',
+    title: 'Tomografía Sectorizada',
+    subtitle: 'Foco en la región de interés',
+    description: 'Estudios de alta resolución (Endo Mode) centrados en áreas específicas para diagnósticos endodónticos milimétricos.',
+    image: '/images/services/servicio05.jpg', 
+    features: ['Resolución 75µm', 'Conductos calcificados', 'Fracturas radiculares'],
+  },
+
+  // CEFALOMETRÍA
+  {
+    id: 'lat-frente',
+    category: 'cefalometria',
+    title: 'Trazados Cefalométricos',
+    subtitle: 'Análisis ortodóntico digital',
+    description: 'Telerradiografías laterales y frontales con trazados computarizados exactos para planificación de tratamientos.',
+    image: '/images/services/servicio06.jpg',
+    features: ['Ricketts, Björk-Jarabak', 'McNamara', 'Steiner'],
+  },
+  {
+    id: 'carpal',
+    category: 'cefalometria',
+    title: 'Carpal / Edad Ósea',
+    subtitle: 'Estudio de maduración',
+    description: 'Evaluación de estadios de crecimiento óseo fundamental para ortopedia y ortodoncia en pacientes en desarrollo.',
+    image: '/images/services/servicio04.jpg',
+    features: ['Predicción de crecimiento', 'Picos de maduración', 'Planificación ortopédica'],
+  },
+
+  // DIGITAL
+  {
+    id: 'modelos-3d',
     category: 'digital',
-    title: 'Digitalización 3D',
-    description: 'Modelos digitales e impresiones 3D de alta precisión.',
+    title: 'Escaneo Intraoral 3D',
+    subtitle: 'Adiós a la impresión con pasta',
+    description: 'Digitalización de arcadas dentarias para archivos STL universales, listos para alineadores o prótesis.',
     image: '/images/services/servicio09.jpg',
-    features: ['Almacenamiento digital', 'Evolución 3D', 'Impresión inmediata'],
+    features: ['Archivos STL/PLY', 'Sin náuseas', 'Máxima precisión'],
+  },
+  {
+    id: 'impresion-3d',
+    category: 'digital',
+    title: 'Biomodelos 3D',
+    subtitle: 'Tangibilización de diagnósticos',
+    description: 'Impresión de biomodelos óseos y guías quirúrgicas para planificación pre-operatoria compleja.',
+    image: '/images/services/servicio07.jpg',
+    features: ['Planificación quirúrgica', 'Didáctica paciente', 'Guías de implante'],
   },
 ];
 
 export function ServicesSection() {
-  const [activeCategory, setActiveCategory] = useState('diagnostico');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const filteredServices = services.filter((s) => s.category === activeCategory);
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = window.innerWidth > 1024 ? 424 : 344; // Card width + gap
+      scrollContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   return (
-    <section className="relative overflow-hidden bg-white py-20 lg:py-28">
-      {/* Header */}
-      <div className="container mx-auto mb-12 px-4 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <Badge variant="info" className="mb-4">
-            Nuestros Estudios
-          </Badge>
-          <h2 className="mb-6 bg-gradient-to-r from-slate-900 via-corporate to-slate-900 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
-            Alta Complejidad Diagnóstica
-          </h2>
-          <p className="mx-auto max-w-2xl text-xl text-slate-600">
-            Tecnología de vanguardia para diagnósticos precisos
-          </p>
-        </motion.div>
-      </div>
+    <section id="servicios" className="relative overflow-hidden bg-slate-50 py-24 lg:py-32">
+      
+      {/* ══ BACKGROUND EFFECTS (TECH LIGHT) ══ */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(14,165,233,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,black_70%,transparent_100%)]" />
+      <div className="absolute left-1/4 top-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-corporate/5 blur-[120px]" />
+      <div className="absolute bottom-0 right-1/4 h-[500px] w-[500px] translate-x-1/2 rounded-full bg-cyan-400/10 blur-[100px]" />
 
-      {/* Category Tabs */}
-      <div className="container mx-auto mb-12 px-4">
-        <div className="flex flex-wrap justify-center gap-3">
-          {categories.map((cat, index) => {
-            const Icon = cat.icon;
-            const isActive = activeCategory === cat.id;
-            return (
-              <motion.button
-                key={cat.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`
-                  relative flex items-center gap-2 rounded-xl px-6 py-3
-                  font-medium transition-all duration-300
-                  ${
-                    isActive
-                      ? 'scale-105 bg-corporate text-white shadow-lg shadow-corporate/25'
-                      : 'bg-white text-slate-600 shadow-md hover:bg-slate-50 hover:text-corporate'
-                  }
-                `}
-              >
-                <Icon className="h-5 w-5" />
-                {cat.label}
-              </motion.button>
-            );
-          })}
+      <div className="relative z-10 mx-auto max-w-7xl px-6">
+        
+        {/* HEADER & CONTROLS */}
+        <div className="mb-16 flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+          <div className="max-w-2xl">
+            <Badge variant="default" className="mb-6 bg-white text-corporate shadow-sm border border-corporate/10">
+              <Scan size={14} className="text-corporate" />
+              Catálogo de Estudios
+            </Badge>
+
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl"
+            >
+              Alta Complejidad <span className="bg-gradient-to-r from-corporate to-cyan-500 bg-clip-text text-transparent">Diagnóstica</span>
+            </motion.h2>
+          </div>
+
+          {/* CONTROLES DEL CARRUSEL */}
+          <div className="flex gap-3 pb-2">
+            <button 
+              onClick={() => scroll('left')}
+              className="group flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-all hover:border-corporate hover:bg-corporate hover:text-white hover:shadow-[0_0_20px_rgba(14,165,233,0.3)]"
+              aria-label="Anterior"
+            >
+              <ChevronLeft size={24} className="text-slate-600 transition-colors group-hover:text-white" />
+            </button>
+            <button 
+              onClick={() => scroll('right')}
+              className="group flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-all hover:border-corporate hover:bg-corporate hover:text-white hover:shadow-[0_0_20px_rgba(14,165,233,0.3)]"
+              aria-label="Siguiente"
+            >
+              <ChevronRight size={24} className="text-slate-600 transition-colors group-hover:text-white" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Services Grid */}
-      <div className="container mx-auto px-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeCategory}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
+        {/* CARRUSEL HORIZONTAL MODERNO */}
+        <div className="relative -mx-6 px-6">
+          {/* Contenedor con scroll horizontal */}
+          <div 
+            ref={scrollContainerRef}
+            className="scrollbar-hide flex gap-6 overflow-x-auto scroll-smooth pb-12 pt-4 snap-x snap-mandatory"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {filteredServices.map((service, index) => (
-              <ServiceCard key={service.id} service={service} index={index} />
-            ))}
-          </motion.div>
-        </AnimatePresence>
+            {services.map((service, index) => {
+              const categoryData = categories.find(c => c.id === service.category);
+              const Icon = categoryData?.icon || Activity;
+              
+              return (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, x: 50 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ 
+                    duration: 0.5, 
+                    delay: index * 0.05,
+                    ease: "easeOut"
+                  }}
+                  className="group relative shrink-0 snap-start overflow-hidden rounded-3xl bg-white/80 backdrop-blur-xl border border-slate-200/60 shadow-lg transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(14,165,233,0.3)] hover:border-corporate/30 w-[320px] md:w-[360px] lg:w-[400px]"
+                >
+                  {/* Imagen con efecto Tech/Luces */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
+                    <img
+                      src={service.image}
+                      alt={service.title}
+                      className="h-full w-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-110 group-hover:opacity-100"
+                    />
+                    
+                    {/* Luces/Glow sobre la imagen */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent opacity-80 transition-opacity group-hover:opacity-90" />
+                    <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-corporate/40 blur-[40px] transition-all duration-700 group-hover:bg-cyan-400/60 group-hover:blur-[50px]" />
+                    <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-400/20 blur-[40px] transition-all duration-700 group-hover:bg-corporate/40 group-hover:blur-[50px]" />
+                    
+                    {/* Icono de categoría flotante (Tech Style) */}
+                    <div className="absolute left-5 top-5">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-500 group-hover:scale-110 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+                        <Icon size={22} className="text-white" />
+                      </div>
+                    </div>
+
+                    {/* Badge de categoría */}
+                    <div className="absolute bottom-5 left-5">
+                      <span className="rounded-lg bg-corporate/90 border border-corporate-light/30 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_10px_rgba(14,165,233,0.4)] backdrop-blur-md">
+                        {categoryData?.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contenido */}
+                  <div className="relative p-6 lg:p-8">
+                    <h3 className="mb-2 text-2xl font-black text-slate-900 transition-colors group-hover:text-corporate">
+                      {service.title}
+                    </h3>
+                    
+                    <p className="mb-4 text-xs font-bold uppercase tracking-widest text-cyan-600">
+                      {service.subtitle}
+                    </p>
+
+                    <p className="mb-6 line-clamp-3 text-sm leading-relaxed text-slate-600">
+                      {service.description}
+                    </p>
+
+                    {/* Features */}
+                    <ul className="mb-8 space-y-3">
+                      {service.features.slice(0, 3).map((feature, i) => (
+                        <li key={i} className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
+                            <div className="h-1.5 w-1.5 rounded-full bg-corporate shadow-[0_0_5px_rgba(14,165,233,0.8)]" />
+                          </div>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Tech */}
+                    <button className="group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-white transition-all hover:shadow-[0_0_20px_rgba(15,23,42,0.3)]">
+                      <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover/btn:duration-1000 group-hover/btn:[transform:skew(-12deg)_translateX(150%)]">
+                        <div className="relative h-full w-8 bg-white/20" />
+                      </div>
+                      <span className="relative z-10">Ver detalles técnicos</span>
+                      <ChevronRight size={18} className="relative z-10 transition-transform group-hover/btn:translate-x-1 text-cyan-400" />
+                    </button>
+                  </div>
+
+                  {/* Borde sutil animado */}
+                  <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-slate-200/50 transition-all duration-500 group-hover:ring-cyan-400/50" />
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
     </section>
-  );
-}
-
-interface ServiceCardProps {
-  service: (typeof services)[0];
-  index: number;
-}
-
-function ServiceCard({ service, index }: ServiceCardProps) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className="group relative"
-    >
-      <div className="relative h-full overflow-hidden rounded-2xl bg-white shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-corporate/10">
-        {service.highlight && (
-          <div className="absolute right-4 top-4 z-10">
-            <Badge className="bg-gradient-to-r from-corporate to-blue-600 text-white shadow-lg">
-              Destacado
-            </Badge>
-          </div>
-        )}
-
-        {/* Image */}
-        <div className="relative h-48 overflow-hidden bg-slate-100">
-          {!imageLoaded && (
-            <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200" />
-          )}
-          <img
-            src={service.image}
-            alt={service.title}
-            loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            className={`
-              h-full w-full object-cover transition-all duration-500
-              ${imageLoaded ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}
-              group-hover:scale-110
-            `}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          <h3 className="mb-2 text-xl font-bold text-slate-900 transition-colors group-hover:text-corporate">
-            {service.title}
-          </h3>
-          <p className="mb-4 line-clamp-2 text-sm text-slate-600">
-            {service.description}
-          </p>
-
-          {/* Features */}
-          <ul className="space-y-2">
-            {service.features.map((feature, i) => (
-              <li key={i} className="flex items-center text-sm text-slate-500">
-                <div className="mr-2 h-1.5 w-1.5 rounded-full bg-corporate" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </motion.div>
   );
 }

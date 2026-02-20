@@ -23,6 +23,62 @@
     border: 1px solid rgba(255, 255, 255, 0.5);
   }
 
+  /* Fondo con grilla de puntos sutil */
+  .dot-grid {
+    background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Texto con gradiente corporativo */
+  .gradient-text {
+    background: linear-gradient(135deg, #365583 0%, #5b8ab8 50%, #22d3ee 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Borde con gradiente animado */
+  .gradient-border {
+    position: relative;
+    background: white;
+    border-radius: 1.5rem;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 1.6rem;
+    background: linear-gradient(135deg, #365583, #22d3ee, #365583);
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+  .gradient-border:hover::before {
+    opacity: 1;
+  }
+
+  /* Glow sutil en elementos importantes */
+  .glow-corporate {
+    box-shadow: 0 0 30px -5px rgba(54, 85, 131, 0.3);
+  }
+  .glow-corporate-lg {
+    box-shadow: 0 0 60px -10px rgba(54, 85, 131, 0.4);
+  }
+
+  /* Shimmer para skeleton / elementos destacados */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.6) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.5s infinite;
+  }
+
   .scan-effect::after {
     content: '';
     position: absolute;
@@ -33,5 +89,101 @@
     background: #4ade80;
     box-shadow: 0 0 15px #4ade80;
     animation: scan-line 4s linear infinite;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-18px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(-8px) rotate(-1deg);
+  }
+}
+
+@keyframes float-slower {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-25px) scale(1.02);
+  }
+}
+
+@keyframes blob-morph {
+  0%,
+  100% {
+    border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%;
+  }
+  25% {
+    border-radius: 40% 60% 30% 70% / 60% 40% 60% 40%;
+  }
+  50% {
+    border-radius: 70% 30% 50% 50% / 40% 70% 30% 60%;
+  }
+  75% {
+    border-radius: 30% 70% 60% 40% / 70% 30% 70% 30%;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scroll-line {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(250%);
+    opacity: 0;
   }
 }
