@@ -213,13 +213,20 @@ export function AdminPortal() {
       </div>
 
       {/* Botón limpiar base de datos y localStorage */}
-      <div className="container mx-auto px-4 py-4 flex justify-end">
+      <div className="container mx-auto flex justify-end px-4 py-4">
         <button
-          className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-700 transition"
+          className="rounded bg-red-600 px-4 py-2 font-bold text-white transition hover:bg-red-700"
           onClick={async () => {
-            if (!window.confirm('¿Seguro que quieres borrar TODAS las conversaciones y limpiar el localStorage?')) return;
+            if (
+              !window.confirm(
+                '¿Seguro que quieres borrar TODAS las conversaciones y limpiar el localStorage?'
+              )
+            )
+              return;
             try {
-              const res = await fetch(`${BACKEND_URL}/conversations`, { method: 'DELETE' });
+              const res = await fetch(`${BACKEND_URL}/conversations`, {
+                method: 'DELETE',
+              });
               if (res.ok) {
                 alert('Base de datos limpiada correctamente');
               } else {
@@ -521,7 +528,7 @@ export function AdminPortal() {
                           Fecha
                         </th>
                         <th className="pb-3 text-center text-xs font-bold uppercase text-slate-500">
-                          Descargar
+                          Ver
                         </th>
                       </tr>
                     </thead>
@@ -593,7 +600,7 @@ export function AdminPortal() {
                                   onClick={() => handleDownloadOrder(upload.id)}
                                   className="rounded-lg bg-corporate px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-corporate/90"
                                 >
-                                  Descargar
+                                  Ver
                                 </button>
                               </div>
                             </td>

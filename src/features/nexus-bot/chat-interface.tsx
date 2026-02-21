@@ -10,6 +10,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  options?: Array<{ label: string; value: string }>;
 }
 
 interface ChatInterfaceProps {
@@ -87,17 +88,24 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     setIsLoading(false);
 
-    // Mensaje de bienvenida
+    // Mensaje de bienvenida con opciones
     const welcomeMessage =
-      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿Qué necesitás hoy?\n\n📋 Subir mi orden médica para agilizar tu atención\n📍 Consultar ubicación y horarios\n📞 Información de contacto\n🔬 Conocer nuestros servicios\n⏰ Información sobre atención por orden de llegada\n\nContame en qué puedo ayudarte 😊';
+      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿Qué necesitás hoy?';
 
-    // Agregar el mensaje completo (el efecto de typing lo maneja el CSS)
+    // Agregar el mensaje con opciones
     setMessages([
       {
         id: '1',
         role: 'assistant',
         content: welcomeMessage,
         timestamp: new Date(),
+        options: [
+          { label: '📋 Subir orden médica', value: 'subir_orden' },
+          { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
+          { label: '📞 Información de contacto', value: 'contacto' },
+          { label: '🔬 Conocer servicios', value: 'servicios' },
+          { label: '⏰ Atención por orden de llegada', value: 'orden_llegada' },
+        ],
       },
     ]);
   };
@@ -139,6 +147,91 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
   };
 
+  const handleOptionClick = (optionValue: string, optionLabel: string) => {
+    // Agregar mensaje del usuario con la opción seleccionada
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: optionLabel,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Si selecciona "Conocer servicios", mostrar botones de servicios
+    if (optionValue === 'servicios') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content:
+            '🔬 Estos son nuestros servicios de diagnóstico por imágenes:\n\nSeleccioná el que te interese para más información:',
+          timestamp: new Date(),
+          options: [
+            { label: '🦷 CBCT (Tomografía Dental)', value: 'cbct' },
+            { label: '📷 Radiografías Dentales', value: 'radiografias' },
+            { label: '🔍 Panorámicas', value: 'panoramicas' },
+            { label: '📸 Telerradiografías', value: 'telerradiografias' },
+            { label: '💀 Estudios ATM', value: 'atm' },
+            { label: '🎯 Cefalometrías', value: 'cefalometrias' },
+          ],
+        },
+      ]);
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Simular procesamiento y enviar a la IA
+    setTimeout(async () => {
+      try {
+        let assistantContent = '';
+        let isFirstChunk = true;
+
+        for await (const chunk of chatService.current.sendMessage(optionLabel)) {
+          if (isFirstChunk) {
+            setIsLoading(false);
+            isFirstChunk = false;
+          }
+
+          assistantContent += chunk;
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            if (prev[lastIdx]?.role === 'assistant') {
+              return [
+                ...prev.slice(0, lastIdx),
+                { ...prev[lastIdx], content: assistantContent },
+              ];
+            } else {
+              return [
+                ...prev,
+                {
+                  id: (Date.now() + 1).toString(),
+                  role: 'assistant' as const,
+                  content: assistantContent,
+                  timestamp: new Date(),
+                },
+              ];
+            }
+          });
+        }
+      } catch (error) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              '❌ Hubo un error procesando tu consulta. Por favor, intenta nuevamente.',
+            timestamp: new Date(),
+          },
+        ]);
+        setIsLoading(false);
+      }
+    }, 100);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
@@ -177,8 +270,47 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿Qué necesitás hoy?\n\n📋 Subir mi orden médica para agilizar tu atención\n📍 Consultar ubicación y horarios\n📞 Información de contacto\n🔬 Conocer nuestros servicios\n⏰ Información sobre atención por orden de llegada\n\nContame en qué puedo ayudarte 😊`,
+          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿Qué necesitás hoy?`,
           timestamp: new Date(),
+          options: [
+            { label: '📋 Subir orden médica', value: 'subir_orden' },
+            { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
+            { label: '📞 Información de contacto', value: 'contacto' },
+            { label: '🔬 Conocer servicios', value: 'servicios' },
+            { label: '⏰ Atención por orden de llegada', value: 'orden_llegada' },
+          ],
+        },
+      ]);
+      setInputText('');
+      return;
+    }
+
+    // Si pregunta por servicios específicamente, mostrar lista con botones
+    if (normalized.includes('servicio') || normalized.includes('🔬 conocer servicios')) {
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: inputText,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        userMessage,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content:
+            '🔬 Estos son nuestros servicios de diagnóstico por imágenes:\n\nSeleccioná el que te interese para más información:',
+          timestamp: new Date(),
+          options: [
+            { label: '🦷 CBCT (Tomografía Dental)', value: 'cbct' },
+            { label: '📷 Radiografías Dentales', value: 'radiografias' },
+            { label: '🔍 Panorámicas', value: 'panoramicas' },
+            { label: '📸 Telerradiografías', value: 'telerradiografias' },
+            { label: '💀 Estudios ATM', value: 'atm' },
+            { label: '🎯 Cefalometrías', value: 'cefalometrias' },
+          ],
         },
       ]);
       setInputText('');
@@ -432,12 +564,28 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     const currentMessages = messagesRef.current;
     const currentUserName = userNameRef.current || 'Anónimo';
 
+    console.log('💾 Guardando conversación:', {
+      totalMensajes: currentMessages.length,
+      userName: currentUserName,
+      mensajes: currentMessages.map((m) => ({
+        role: m.role,
+        content: m.content.substring(0, 30),
+      })),
+    });
+
     // Guardar conversación antes de cerrar
     if (currentMessages.length > 0) {
       try {
-        await backendService.current.saveConversation(currentMessages, currentUserName);
+        // Filtrar solo las propiedades necesarias (sin options)
+        const messagesToSave = currentMessages.map(({ role, content, timestamp }) => ({
+          role,
+          content,
+          timestamp,
+        }));
+        await backendService.current.saveConversation(messagesToSave, currentUserName);
+        console.log('✅ Conversación guardada exitosamente');
       } catch (err) {
-        console.error('Error guardando conversación:', err);
+        console.error('❌ Error guardando conversación:', err);
       }
     }
 
@@ -498,6 +646,22 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                   {cleanMarkdown(message.content)}
                 </p>
               </div>
+
+              {/* Botones de opciones */}
+              {message.options && message.options.length > 0 && (
+                <div className="mt-3 flex w-full flex-col gap-2">
+                  {message.options.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleOptionClick(option.value, option.label)}
+                      disabled={isLoading}
+                      className="rounded-xl border-2 border-cyan-500 bg-white px-4 py-3 text-left text-sm font-medium text-cyan-600 shadow-sm transition-all hover:scale-[1.02] hover:bg-cyan-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Timestamp discreto */}
               <span
