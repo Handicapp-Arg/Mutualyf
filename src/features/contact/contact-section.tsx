@@ -54,7 +54,7 @@ export function ContactSection() {
             Estamos para ayudarte
           </Badge>
 
-          <h2 className="mb-6 text-4xl font-black tracking-tighter text-white lg:text-5xl">
+          <h2 className="mb-6 text-2xl font-black tracking-tighter text-white sm:text-3xl md:text-4xl lg:text-5xl">
             Contacto y{' '}
             <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               Ubicación

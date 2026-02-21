@@ -60,7 +60,7 @@ export function InfoSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="mb-6 text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl"
+            className="mb-6 text-3xl font-black tracking-tighter text-slate-900 sm:text-4xl md:text-5xl lg:text-7xl"
           >
             Compromiso con la <br className="hidden md:block" />
             <span className="text-corporate">excelencia diagnóstica</span>

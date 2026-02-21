@@ -90,7 +90,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="text-6xl font-black leading-[0.95] tracking-tighter text-white sm:text-7xl lg:text-8xl"
+            className="text-4xl font-black leading-[0.95] tracking-tighter text-white sm:text-6xl md:text-7xl lg:text-8xl"
           >
             Imágenes que <br className="hidden sm:block" />
             <span className="gradient-text pb-2">transforman</span> <br />
@@ -145,7 +145,7 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 2 }}
-        className="absolute bottom-10 left-1/2 z-20 -translate-x-1/2"
+        className="absolute bottom-10 left-1/2 z-20 hidden -translate-x-1/2 md:block"
       >
         <div className="flex flex-col items-center gap-3">
           <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/40">

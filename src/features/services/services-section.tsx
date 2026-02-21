@@ -160,7 +160,7 @@ export function ServicesSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-5xl font-black tracking-tighter text-white lg:text-7xl"
+            className="text-3xl font-black tracking-tighter text-white sm:text-4xl md:text-5xl lg:text-7xl"
           >
             Alta Complejidad{' '}
             <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">

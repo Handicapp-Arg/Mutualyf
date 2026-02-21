@@ -594,15 +594,13 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl">
+    <div className="relative flex h-full w-full flex-col overflow-hidden md:rounded-3xl">
       {/* Header mejorado */}
       <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
         <div className="flex items-center gap-3">
           {/* Icono de Muelita en Header */}
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white shadow-inner">
-            <div className="h-[140%] w-[140%]">
-              <BotFace />
-            </div>
+          <div className="flex h-16 w-16 items-center justify-center">
+            <BotFace />
           </div>
           <div className="flex-1">
             <h4 className="text-base font-bold text-white drop-shadow-sm">

@@ -127,7 +127,7 @@ export function TechnologySection() {
           <Badge variant="default" className="mb-4">
             Innovación Digital
           </Badge>
-          <h2 className="text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl">
+          <h2 className="text-3xl font-black tracking-tighter text-slate-900 sm:text-4xl md:text-5xl lg:text-7xl">
             Tecnología de <span className="text-corporate">Vanguardia</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">

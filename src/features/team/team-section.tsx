@@ -83,7 +83,7 @@ export function TeamSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="mb-6 text-5xl font-black tracking-tighter text-slate-900 lg:text-7xl"
+            className="mb-6 text-3xl font-black tracking-tighter text-slate-900 sm:text-4xl md:text-5xl lg:text-7xl"
           >
             Nuestro{' '}
             <span className="bg-gradient-to-r from-corporate to-cyan-500 bg-clip-text text-transparent">
@@ -91,7 +91,7 @@ export function TeamSection() {
             </span>
           </motion.h2>
 
-          <p className="mx-auto max-w-2xl text-xl font-medium text-slate-600">
+          <p className="mx-auto max-w-2xl text-base font-medium text-slate-600 sm:text-lg md:text-xl">
             Profesionales altamente capacitados con tecnología de vanguardia para tu
             diagnóstico preciso.
           </p>

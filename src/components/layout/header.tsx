@@ -69,7 +69,7 @@ export function Header() {
     <>
       <nav
         className={cn(
-          'fixed z-[60] w-full transition-all duration-500',
+          'fixed z-[150] w-full transition-all duration-500',
           scrolled
             ? 'glass-morphism border-b border-slate-200/50 bg-white/80 py-3 shadow-sm'
             : 'bg-gradient-to-b from-black/80 to-transparent py-6'
