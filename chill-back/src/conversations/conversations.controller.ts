@@ -9,6 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Delete
 } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import {
@@ -72,5 +73,18 @@ export class ConversationsController {
   @HttpCode(HttpStatus.OK)
   async getStats() {
     return this.conversationsService.getStats();
+  }
+  /**
+   * Eliminar todas las conversaciones
+   * DELETE /api/conversations
+   */
+  /**
+   * Eliminar todas las conversaciones
+   * DELETE /api/conversations
+   */
+  @Delete()
+  @HttpCode(HttpStatus.OK)
+  async deleteAll() {
+    return this.conversationsService.deleteAll();
   }
 }

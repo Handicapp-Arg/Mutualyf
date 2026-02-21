@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { ConversationGuard } from './guards/conversation.guard';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -32,5 +32,14 @@ export class ConversationsController {
   @Get(':id')
   async findById(@Param('id') id: number) {
     return this.conversationsService.findById(id);
+  }
+  /**
+   * Eliminar todas las conversaciones
+   * DELETE /conversations
+   */
+  @Delete()
+  @HttpCode(HttpStatus.OK)
+  async deleteAll() {
+    return this.conversationsService.deleteAll();
   }
 }

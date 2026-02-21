@@ -16,6 +16,15 @@ export class ConversationsService {
 
   constructor(private prisma: PrismaService) {}
 
+  async deleteAll() {
+    try {
+      await this.prisma.conversation.deleteMany({});
+      return { success: true, message: 'Todas las conversaciones han sido eliminadas.' };
+    } catch (error) {
+      return { success: false, message: 'Error al eliminar conversaciones.' };
+    }
+  }
+
   /**
    * Obtener todos los sessionId únicos
    */

@@ -128,6 +128,9 @@ export class ConversationRepository {
     }
   }
 
+  async deleteAll(): Promise<void> {
+    await this.prisma.conversation.deleteMany({});
+  }
   async update(id: number, data: Partial<IConversation>): Promise<IConversation> {
     const convo = await this.prisma.conversation.update({
       where: { id },

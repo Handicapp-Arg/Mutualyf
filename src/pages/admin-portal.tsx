@@ -212,7 +212,29 @@ export function AdminPortal() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Botón limpiar base de datos y localStorage */}
+      <div className="container mx-auto px-4 py-4 flex justify-end">
+        <button
+          className="px-4 py-2 rounded bg-red-600 text-white font-bold hover:bg-red-700 transition"
+          onClick={async () => {
+            if (!window.confirm('¿Seguro que quieres borrar TODAS las conversaciones y limpiar el localStorage?')) return;
+            try {
+              const res = await fetch(`${BACKEND_URL}/conversations`, { method: 'DELETE' });
+              if (res.ok) {
+                alert('Base de datos limpiada correctamente');
+              } else {
+                alert('Error al limpiar la base de datos');
+              }
+            } catch (err) {
+              alert('Error de conexión al limpiar la base de datos');
+            }
+            localStorage.clear();
+            loadData();
+          }}
+        >
+          Limpiar base de datos y localStorage
+        </button>
+      </div>
       <div className="border-b bg-white">
         <div className="container mx-auto px-4 py-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">

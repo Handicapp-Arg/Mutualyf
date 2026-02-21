@@ -55,6 +55,15 @@ export class ConversationsService {
     }
   }
 
+  async deleteAll() {
+    try {
+      await this.conversationRepository.deleteAll();
+      return { success: true, message: 'Todas las conversaciones han sido eliminadas.' };
+    } catch (error) {
+      return { success: false, message: 'Error al eliminar conversaciones.' };
+    }
+  }
+
   async getStats() {
     try {
       const all = await this.conversationRepository.findAll();
