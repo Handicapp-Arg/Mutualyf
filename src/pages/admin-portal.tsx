@@ -217,12 +217,7 @@ export function AdminPortal() {
         <button
           className="rounded bg-red-600 px-4 py-2 font-bold text-white transition hover:bg-red-700"
           onClick={async () => {
-            if (
-              !window.confirm(
-                '¿Seguro que quieres borrar TODAS las conversaciones y limpiar el localStorage?'
-              )
-            )
-              return;
+            if (!window.confirm('¿Seguro que quieres borrar TODAS las conversaciones?')) return;
             try {
               const res = await fetch(`${BACKEND_URL}/conversations`, {
                 method: 'DELETE',
@@ -235,11 +230,10 @@ export function AdminPortal() {
             } catch (err) {
               alert('Error de conexión al limpiar la base de datos');
             }
-            localStorage.clear();
             loadData();
           }}
         >
-          Limpiar base de datos y localStorage
+          Limpiar base de datos
         </button>
       </div>
       <div className="border-b bg-white">

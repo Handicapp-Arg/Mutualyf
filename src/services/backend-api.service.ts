@@ -22,20 +22,15 @@ export class BackendAPIService {
   private sessionId: string;
 
   constructor() {
-    // Generar ID de sesión único o recuperar de localStorage
-    this.sessionId = this.getOrCreateSessionId();
+    // Generar ID de sesión único solo en memoria
+    this.sessionId = this.generateSessionId();
   }
 
   /**
-   * Obtener o crear ID de sesión
+   * Generar ID de sesión único
    */
-  private getOrCreateSessionId(): string {
-    const stored = localStorage.getItem('cior_session_id');
-    if (stored) return stored;
-
-    const newId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('cior_session_id', newId);
-    return newId;
+  private generateSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
