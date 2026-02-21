@@ -48,24 +48,10 @@ export class BackendAPIService {
     try {
       const payload = {
         sessionId: this.sessionId,
-        userName: userName || undefined,
+        userName: userName || 'Anónimo',
         messages,
         timestamp: new Date(),
       };
-
-      console.log('💾 ========== GUARDANDO CONVERSACIÓN ==========');
-      console.log('📊 SessionId:', this.sessionId);
-      console.log('👤 Usuario:', userName || 'anónimo');
-      console.log('💬 Total mensajes:', messages.length);
-      console.log(
-        '📝 Mensajes completos:',
-        messages.map((m, i) => ({
-          index: i,
-          role: m.role,
-          content: m.content.substring(0, 50) + '...',
-          timestamp: m.timestamp,
-        }))
-      );
 
       const response = await fetch(`${BACKEND_URL}/conversations`, {
         method: 'POST',
@@ -77,15 +63,10 @@ export class BackendAPIService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('⚠️ Error guardando conversación:', response.status, errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
-      } else {
-        const result = await response.json();
-        console.log('✅ Conversación guardada exitosamente:', result);
-        console.log('💾 ========== FIN GUARDADO ==========\n');
       }
     } catch (error) {
-      console.error('❌ Error completo al guardar:', error);
+      console.error('Error guardando conversación:', error);
       throw error;
     }
   }

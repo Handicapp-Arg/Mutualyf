@@ -75,34 +75,26 @@ export class ConversationRepository {
 
   async create(data: any): Promise<any> {
     try {
-      console.log('🔵 === INICIO GUARDADO ===');
-      console.log('SessionId recibido:', data.sessionId);
-      console.log('Total mensajes recibidos:', data.messages?.length || 0);
-
-      // ELIMINAR todas las conversaciones con este sessionId (limpiar duplicados)
+      // Actualizar o crear conversación (upsert por sessionId)
       const deleted = await this.prisma.conversation.deleteMany({
         where: { sessionId: data.sessionId },
       });
 
-      if (deleted.count > 0) {
-        console.log(
-          `🗑️ Eliminadas ${deleted.count} conversaciones duplicadas con este sessionId`
-        );
-      }
-
-      console.log('➕ CREANDO conversación NUEVA (única por sesión)');
-
-      // Tomar el último mensaje del usuario y del bot (si existen)
+      // Extraer primer y último mensaje para campos legacy
       const userMessages = (data.messages || []).filter((m: any) => m.role === 'user');
-      const botMessages = (data.messages || []).filter((m: any) => m.role === 'assistant');
-      const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : '';
-      const lastBotMessage = botMessages.length > 0 ? botMessages[botMessages.length - 1].content : '';
+      const botMessages = (data.messages || []).filter(
+        (m: any) => m.role === 'assistant'
+      );
+      const lastUserMessage =
+        userMessages.length > 0 ? userMessages[userMessages.length - 1].content : '';
+      const lastBotMessage =
+        botMessages.length > 0 ? botMessages[botMessages.length - 1].content : '';
 
-      // Guardar todos los mensajes en el campo messages
+      // Crear conversación nueva (reemplaza la anterior si existía)
       const newConversation = await this.prisma.conversation.create({
         data: {
           sessionId: data.sessionId,
-          userName: data.userName,
+          userName: data.userName || 'Anónimo',
           userMessage: lastUserMessage,
           botResponse: lastBotMessage,
           timestamp: (data.timestamp || new Date()).toISOString(),
@@ -111,19 +103,15 @@ export class ConversationRepository {
         },
       });
 
-      const savedMessages = JSON.parse(newConversation.messages as string);
-      console.log('✅ Conversación CREADA con', savedMessages.length, 'mensajes');
-      console.log('🔵 === FIN GUARDADO ===\n');
-
       return {
         id: newConversation.id.toString(),
         sessionId: newConversation.sessionId,
         userName: newConversation.userName,
-        messages: savedMessages,
+        messages: JSON.parse(newConversation.messages as string),
         timestamp: newConversation.createdAt,
       };
     } catch (error) {
-      console.error('❌ ERROR en create:', error);
+      console.error('Error guardando conversación:', error);
       throw error;
     }
   }

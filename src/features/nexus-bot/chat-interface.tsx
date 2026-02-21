@@ -24,24 +24,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
   const [userName, setUserName] = useState<string>('');
-  const [userDNI, setUserDNI] = useState<string>('');
-  const [awaitingDNI, setAwaitingDNI] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [analyzedData, setAnalyzedData] = useState<any>(null);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatService = useRef(new ChatAIService());
-  // Forzar nuevo sessionId y conversación en cada recarga
-  useEffect(() => {
-    localStorage.removeItem('cior_session_id');
-  }, []);
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
   const isInitialized = useRef(false);
   const messagesRef = useRef(messages);
   const userNameRef = useRef(userName);
-  const userDNIRef = useRef(userDNI);
 
   // Mantener refs actualizados
   useEffect(() => {
@@ -52,22 +45,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     userNameRef.current = userName;
   }, [userName]);
 
-  useEffect(() => {
-    userDNIRef.current = userDNI;
-  }, [userDNI]);
-
   // Inicializar solo una vez
   useEffect(() => {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
-    // Cargar nombre y DNI guardados
-    const savedName = localStorage.getItem('cior_user_name');
-    const savedDNI = localStorage.getItem('cior_user_dni');
-    if (savedName) setUserName(savedName);
-    if (savedDNI) setUserDNI(savedDNI);
-
-    // Intentar cargar historial del backend
+    // Cargar historial del backend
     loadConversationHistory();
 
     // NO guardar en el cleanup del useEffect, solo al cerrar explícitamente
@@ -156,92 +139,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
   };
 
-  // Detectar nombre en el mensaje del usuario
-  const detectName = (text: string) => {
-    const trimmed = text.trim();
-    const words = trimmed.split(/\s+/);
-
-    // Patrones para detectar nombre
-    const namePatterns = [
-      /(?:me llamo|soy|mi nombre es)\s+([a-záéíóúñ]+)/i,
-      /^([a-záéíóúñ]{3,20})$/i, // Una sola palabra (nombre)
-      /^([a-záéíóúñ]{3,20})\s+([a-záéíóúñ]{3,20})$/i, // Nombre y apellido
-    ];
-
-    // Si es respuesta corta (1-2 palabras), probablemente sea el nombre
-    if (words.length === 1 && /^[a-záéíóúñ]{3,20}$/i.test(trimmed)) {
-      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-    }
-
-    if (words.length === 2 && words.every((w) => /^[a-záéíóúñ]{3,20}$/i.test(w))) {
-      return words
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(' ');
-    }
-
-    // Patrones con frases explícitas
-    for (const pattern of namePatterns) {
-      const match = trimmed.match(pattern);
-      if (match && match[1]) {
-        const detectedName =
-          match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-        if (detectedName.length >= 3 && detectedName.length <= 20) {
-          return detectedName;
-        }
-      }
-    }
-
-    return null;
-  };
-
-  // Detectar y validar DNI en el mensaje del usuario
-  const detectAndValidateDNI = (
-    text: string
-  ): { dni: string; isValid: boolean } | null => {
-    const trimmed = text.trim().replace(/\D/g, ''); // Solo números
-
-    // Patrones comunes de DNI en Argentina (7-8 dígitos)
-    const dniPatterns = [/(?:dni|documento)\s*:?\s*(\d{7,8})/i, /^(\d{7,8})$/];
-
-    // Intentar extraer DNI
-    for (const pattern of dniPatterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        const dni = match[1];
-        const isValid = dni.length >= 7 && dni.length <= 8;
-        return { dni, isValid };
-      }
-    }
-
-    // Si el mensaje solo contiene números de 7-8 dígitos
-    if (trimmed.length >= 7 && trimmed.length <= 8) {
-      return { dni: trimmed, isValid: true };
-    }
-
-    return null;
-  };
-
-  // Detectar si el usuario está solicitando un servicio que requiere DNI
-  const requiresDNI = (text: string): boolean => {
-    const normalized = text.toLowerCase();
-    const keywords = [
-      'turno',
-      'cita',
-      'agendar',
-      'reservar',
-      'orden médica',
-      'orden medica',
-      'subir orden',
-      'estudio',
-      'tomografía',
-      'tomografia',
-      'radiografía',
-      'radiografia',
-      'cbct',
-    ];
-    return keywords.some((keyword) => normalized.includes(keyword));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
@@ -288,77 +185,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    // Si estamos esperando DNI, validarlo
-    if (awaitingDNI) {
-      const dniData = detectAndValidateDNI(inputText);
-
-      if (dniData && dniData.isValid) {
-        setUserDNI(dniData.dni);
-        localStorage.setItem('cior_user_dni', dniData.dni);
-        setAwaitingDNI(false);
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: `✅ Perfecto, registré tu DNI\n\n📝 DNI: ${dniData.dni}\n\n¿En qué más puedo ayudarte?`,
-            timestamp: new Date(),
-          },
-        ]);
-        setInputText('');
-        return;
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              '⚠️ El formato del DNI no parece correcto. Por favor, ingresá solo los números de tu documento (7 u 8 dígitos). Ejemplo: 12345678',
-            timestamp: new Date(),
-          },
-        ]);
-        setInputText('');
-        return;
-      }
-    }
-
-    // Detectar nombre si aún no lo tenemos (solo si no es saludo)
-    if (!userName) {
-      const detected = detectName(inputText);
-      if (detected) {
-        setUserName(detected);
-        localStorage.setItem('cior_user_name', detected);
-      }
-    }
-
-    // Si el usuario solicita un servicio que requiere DNI y no lo tenemos, pedirlo
-    if (!userDNI && requiresDNI(inputText)) {
-      // Primero guardar el mensaje del usuario
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: inputText,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [
-        ...prev,
-        userMessage,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content:
-            '📋 Para continuar, necesito tu número de DNI\n\nPor favor, ingresalo sin puntos ni espacios\n\n💡 Ejemplo: 12345678',
-          timestamp: new Date(),
-        },
-      ]);
-      setInputText('');
-      setAwaitingDNI(true);
-      return;
-    }
-
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -366,15 +192,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => {
-      const updated = [...prev, userMessage];
-      // Solo enviar las propiedades requeridas al backend
-      backendService.current.saveConversation(
-        updated.map(({ role, content, timestamp }) => ({ role, content, timestamp })),
-        userNameRef.current || userDNIRef.current || 'Anónimo'
-      );
-      return updated;
-    });
+    setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
 
@@ -392,14 +210,13 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         assistantContent += chunk;
         setMessages((prev) => {
           const lastIdx = prev.length - 1;
-          let updated: Message[];
           if (prev[lastIdx]?.role === 'assistant') {
-            updated = [
+            return [
               ...prev.slice(0, lastIdx),
               { ...prev[lastIdx], content: assistantContent },
             ];
           } else {
-            updated = [
+            return [
               ...prev,
               {
                 id: (Date.now() + 1).toString(),
@@ -409,11 +226,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
               },
             ];
           }
-          backendService.current.saveConversation(
-            updated.map(({ role, content, timestamp }) => ({ role, content, timestamp })),
-            userNameRef.current || userDNIRef.current || 'Anónimo'
-          );
-          return updated;
         });
       }
     } catch (error) {
@@ -539,10 +351,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     setIsUploading(true);
     setShowOrderForm(false);
 
-    // Guardar el nombre del paciente de la orden médica
-    if (orderData.patientName && !userName) {
-      setUserName(orderData.patientName);
-      localStorage.setItem('cior_user_name', orderData.patientName);
+    // Guardar nombre y apellido del paciente de la orden médica
+    if (orderData.patientName) {
+      const fullName =
+        `${orderData.patientName} ${orderData.patientLastName || ''}`.trim();
+      setUserName(fullName);
     }
 
     try {
@@ -609,47 +422,27 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     ]);
   };
 
-  const handleClose = () => {
-    // Evitar múltiples guardados
+  const handleClose = async () => {
     if (isSaving.current) {
-      console.log('⚠️ Ya se está guardando, cerrando sin duplicar');
       onClose();
       return;
     }
 
     isSaving.current = true;
     const currentMessages = messagesRef.current;
-    const currentUserName = userNameRef.current || userDNIRef.current || 'Anónimo';
+    const currentUserName = userNameRef.current || 'Anónimo';
 
-    console.log('❌ ========== CERRANDO CHAT ==========');
-    console.log('📊 Total mensajes en ref:', currentMessages.length);
-    console.log('👤 Usuario:', currentUserName);
-    console.log('🆔 SessionId:', backendService.current['sessionId']);
-    console.log('📝 Lista de mensajes:');
-    currentMessages.forEach((msg, idx) => {
-      console.log(`  ${idx + 1}. [${msg.role}] ${msg.content.substring(0, 50)}...`);
-    });
-
-    // Guardar inmediatamente antes de cerrar
+    // Guardar conversación antes de cerrar
     if (currentMessages.length > 0) {
-      console.log('💾 Iniciando guardado...');
-      backendService.current
-        .saveConversation(currentMessages, currentUserName)
-        .then(() => {
-          console.log('✅ Conversación guardada, cerrando chat');
-          isSaving.current = false;
-          onClose();
-        })
-        .catch((err) => {
-          console.error('❌ Error guardando:', err);
-          isSaving.current = false;
-          onClose();
-        });
-    } else {
-      console.log('⚠️ No hay mensajes, cerrando sin guardar');
-      isSaving.current = false;
-      onClose();
+      try {
+        await backendService.current.saveConversation(currentMessages, currentUserName);
+      } catch (err) {
+        console.error('Error guardando conversación:', err);
+      }
     }
+
+    isSaving.current = false;
+    onClose();
   };
 
   return (
