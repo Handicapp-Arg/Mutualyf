@@ -14,6 +14,7 @@ interface MedicalOrderFormOCRProps {
   file: File;
   sessionId: string;
   analyzedData: any; // Datos del OCR
+  estudio?: string;
   onSubmit: (data: MedicalOrderData) => Promise<void>;
   onCancel: () => void;
 }
@@ -34,6 +35,7 @@ export function MedicalOrderFormOCR({
   file,
   sessionId,
   analyzedData,
+  estudio,
   onSubmit,
   onCancel,
 }: MedicalOrderFormOCRProps) {
@@ -45,7 +47,7 @@ export function MedicalOrderFormOCR({
     doctorName: '',
     doctorLicense: '',
     healthInsurance: '',
-    requestedStudies: '',
+    requestedStudies: estudio || '',
   });
 
   const [fieldStatus, setFieldStatus] = useState<
@@ -58,8 +60,8 @@ export function MedicalOrderFormOCR({
   useEffect(() => {
     if (analyzedData?.fields) {
       const fields = analyzedData.fields;
-
-      setFormData({
+      setFormData((prev) => ({
+        ...prev,
         patientDNI: fields.patientDNI?.value || '',
         patientName: fields.patientName?.value || '',
         patientPhone: '', // Esto no viene del OCR
@@ -67,8 +69,8 @@ export function MedicalOrderFormOCR({
         doctorName: fields.doctorName?.value || '',
         doctorLicense: fields.doctorLicense?.value || '',
         healthInsurance: fields.healthInsurance?.value || '',
-        requestedStudies: fields.requestedStudies?.value?.join(', ') || '',
-      });
+        requestedStudies: estudio || (fields.requestedStudies?.value?.join(', ') || ''),
+      }));
 
       setFieldStatus({
         patientDNI: {
@@ -167,9 +169,9 @@ export function MedicalOrderFormOCR({
 
     try {
       const studies = formData.requestedStudies
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter((s: string) => s.length > 0);
 
       await onSubmit({
         sessionId,

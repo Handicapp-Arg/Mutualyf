@@ -1,3 +1,12 @@
+// Mapeo de valores de servicio a nombres legibles
+const SERVICIO_LABELS: Record<string, string> = {
+  cbct: 'CBCT (Tomografía Dental)',
+  radiografias: 'Radiografías Dentales',
+  panoramicas: 'Panorámicas',
+  telerradiografias: 'Telerradiografías',
+  atm: 'ATM (Articulación Temporomandibular)',
+  cefalometrias: 'Cefalometrías',
+};
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Upload, X } from 'lucide-react';
 import { BotFace } from './bot-face';
@@ -19,6 +28,9 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
+  // ...existing code...
+  // Estado para autocompletar el estudio en la orden médica
+  const [selectedEstudio, setSelectedEstudio] = useState<string>('');
   // Declaración única de todos los hooks y refs
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -122,6 +134,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   };
 
   const handleOptionClick = (optionValue: string, optionLabel: string) => {
+    // Si el valor es subir_orden|servicio, extraer el nombre del estudio
+    let estudio = '';
+    if (optionValue.startsWith('subir_orden|')) {
+      estudio = optionValue.split('|')[1] || '';
+      optionValue = 'subir_orden';
+    }
     // Agregar mensaje del usuario con la opción seleccionada
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -158,7 +176,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     // Si selecciona subir orden, abrir selector de archivos
     if (optionValue === 'subir_orden') {
       fileInputRef.current?.click();
-      // Agregar mensaje del bot indicando que se espera el archivo
+      // Guardar el estudio seleccionado para autocompletar en el formulario
+      setSelectedEstudio(estudio);
       setMessages((prev) => [
         ...prev,
         {
@@ -231,16 +250,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         }
 
         // Si fue una consulta de servicio, ofrecer cargar orden
-        if (
-          [
-            'cbct',
-            'radiografias',
-            'panoramicas',
-            'telerradiografias',
-            'atm',
-            'cefalometrias',
-          ].includes(optionValue)
-        ) {
+        if (Object.keys(SERVICIO_LABELS).includes(optionValue)) {
+          const servicioDescripciones: Record<string, string> = {
+            cbct: 'La tomografía CBCT es un estudio de imágenes 3D de la zona dental y maxilofacial, útil para diagnósticos precisos en odontología.',
+            radiografias: 'Las radiografías dentales permiten ver los dientes y estructuras cercanas para detectar caries, infecciones o problemas óseos.',
+            panoramicas: 'La panorámica es una radiografía que muestra toda la boca en una sola imagen, útil para evaluaciones generales.',
+            telerradiografias: 'La telerradiografía es una radiografía lateral del cráneo, utilizada principalmente en ortodoncia.',
+            atm: 'El estudio ATM evalúa la articulación de la mandíbula para detectar alteraciones funcionales o estructurales.',
+            cefalometrias: 'La cefalometría es una radiografía del cráneo usada para análisis ortodóncicos y planificación de tratamientos.',
+          };
+          const mensajeFinal =
+            '\n\n💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!';
           setTimeout(() => {
             setMessages((prev) => [
               ...prev,
@@ -248,10 +268,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                 id: (Date.now() + 2).toString(),
                 role: 'assistant',
                 content:
-                  '💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!',
+                  servicioDescripciones[optionValue] + mensajeFinal,
                 timestamp: new Date(),
                 options: [
-                  { label: '📋 Sí, cargar orden ahora', value: 'subir_orden' },
+                  { label: '📋 Sí, cargar orden ahora', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
                   { label: '🏠 Volver al inicio', value: 'inicio' },
                 ],
               },
@@ -858,6 +878,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           file={pendingFile}
           sessionId={backendService.current['sessionId']}
           analyzedData={analyzedData}
+          estudio={selectedEstudio}
           onSubmit={handleOrderSubmit}
           onCancel={handleOrderCancel}
         />
