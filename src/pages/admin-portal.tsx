@@ -6,6 +6,7 @@ import {
   Users,
   TrendingUp,
   Download,
+  Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -212,33 +213,9 @@ export function AdminPortal() {
         </div>
       </div>
 
-      {/* Botón limpiar base de datos y localStorage */}
-      <div className="container mx-auto flex justify-end px-4 py-4">
-        <button
-          className="rounded bg-red-600 px-4 py-2 font-bold text-white transition hover:bg-red-700"
-          onClick={async () => {
-            if (!window.confirm('¿Seguro que quieres borrar TODAS las conversaciones?')) return;
-            try {
-              const res = await fetch(`${BACKEND_URL}/conversations`, {
-                method: 'DELETE',
-              });
-              if (res.ok) {
-                alert('Base de datos limpiada correctamente');
-              } else {
-                alert('Error al limpiar la base de datos');
-              }
-            } catch (err) {
-              alert('Error de conexión al limpiar la base de datos');
-            }
-            loadData();
-          }}
-        >
-          Limpiar base de datos
-        </button>
-      </div>
       <div className="border-b bg-white">
         <div className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -283,22 +260,6 @@ export function AdminPortal() {
                 </div>
                 <div className="rounded-lg bg-green-100 p-3">
                   <FileText className="text-green-600" size={24} />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-orange-50 to-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">
-                    Promedio Mensajes
-                  </p>
-                  <p className="mt-1 text-3xl font-black text-orange-600">
-                    {stats.avgMessagesPerConversation.toFixed(1)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-orange-100 p-3">
-                  <TrendingUp className="text-orange-600" size={24} />
                 </div>
               </div>
             </div>
@@ -373,13 +334,42 @@ export function AdminPortal() {
                     <h2 className="text-lg font-black text-slate-800">
                       Todas las Conversaciones
                     </h2>
-                    <button
-                      onClick={downloadConversationCSV}
-                      className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
-                    >
-                      <Download size={14} />
-                      Exportar CSV
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={downloadConversationCSV}
+                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
+                      >
+                        <Download size={14} />
+                        Exportar CSV
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (
+                            !window.confirm(
+                              '¿Seguro que quieres borrar TODAS las conversaciones?'
+                            )
+                          )
+                            return;
+                          try {
+                            const res = await fetch(`${BACKEND_URL}/conversations`, {
+                              method: 'DELETE',
+                            });
+                            if (res.ok) {
+                              alert('Base de datos limpiada correctamente');
+                            } else {
+                              alert('Error al limpiar la base de datos');
+                            }
+                          } catch (err) {
+                            alert('Error de conexión al limpiar la base de datos');
+                          }
+                          loadData();
+                        }}
+                        className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+                      >
+                        <Trash2 size={14} />
+                        Limpiar
+                      </button>
+                    </div>
                   </div>
                   <div className="max-h-[600px] space-y-2 overflow-y-auto">
                     {conversations.length === 0 ? (

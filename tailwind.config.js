@@ -34,12 +34,20 @@ export default {
         float: 'float 4s ease-in-out infinite',
         'eye-blink': 'eye-blink 4s infinite',
         'bot-glow': 'bot-glow 3s infinite',
+        'spin-slow': 'spin-slow 3s linear infinite',
+        'spin-reverse': 'spin-reverse 2s linear infinite',
+        shimmer: 'shimmer 2s linear infinite',
+        scan: 'scan 2.5s linear infinite',
       },
       keyframes: {
         'scan-line': {
           '0%': { transform: 'translateY(-100%)', opacity: '0' },
           '50%': { opacity: '1' },
           '100%': { transform: 'translateY(400%)', opacity: '0' },
+        },
+        scan: {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(200%)' },
         },
         'pulse-ring': {
           '0%': { transform: 'scale(0.8)', opacity: '0.5' },
@@ -48,6 +56,18 @@ export default {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        'spin-slow': {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
+        'spin-reverse': {
+          from: { transform: 'rotate(360deg)' },
+          to: { transform: 'rotate(0deg)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
         },
         'eye-blink': {
           '0%, 90%, 100%': { transform: 'scaleY(1)' },

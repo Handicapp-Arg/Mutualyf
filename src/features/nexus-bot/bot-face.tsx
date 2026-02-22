@@ -357,15 +357,6 @@ export function BotFace() {
         <pointLight position={[0, 2, -4]} intensity={1.2} color="#ffffff" distance={10} />
 
         <Environment preset="studio" />
-        <Sparkles
-          count={14}
-          scale={5}
-          size={1.8}
-          speed={0.4}
-          opacity={0.35}
-          color="#7dd3fc"
-          position={[0, 0, -1.5]}
-        />
         <ToothKawaiiModel animation={animation} />
         {/* Sombras suaves de contacto mejoradas para fondo claro */}
         <ContactShadows

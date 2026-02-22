@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Upload, ThumbsUp, ThumbsDown, X } from 'lucide-react';
+import { Send, Loader2, Upload, X } from 'lucide-react';
 import { BotFace } from './bot-face';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
 import { MedicalOrderFormOCR, MedicalOrderData } from './medical-order-form-ocr';
+import { AnalyzingOrderLoader } from './components/analyzing-order-loader';
 
 interface Message {
   id: string;
@@ -23,11 +24,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [feedbackGiven, setFeedbackGiven] = useState<Set<string>>(new Set());
   const [userName, setUserName] = useState<string>('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [analyzedData, setAnalyzedData] = useState<any>(null);
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatService = useRef(new ChatAIService());
@@ -90,9 +91,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     // Mensaje de bienvenida con opciones
     const welcomeMessage =
-      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿Qué necesitás hoy?';
+      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿En qué puedo ayudarte hoy? Seleccioná una opción para comenzar:';
 
-    // Agregar el mensaje con opciones
+    // Agregar el mensaje con opciones simplificadas
     setMessages([
       {
         id: '1',
@@ -100,11 +101,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         content: welcomeMessage,
         timestamp: new Date(),
         options: [
-          { label: '📋 Subir orden médica', value: 'subir_orden' },
+          { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
           { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
           { label: '📞 Información de contacto', value: 'contacto' },
-          { label: '🔬 Conocer servicios', value: 'servicios' },
-          { label: '⏰ Atención por orden de llegada', value: 'orden_llegada' },
         ],
       },
     ]);
@@ -119,32 +118,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     return text
       .replace(/\*\*(.+?)\*\*/g, '$1') // Quitar ** de bold
       .replace(/\*(.+?)\*/g, '$1'); // Quitar * de italic
-  };
-
-  const handleFeedback = async (messageId: string, feedback: 'positive' | 'negative') => {
-    if (feedbackGiven.has(messageId)) return;
-
-    const message = messages.find((m) => m.id === messageId);
-    if (!message || message.role !== 'assistant') return;
-
-    // Encontrar el mensaje del usuario anterior
-    const messageIndex = messages.findIndex((m) => m.id === messageId);
-    const userMessage = messages
-      .slice(0, messageIndex)
-      .reverse()
-      .find((m) => m.role === 'user');
-
-    try {
-      await backendService.current.sendFeedback(
-        messageId,
-        feedback,
-        `Usuario: ${userMessage?.content || ''}\nBot: ${message.content}`
-      );
-
-      setFeedbackGiven((prev) => new Set(prev).add(messageId));
-    } catch (error) {
-      console.error('Error guardando feedback:', error);
-    }
   };
 
   const handleOptionClick = (optionValue: string, optionLabel: string) => {
@@ -175,6 +148,45 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             { label: '📸 Telerradiografías', value: 'telerradiografias' },
             { label: '💀 Estudios ATM', value: 'atm' },
             { label: '🎯 Cefalometrías', value: 'cefalometrias' },
+          ],
+        },
+      ]);
+      return;
+    }
+
+    // Si selecciona subir orden, abrir selector de archivos
+    if (optionValue === 'subir_orden') {
+      fileInputRef.current?.click();
+      // Agregar mensaje del bot indicando que se espera el archivo
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content:
+            'Perfecto. Seleccioná el archivo de tu orden médica (imagen o PDF) para que pueda analizarla.',
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
+    // Si selecciona inicio, mostrar menú principal
+    if (optionValue === 'inicio') {
+      const welcomeMessage =
+        '👋 ¡Hola de nuevo! Soy Nexus, tu asistente virtual.\n\n¿En qué puedo ayudarte?';
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: welcomeMessage,
+          timestamp: new Date(),
+          options: [
+            { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
+            { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
+            { label: '📞 Información de contacto', value: 'contacto' },
           ],
         },
       ]);
@@ -215,6 +227,35 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
               ];
             }
           });
+        }
+
+        // Si fue una consulta de servicio, ofrecer cargar orden
+        if (
+          [
+            'cbct',
+            'radiografias',
+            'panoramicas',
+            'telerradiografias',
+            'atm',
+            'cefalometrias',
+          ].includes(optionValue)
+        ) {
+          setTimeout(() => {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: (Date.now() + 2).toString(),
+                role: 'assistant',
+                content:
+                  '💡 Para realizar este estudio, es necesario contar con la orden médica.\n\n¿Querés cargarla ahora para agilizar tu ingreso?',
+                timestamp: new Date(),
+                options: [
+                  { label: '📋 Sí, cargar orden ahora', value: 'subir_orden' },
+                  { label: '🏠 Volver al inicio', value: 'inicio' },
+                ],
+              },
+            ]);
+          }, 500);
         }
       } catch (error) {
         setMessages((prev) => [
@@ -270,14 +311,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿Qué necesitás hoy?`,
+          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿En qué puedo ayudarte hoy? Seleccioná una opción para comenzar:`,
           timestamp: new Date(),
           options: [
-            { label: '📋 Subir orden médica', value: 'subir_orden' },
+            { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
             { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
             { label: '📞 Información de contacto', value: 'contacto' },
-            { label: '🔬 Conocer servicios', value: 'servicios' },
-            { label: '⏰ Atención por orden de llegada', value: 'orden_llegada' },
           ],
         },
       ]);
@@ -414,22 +453,38 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    // Mostrar mensaje de procesamiento
+    // Mostrar mensaje de procesamiento con efectos visuales
     setMessages((prev) => [
       ...prev,
       {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `📋 Archivo recibido: "${file.name}". \n\n🔍 Analizando orden médica con IA...`,
+        content: `__ANALYZING_ORDER__:${file.name}`, // Marcador especial para renderizado customizado
         timestamp: new Date(),
       },
     ]);
 
     setIsUploading(true);
+    setUploadProgress(0);
+
+    // Animar progreso de 0 a 90% durante la carga
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
 
     try {
       // Paso 1: Analizar con OCR
       const result = await backendService.current.analyzeMedicalOrder(file);
+
+      // Completar al 100%
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       if (result.success && result.data) {
         setPendingFile(file);
@@ -437,40 +492,55 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         setShowOrderForm(true);
 
         const detectionRate = result.data.detectionRate || 0;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `✅ Análisis completado! Detecté ${detectionRate}% de los campos automáticamente. \n\nPor favor, verifica y corrige los datos si es necesario.`,
-            timestamp: new Date(),
-          },
-        ]);
+        // Reemplazar el mensaje de "analizando" con el resultado
+        setMessages((prev) => {
+          const filtered = prev.filter(
+            (m) => !m.content.startsWith('__ANALYZING_ORDER__')
+          );
+          return [
+            ...filtered,
+            {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: `✅ Análisis completado! Detecté ${detectionRate}% de los campos automáticamente. \n\nPor favor, verifica y corrige los datos si es necesario.`,
+              timestamp: new Date(),
+            },
+          ];
+        });
       } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `❌ ${result.message || 'No pude analizar el archivo correctamente'}. Por favor, intenta con otra imagen o PDF más claro.`,
-            timestamp: new Date(),
-          },
-        ]);
+        setMessages((prev) => {
+          const filtered = prev.filter(
+            (m) => !m.content.startsWith('__ANALYZING_ORDER__')
+          );
+          return [
+            ...filtered,
+            {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: `❌ ${result.message || 'No pude analizar el archivo correctamente'}. Por favor, intenta con otra imagen o PDF más claro.`,
+              timestamp: new Date(),
+            },
+          ];
+        });
       }
     } catch (error) {
       console.error('Error analyzing file:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content:
-            '❌ Hubo un error al analizar el archivo. Por favor, intenta nuevamente.',
-          timestamp: new Date(),
-        },
-      ]);
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => !m.content.startsWith('__ANALYZING_ORDER__'));
+        return [
+          ...filtered,
+          {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content:
+              '❌ Hubo un error al analizar el archivo. Por favor, intenta nuevamente.',
+            timestamp: new Date(),
+          },
+        ];
+      });
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -485,8 +555,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     // Guardar nombre y apellido del paciente de la orden médica
     if (orderData.patientName) {
-      const fullName =
-        `${orderData.patientName} ${orderData.patientLastName || ''}`.trim();
+      const fullName = orderData.patientName.trim();
       setUserName(fullName);
     }
 
@@ -599,8 +668,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
         <div className="flex items-center gap-3">
           {/* Icono de Muelita en Header */}
-          <div className="flex h-16 w-16 items-center justify-center">
-            <BotFace />
+          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden">
+            <div className="h-20 w-20">
+              <BotFace />
+            </div>
           </div>
           <div className="flex-1">
             <h4 className="text-base font-bold text-white drop-shadow-sm">
@@ -624,7 +695,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       </div>
 
       {/* Mensajes con estilo chat moderno y limpio */}
-      <div className="relative z-10 flex h-full max-h-full min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4">
+      <div className="scrollbar-hide relative z-10 flex h-full max-h-full min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -640,22 +711,44 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                     : 'rounded-[20px] rounded-tl-sm bg-white text-slate-700'
                 }`}
               >
-                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-                  {cleanMarkdown(message.content)}
-                </p>
+                {/* Renderizado especial para mensaje de análisis de orden médica */}
+                {message.content.startsWith('__ANALYZING_ORDER__') ? (
+                  <AnalyzingOrderLoader progress={uploadProgress} />
+                ) : (
+                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
+                    {cleanMarkdown(message.content)}
+                  </p>
+                )}
               </div>
 
               {/* Botones de opciones */}
               {message.options && message.options.length > 0 && (
-                <div className="mt-3 flex w-full flex-col gap-2">
+                <div className="mt-3 flex w-full max-w-full flex-col gap-2">
                   {message.options.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => handleOptionClick(option.value, option.label)}
                       disabled={isLoading}
-                      className="rounded-xl border-2 border-cyan-500 bg-white px-4 py-3 text-left text-sm font-medium text-cyan-600 shadow-sm transition-all hover:scale-[1.02] hover:bg-cyan-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="group flex w-full items-center justify-between rounded-2xl border border-cyan-100 bg-white px-5 py-3 text-left shadow-sm transition-all hover:border-cyan-300 hover:bg-cyan-50/50 hover:shadow-md active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {option.label}
+                      <span className="text-sm font-medium text-slate-600 group-hover:text-cyan-700">
+                        {option.label}
+                      </span>
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-slate-300 transition-colors group-hover:bg-cyan-100 group-hover:text-cyan-600">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M5 12h14" />
+                          <path d="m12 5 7 7-7 7" />
+                        </svg>
+                      </div>
                     </button>
                   ))}
                 </div>

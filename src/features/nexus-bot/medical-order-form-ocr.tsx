@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 
 interface MedicalOrderFormOCRProps {
@@ -195,18 +194,13 @@ export function MedicalOrderFormOCR({
       <div className="flex h-full w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl sm:h-auto sm:max-h-[95vh]">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b bg-gradient-to-r from-corporate to-corporate/90 p-3 sm:p-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="rounded-lg bg-white/20 p-1.5 sm:p-2">
-              <Sparkles className="text-white" size={20} />
-            </div>
-            <div>
-              <h2 className="text-base font-black text-white sm:text-xl">
-                Orden Médica Detectada
-              </h2>
-              <p className="text-xs text-white/80 sm:text-sm">
-                {analyzedData?.detectionRate || 0}% detectado automáticamente
-              </p>
-            </div>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-black text-white sm:text-xl">
+              Orden Médica Detectada
+            </h2>
+            <p className="text-xs text-white/80 sm:text-sm">
+              {analyzedData?.detectionRate || 0}% detectado automáticamente
+            </p>
           </div>
           <button
             onClick={onCancel}
@@ -217,24 +211,15 @@ export function MedicalOrderFormOCR({
         </div>
 
         {/* Info del análisis */}
-        <div className="shrink-0 border-b bg-blue-50 p-3 sm:p-4">
+        <div className="shrink-0 border-b bg-blue-50/50 p-3 sm:p-4">
           <div className="flex items-start gap-2 sm:gap-3">
             <FileText className="text-corporate" size={18} />
             <div className="flex-1">
-              <p className="text-xs font-bold text-slate-800 sm:text-sm">
+              <p className="text-xs font-semibold text-slate-800 sm:text-sm">
                 Archivo: {file.name}
               </p>
               <p className="text-xs text-slate-600">
-                Verifica campos en{' '}
-                <span className="inline-flex items-center gap-0.5 font-bold text-yellow-700">
-                  <AlertTriangle size={10} />
-                  amarillo
-                </span>{' '}
-                o{' '}
-                <span className="inline-flex items-center gap-0.5 font-bold text-red-700">
-                  <AlertTriangle size={10} />
-                  rojo
-                </span>
+                Verifica y corrige los campos detectados antes de confirmar
               </p>
             </div>
           </div>
@@ -249,11 +234,13 @@ export function MedicalOrderFormOCR({
           >
             {/* DNI */}
             <div>
-              <label className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-700 sm:gap-2 sm:text-sm">
-                DNI del Paciente *{getFieldIcon('patientDNI')}
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>DNI del Paciente</span>
+                <span className="text-rose-600">*</span>
+                {getFieldIcon('patientDNI')}
                 {fieldStatus.patientDNI && (
-                  <span className="text-xs font-normal text-slate-500">
-                    {Math.round(fieldStatus.patientDNI.confidence * 100)}% confianza
+                  <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    {Math.round(fieldStatus.patientDNI.confidence * 100)}%
                   </span>
                 )}
               </label>
@@ -267,24 +254,26 @@ export function MedicalOrderFormOCR({
                   })
                 }
                 placeholder="12345678"
-                className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('patientDNI')} ${
+                className={`w-full rounded-lg border px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('patientDNI')} ${
                   errors.patientDNI
-                    ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                    : 'focus:border-corporate focus:ring-corporate'
+                    ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500'
+                    : 'focus:border-corporate focus:ring-corporate/20'
                 }`}
               />
               {errors.patientDNI && (
-                <p className="mt-1 text-xs text-red-600">{errors.patientDNI}</p>
+                <p className="mt-1 text-xs text-rose-600">{errors.patientDNI}</p>
               )}
             </div>
 
             {/* Nombre */}
             <div>
-              <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
-                Nombre Completo *{getFieldIcon('patientName')}
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>Nombre Completo</span>
+                <span className="text-rose-600">*</span>
+                {getFieldIcon('patientName')}
                 {fieldStatus.patientName && (
-                  <span className="text-xs font-normal text-slate-500">
-                    {Math.round(fieldStatus.patientName.confidence * 100)}% confianza
+                  <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    {Math.round(fieldStatus.patientName.confidence * 100)}%
                   </span>
                 )}
               </label>
@@ -295,21 +284,22 @@ export function MedicalOrderFormOCR({
                   setFormData({ ...formData, patientName: e.target.value })
                 }
                 placeholder="Juan Pérez"
-                className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('patientName')} ${
+                className={`w-full rounded-lg border px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('patientName')} ${
                   errors.patientName
-                    ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                    : 'focus:border-corporate focus:ring-corporate'
+                    ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500'
+                    : 'focus:border-corporate focus:ring-corporate/20'
                 }`}
               />
               {errors.patientName && (
-                <p className="mt-1 text-xs text-red-600">{errors.patientName}</p>
+                <p className="mt-1 text-xs text-rose-600">{errors.patientName}</p>
               )}
             </div>
 
             {/* Teléfono */}
             <div>
-              <label className="mb-1 block text-sm font-bold text-slate-700">
-                Teléfono de Contacto *
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>Teléfono de Contacto</span>
+                <span className="text-rose-600">*</span>
               </label>
               <input
                 type="tel"
@@ -321,24 +311,26 @@ export function MedicalOrderFormOCR({
                   })
                 }
                 placeholder="1123456789"
-                className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${
+                className={`w-full rounded-lg border px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 ${
                   errors.patientPhone
-                    ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                    : 'border-slate-300 focus:border-corporate focus:ring-corporate'
+                    ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500'
+                    : 'border-slate-200 bg-white focus:border-corporate focus:ring-corporate/20'
                 }`}
               />
               {errors.patientPhone && (
-                <p className="mt-1 text-xs text-red-600">{errors.patientPhone}</p>
+                <p className="mt-1 text-xs text-rose-600">{errors.patientPhone}</p>
               )}
             </div>
 
             {/* Fecha */}
             <div>
-              <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
-                Fecha de la Orden *{getFieldIcon('orderDate')}
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>Fecha de la Orden</span>
+                <span className="text-rose-600">*</span>
+                {getFieldIcon('orderDate')}
                 {fieldStatus.orderDate && (
-                  <span className="text-xs font-normal text-slate-500">
-                    {Math.round(fieldStatus.orderDate.confidence * 100)}% confianza
+                  <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    {Math.round(fieldStatus.orderDate.confidence * 100)}%
                   </span>
                 )}
               </label>
@@ -354,23 +346,30 @@ export function MedicalOrderFormOCR({
                     setFormData({ ...formData, orderDate: e.target.value })
                   }
                   max={new Date().toISOString().split('T')[0]}
-                  className={`w-full rounded-lg border px-4 py-3 pl-10 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('orderDate')} ${
+                  className={`w-full rounded-lg border px-4 py-3 pl-10 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('orderDate')} ${
                     errors.orderDate
-                      ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                      : 'focus:border-corporate focus:ring-corporate'
+                      ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500'
+                      : 'focus:border-corporate focus:ring-corporate/20'
                   }`}
                 />
               </div>
               {errors.orderDate && (
-                <p className="mt-1 text-xs text-red-600">{errors.orderDate}</p>
+                <p className="mt-1 text-xs text-rose-600">{errors.orderDate}</p>
               )}
             </div>
 
             {/* Médico */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
-                  Médico Solicitante *{getFieldIcon('doctorName')}
+                <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <span>Médico Solicitante</span>
+                  <span className="text-rose-600">*</span>
+                  {getFieldIcon('doctorName')}
+                  {fieldStatus.doctorName && (
+                    <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      {Math.round(fieldStatus.doctorName.confidence * 100)}%
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -379,19 +378,25 @@ export function MedicalOrderFormOCR({
                     setFormData({ ...formData, doctorName: e.target.value })
                   }
                   placeholder="Dr. Juan Pérez"
-                  className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('doctorName')} ${
+                  className={`w-full rounded-lg border px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('doctorName')} ${
                     errors.doctorName
-                      ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                      : 'focus:border-corporate focus:ring-corporate'
+                      ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500'
+                      : 'focus:border-corporate focus:ring-corporate/20'
                   }`}
                 />
                 {errors.doctorName && (
-                  <p className="mt-1 text-xs text-red-600">{errors.doctorName}</p>
+                  <p className="mt-1 text-xs text-rose-600">{errors.doctorName}</p>
                 )}
               </div>
               <div>
-                <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
-                  Matrícula {getFieldIcon('doctorLicense')}
+                <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <span>Matrícula</span>
+                  {getFieldIcon('doctorLicense')}
+                  {fieldStatus.doctorLicense && (
+                    <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      {Math.round(fieldStatus.doctorLicense.confidence * 100)}%
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -400,15 +405,21 @@ export function MedicalOrderFormOCR({
                     setFormData({ ...formData, doctorLicense: e.target.value })
                   }
                   placeholder="MP 12345"
-                  className={`w-full rounded-lg border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('doctorLicense')} focus:border-corporate focus:ring-corporate`}
+                  className={`w-full rounded-lg border px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('doctorLicense')} focus:border-corporate focus:ring-corporate/20`}
                 />
               </div>
             </div>
 
             {/* Obra social */}
             <div>
-              <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
-                Obra Social / Prepaga {getFieldIcon('healthInsurance')}
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>Obra Social / Prepaga</span>
+                {getFieldIcon('healthInsurance')}
+                {fieldStatus.healthInsurance && (
+                  <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    {Math.round(fieldStatus.healthInsurance.confidence * 100)}%
+                  </span>
+                )}
               </label>
               <div className="relative">
                 <Heart
@@ -422,18 +433,20 @@ export function MedicalOrderFormOCR({
                     setFormData({ ...formData, healthInsurance: e.target.value })
                   }
                   placeholder="OSDE, Swiss Medical, etc."
-                  className={`w-full rounded-lg border px-4 py-3 pl-10 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('healthInsurance')} focus:border-corporate focus:ring-corporate`}
+                  className={`w-full rounded-lg border px-4 py-3 pl-10 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('healthInsurance')} focus:border-corporate focus:ring-corporate/20`}
                 />
               </div>
             </div>
 
             {/* Estudios */}
             <div>
-              <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
-                Estudios Solicitados *{getFieldIcon('requestedStudies')}
+              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span>Estudios Solicitados</span>
+                <span className="text-rose-600">*</span>
+                {getFieldIcon('requestedStudies')}
                 {fieldStatus.requestedStudies && (
-                  <span className="text-xs font-normal text-slate-500">
-                    {Math.round(fieldStatus.requestedStudies.confidence * 100)}% confianza
+                  <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    {Math.round(fieldStatus.requestedStudies.confidence * 100)}%
                   </span>
                 )}
               </label>
@@ -446,10 +459,10 @@ export function MedicalOrderFormOCR({
                   }
                   placeholder="Ej: Resonancia magnética lumbar, Radiografía de tórax"
                   rows={3}
-                  className={`w-full rounded-lg border px-4 py-3 pl-10 text-sm transition-colors focus:outline-none focus:ring-2 ${getFieldClass('requestedStudies')} ${
+                  className={`w-full rounded-lg border px-4 py-3 pl-10 text-sm transition-all focus:outline-none focus:ring-2 ${getFieldClass('requestedStudies')} ${
                     errors.requestedStudies
-                      ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                      : 'focus:border-corporate focus:ring-corporate'
+                      ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-500'
+                      : 'focus:border-corporate focus:ring-corporate/20'
                   }`}
                 />
               </div>
@@ -457,7 +470,7 @@ export function MedicalOrderFormOCR({
                 Separar múltiples estudios con comas
               </p>
               {errors.requestedStudies && (
-                <p className="mt-1 text-xs text-red-600">{errors.requestedStudies}</p>
+                <p className="mt-1 text-xs text-rose-600">{errors.requestedStudies}</p>
               )}
             </div>
           </form>

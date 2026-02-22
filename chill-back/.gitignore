@@ -3,3 +3,9 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# Temporary uploads
+uploads/temp/
+
+# Database files
+data/*.db

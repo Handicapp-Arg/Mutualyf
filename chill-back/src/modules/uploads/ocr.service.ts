@@ -3,6 +3,8 @@ import * as Tesseract from 'tesseract.js';
 const pdfParse = require('pdf-parse');
 import sharp from 'sharp';
 import * as fs from 'fs/promises';
+import { OllamaService } from '../../ai/ollama.service';
+import { GeminiService } from '../../ai/gemini.service';
 
 export interface OCRResult {
   text: string;
@@ -23,6 +25,11 @@ export interface ExtractedMedicalData {
 export class OCRService {
   private readonly logger = new Logger(OCRService.name);
 
+  constructor(
+    private readonly ollamaService: OllamaService,
+    private readonly geminiService: GeminiService
+  ) {}
+
   /**
    * Extraer texto de PDF
    */
@@ -42,18 +49,20 @@ export class OCRService {
   }
 
   /**
-   * Extraer texto de imagen usando OCR
+   * Extraer texto de imagen usando OCR con mejoras
    */
   async extractTextFromImage(filePath: string): Promise<OCRResult> {
     try {
-      // Optimizar imagen para mejor OCR
+      // Optimizar imagen AGRESIVAMENTE para mejor OCR con letra manuscrita
       const optimizedBuffer = await sharp(filePath)
+        .resize(3000, null, { withoutEnlargement: false }) // Aumentar resolución
         .grayscale()
-        .normalize()
-        .sharpen()
+        .normalize() // Mejorar contraste
+        .threshold(128) // Binarización para separar texto del fondo
+        .sharpen({ sigma: 2 }) // Sharpen más agresivo
         .toBuffer();
 
-      // Ejecutar OCR
+      // Ejecutar OCR con configuración mejorada
       const result = await Tesseract.recognize(optimizedBuffer, 'spa', {
         logger: (m) => {
           if (m.status === 'recognizing text') {
@@ -106,22 +115,30 @@ export class OCRService {
   }
 
   /**
-   * Extraer DNI (7-8 dígitos)
+   * Extraer DNI (7-8 dígitos) - MEJORADO con más patrones
    */
   private extractDNI(text: string): { value: string; confidence: number } {
     const dniPatterns = [
-      /DNI[\s:]*(\d{7,8})/i,
-      /D\.N\.I\.?[\s:]*(\d{7,8})/i,
-      /documento[\s:]*(\d{7,8})/i,
+      /DNI[\s:\.]*(\d{7,8})/i,
+      /D\.?\s*N\.?\s*I\.?[\s:\.]*(\d{7,8})/i,
+      /documento[\s:\.]*(\d{7,8})/i,
+      /doc[\s:\.]+(\d{7,8})/i,
+      /identificaci[óo]n[\s:\.]*(\d{7,8})/i,
+      // Buscar números de 7-8 dígitos cerca de palabras clave
+      /(?:paciente|titular|afiliado)[\s\S]{0,30}?(\d{7,8})/i,
+      // Números aislados de 7-8 dígitos (última opción)
       /\b(\d{7,8})\b/,
     ];
 
     for (const pattern of dniPatterns) {
-      const match = text.match(pattern);
-      if (match) {
+      const matches = text.matchAll(new RegExp(pattern, 'gi'));
+      for (const match of matches) {
         const dni = match[1];
-        if (dni.length >= 7 && dni.length <= 8) {
-          return { value: dni, confidence: 0.8 };
+        if (dni && dni.length >= 7 && dni.length <= 8) {
+          // Validar que no sea un teléfono (no empieza con 11, 15, etc)
+          if (!dni.startsWith('11') && !dni.startsWith('15')) {
+            return { value: dni, confidence: 0.85 };
+          }
         }
       }
     }
@@ -130,29 +147,44 @@ export class OCRService {
   }
 
   /**
-   * Extraer nombre del paciente
+   * Extraer nombre del paciente - MEJORADO con fuzzy matching
    */
   private extractPatientName(
     text: string,
     lines: string[]
   ): { value: string; confidence: number } {
     const namePatterns = [
-      /paciente[\s:]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)/i,
-      /apellido[s]?[\s:]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)/i,
-      /nombre[s]?[\s:]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)/i,
+      /paciente[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/i,
+      /apellido[s]?[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)\s*,?\s*nombre[s]?[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/i,
+      /nombre[s]?[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)\s*apellido[s]?[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/i,
+      /nombre\s+completo[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/i,
+      /titular[\s:\.]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/i,
     ];
 
     for (const pattern of namePatterns) {
       const match = text.match(pattern);
       if (match) {
-        return { value: match[1].trim(), confidence: 0.7 };
+        // Si tiene apellido y nombre separados, combinar
+        if (match[2]) {
+          return { value: `${match[1].trim()} ${match[2].trim()}`, confidence: 0.8 };
+        }
+        return { value: match[1].trim(), confidence: 0.75 };
       }
     }
 
-    // Buscar en las primeras líneas (usualmente nombre del paciente)
-    for (let i = 0; i < Math.min(5, lines.length); i++) {
-      if (lines[i].match(/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/)) {
-        return { value: lines[i], confidence: 0.5 };
+    // Buscar en las primeras 8 líneas (más tolerante)
+    for (let i = 0; i < Math.min(8, lines.length); i++) {
+      const line = lines[i].trim();
+      // Patrón de nombre: 2-4 palabras capitalizadas
+      if (line.match(/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3}$/)) {
+        // Verificar que no sea un título médico
+        if (
+          !line.toLowerCase().includes('doctor') &&
+          !line.toLowerCase().includes('clinica') &&
+          !line.toLowerCase().includes('hospital')
+        ) {
+          return { value: line, confidence: 0.6 };
+        }
       }
     }
 
@@ -322,37 +354,196 @@ export class OCRService {
   }
 
   /**
-   * Procesar archivo completo
+   * Procesar archivo completo CON IA (Método mejorado)
    */
   async processFile(filePath: string, mimeType: string): Promise<ExtractedMedicalData> {
-    this.logger.log(`Procesando archivo con OCR: ${filePath}`);
+    this.logger.log(`Procesando archivo con OCR + IA: ${filePath}`);
 
+    // Paso 1: Extraer texto con OCR
     const ocrResult = await this.extractText(filePath, mimeType);
 
     this.logger.debug(
       `Texto extraído (confianza: ${(ocrResult.confidence * 100).toFixed(1)}%)`
     );
-    this.logger.debug(`Primeras 200 caracteres: ${ocrResult.text.substring(0, 200)}`);
+    this.logger.debug(`Primeras 300 caracteres: ${ocrResult.text.substring(0, 300)}`);
 
-    const extractedData = this.analyzeMedicalData(ocrResult.text);
+    // Paso 2: Usar regex como fallback
+    const regexExtractedData = this.analyzeMedicalData(ocrResult.text);
 
-    this.logger.log('Datos extraídos:');
+    // Paso 3: Usar IA para mejorar extracción (solo si hay texto suficiente)
+    // Sistema de fallback inteligente: Ollama → Gemini → OCR puro
+    let finalData = regexExtractedData;
+    let aiUsed = 'ninguna';
+
+    if (ocrResult.text.length > 50) {
+      // Intentar primero con Ollama (local, rápido, gratis)
+      try {
+        this.logger.log('🤖 Intentando analizar con Ollama (IA Local)...');
+        const aiData = await this.ollamaService.analyzeMedicalOrder(ocrResult.text);
+        aiUsed = 'Ollama';
+
+        // Combinar resultados: usar IA si tiene confianza, sino usar regex
+        finalData = {
+          patientDNI: {
+            value: aiData.patientDNI || regexExtractedData.patientDNI.value,
+            confidence: aiData.patientDNI
+              ? 0.9
+              : regexExtractedData.patientDNI.confidence,
+          },
+          patientName: {
+            value: aiData.patientName || regexExtractedData.patientName.value,
+            confidence: aiData.patientName
+              ? 0.9
+              : regexExtractedData.patientName.confidence,
+          },
+          orderDate: {
+            value: aiData.orderDate || regexExtractedData.orderDate.value,
+            confidence: aiData.orderDate ? 0.9 : regexExtractedData.orderDate.confidence,
+          },
+          doctorName: {
+            value: aiData.doctorName || regexExtractedData.doctorName.value,
+            confidence: aiData.doctorName
+              ? 0.9
+              : regexExtractedData.doctorName.confidence,
+          },
+          doctorLicense: {
+            value: aiData.doctorLicense || regexExtractedData.doctorLicense.value,
+            confidence: aiData.doctorLicense
+              ? 0.9
+              : regexExtractedData.doctorLicense.confidence,
+          },
+          healthInsurance: {
+            value: aiData.healthInsurance || regexExtractedData.healthInsurance.value,
+            confidence: aiData.healthInsurance
+              ? 0.85
+              : regexExtractedData.healthInsurance.confidence,
+          },
+          requestedStudies: {
+            value:
+              aiData.requestedStudies?.length > 0
+                ? aiData.requestedStudies
+                : regexExtractedData.requestedStudies.value,
+            confidence:
+              aiData.requestedStudies?.length > 0
+                ? 0.85
+                : regexExtractedData.requestedStudies.confidence,
+          },
+        };
+
+        this.logger.log('✅ Análisis con Ollama completado');
+      } catch (ollamaError) {
+        // Si Ollama falla, intentar con Gemini (nube)
+        this.logger.warn(`⚠️ Ollama no disponible: ${ollamaError.message}`);
+
+        try {
+          this.logger.log('🤖 Intentando analizar con Gemini (IA Nube)...');
+          const aiData = await this.geminiService.analyzeMedicalOrder(ocrResult.text);
+          aiUsed = 'Gemini';
+
+          // Debug: ver qué devuelve Gemini
+          this.logger.debug(`📊 Respuesta de Gemini: ${JSON.stringify(aiData, null, 2)}`);
+
+          // Combinar resultados con Gemini (validar que no sean strings vacíos)
+          finalData = {
+            patientDNI: {
+              value:
+                (aiData.patientDNI && aiData.patientDNI.trim()) ||
+                regexExtractedData.patientDNI.value,
+              confidence:
+                aiData.patientDNI && aiData.patientDNI.trim()
+                  ? 0.9
+                  : regexExtractedData.patientDNI.confidence,
+            },
+            patientName: {
+              value:
+                (aiData.patientName && aiData.patientName.trim()) ||
+                regexExtractedData.patientName.value,
+              confidence:
+                aiData.patientName && aiData.patientName.trim()
+                  ? 0.9
+                  : regexExtractedData.patientName.confidence,
+            },
+            orderDate: {
+              value:
+                (aiData.orderDate && aiData.orderDate.trim()) ||
+                regexExtractedData.orderDate.value,
+              confidence:
+                aiData.orderDate && aiData.orderDate.trim()
+                  ? 0.9
+                  : regexExtractedData.orderDate.confidence,
+            },
+            doctorName: {
+              value:
+                (aiData.doctorName && aiData.doctorName.trim()) ||
+                regexExtractedData.doctorName.value,
+              confidence:
+                aiData.doctorName && aiData.doctorName.trim()
+                  ? 0.9
+                  : regexExtractedData.doctorName.confidence,
+            },
+            doctorLicense: {
+              value:
+                (aiData.doctorLicense && aiData.doctorLicense.trim()) ||
+                regexExtractedData.doctorLicense.value,
+              confidence:
+                aiData.doctorLicense && aiData.doctorLicense.trim()
+                  ? 0.9
+                  : regexExtractedData.doctorLicense.confidence,
+            },
+            healthInsurance: {
+              value:
+                (aiData.healthInsurance && aiData.healthInsurance.trim()) ||
+                regexExtractedData.healthInsurance.value,
+              confidence:
+                aiData.healthInsurance && aiData.healthInsurance.trim()
+                  ? 0.85
+                  : regexExtractedData.healthInsurance.confidence,
+            },
+            requestedStudies: {
+              value:
+                aiData.requestedStudies?.length > 0
+                  ? aiData.requestedStudies
+                  : regexExtractedData.requestedStudies.value,
+              confidence:
+                aiData.requestedStudies?.length > 0
+                  ? 0.85
+                  : regexExtractedData.requestedStudies.confidence,
+            },
+          };
+
+          this.logger.log('✅ Análisis con Gemini completado');
+        } catch (geminiError) {
+          // Ambas IAs fallaron, usar solo OCR + regex
+          this.logger.warn(`⚠️ Gemini también falló: ${geminiError.message}`);
+          this.logger.warn('📝 Usando solo OCR + Regex para extracción');
+          finalData = regexExtractedData;
+        }
+      }
+    }
+
+    this.logger.log(`📋 Datos finales extraídos (IA usada: ${aiUsed}):`);
     this.logger.log(
-      `- DNI: ${extractedData.patientDNI.value} (${(extractedData.patientDNI.confidence * 100).toFixed(0)}%)`
+      `- DNI: ${finalData.patientDNI.value} (${(finalData.patientDNI.confidence * 100).toFixed(0)}%)`
     );
     this.logger.log(
-      `- Nombre: ${extractedData.patientName.value} (${(extractedData.patientName.confidence * 100).toFixed(0)}%)`
+      `- Nombre: ${finalData.patientName.value} (${(finalData.patientName.confidence * 100).toFixed(0)}%)`
     );
     this.logger.log(
-      `- Fecha: ${extractedData.orderDate.value} (${(extractedData.orderDate.confidence * 100).toFixed(0)}%)`
+      `- Fecha: ${finalData.orderDate.value} (${(finalData.orderDate.confidence * 100).toFixed(0)}%)`
     );
     this.logger.log(
-      `- Médico: ${extractedData.doctorName.value} (${(extractedData.doctorName.confidence * 100).toFixed(0)}%)`
+      `- Médico: ${finalData.doctorName.value} (${(finalData.doctorName.confidence * 100).toFixed(0)}%)`
     );
     this.logger.log(
-      `- Estudios: ${extractedData.requestedStudies.value.length} encontrado(s)`
+      `- Matrícula: ${finalData.doctorLicense.value} (${(finalData.doctorLicense.confidence * 100).toFixed(0)}%)`
+    );
+    this.logger.log(
+      `- Obra Social: ${finalData.healthInsurance.value} (${(finalData.healthInsurance.confidence * 100).toFixed(0)}%)`
+    );
+    this.logger.log(
+      `- Estudios: ${finalData.requestedStudies.value.length} encontrado(s) (${(finalData.requestedStudies.confidence * 100).toFixed(0)}%)`
     );
 
-    return extractedData;
+    return finalData;
   }
 }

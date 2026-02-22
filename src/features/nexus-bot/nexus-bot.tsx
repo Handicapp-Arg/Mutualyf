@@ -76,12 +76,12 @@ export function NexusBot() {
                 onClick={handleToggle}
                 className={cn(
                   'relative flex h-24 w-24 items-center justify-center rounded-full bg-transparent sm:h-40 sm:w-40',
-                  'transition-transform duration-300 active:scale-95'
+                  'transition-all duration-300 hover:scale-105 active:scale-95'
                 )}
                 aria-label={'Abrir Nexus Bot'}
               >
                 {/* El BotFace solo visible cuando el bot está cerrado */}
-                <div className="absolute -inset-6">
+                <div className="absolute -inset-6 transition-transform duration-300 group-hover:-translate-y-1">
                   <BotFace />
                 </div>
               </button>
