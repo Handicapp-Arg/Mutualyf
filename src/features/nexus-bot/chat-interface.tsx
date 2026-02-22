@@ -89,9 +89,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     setIsLoading(false);
 
-    // Mensaje de bienvenida con opciones
-    const welcomeMessage =
-      '👋 ¡Hola! Soy Nexus, tu asistente virtual de CIOR Imágenes\n\n¿En qué puedo ayudarte hoy? Seleccioná una opción para comenzar:';
+        // Mensaje de bienvenida actualizado
+        const welcomeMessage =
+  '👋 ¡Bienvenido a CIOR Imágenes! Soy Nexus, tu asistente virtual.\n\nEstoy acá para acompañarte y darte información clara y rápida sobre nuestros servicios, estudios, horarios y ubicación. Usá los botones para navegar o escribime tu consulta: estoy listo para ayudarte y hacer tu experiencia simple y confiable.\n\nTu salud y tu tiempo son importantes. Contá conmigo para acercarte a la atención que necesitás.';
 
     // Agregar el mensaje con opciones simplificadas
     setMessages([
@@ -104,6 +104,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
           { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
           { label: '📞 Información de contacto', value: 'contacto' },
+          { label: 'ℹ️ Conocé sobre CIOR', value: 'sobre_cior' },
         ],
       },
     ]);

@@ -124,7 +124,11 @@ JSON:`;
       }
 
       const data = await res.json();
-      let responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      const candidates = (data as any)?.candidates;
+      let responseText =
+        candidates && Array.isArray(candidates) && candidates[0]?.content?.parts?.[0]?.text
+          ? candidates[0].content.parts[0].text
+          : '{}';
 
       // Log para debugging
       console.log('📥 Respuesta completa de Gemini:', responseText);

@@ -104,7 +104,7 @@ function FixedChat({ onClose }: { onClose: () => void }) {
 
       {/* Chat */}
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-0 md:inset-auto md:bottom-4 md:right-4 md:p-0">
-        <div className="flex h-full w-full flex-col overflow-hidden bg-white md:h-[600px] md:w-[640px] md:rounded-3xl md:border md:border-slate-200 md:shadow-2xl">
+  <div className="flex h-full w-full flex-col overflow-hidden bg-white md:h-[800px] md:w-[800px] md:rounded-3xl md:border md:border-slate-200 md:shadow-2xl">
           <ChatInterface onClose={onClose} />
         </div>
       </div>
