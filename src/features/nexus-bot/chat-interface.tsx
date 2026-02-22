@@ -248,7 +248,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                 id: (Date.now() + 2).toString(),
                 role: 'assistant',
                 content:
-                  '💡 Para realizar este estudio, es necesario contar con la orden médica.\n\n¿Querés cargarla ahora para agilizar tu ingreso?',
+                  '💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!',
                 timestamp: new Date(),
                 options: [
                   { label: '📋 Sí, cargar orden ahora', value: 'subir_orden' },
@@ -815,18 +815,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             accept="image/*,.pdf"
             className="hidden"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || isLoading}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-cyan-500 shadow-lg ring-1 ring-cyan-100 transition-all hover:bg-cyan-50 active:scale-95"
-          >
-            {isUploading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <Upload size={20} />
-            )}
-          </button>
 
           <div className="relative flex-1 rounded-[24px] bg-white shadow-xl ring-1 ring-black/5 transition-shadow focus-within:ring-2 focus-within:ring-cyan-400/50">
             <textarea
