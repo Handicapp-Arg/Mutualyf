@@ -783,21 +783,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                       <span className="text-sm font-medium text-slate-600 group-hover:text-cyan-700">
                         {option.label}
                       </span>
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-slate-300 transition-colors group-hover:bg-cyan-100 group-hover:text-cyan-600">
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M5 12h14" />
-                          <path d="m12 5 7 7-7 7" />
-                        </svg>
-bra                      </div>
                     </button>
                   ))}
                 </div>
