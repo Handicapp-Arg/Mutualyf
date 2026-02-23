@@ -173,6 +173,34 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
+    // Si selecciona un servicio, mostrar solo la versión breve y el mensaje para subir orden
+    const servicioDescripciones: Record<string, string> = {
+      cbct: 'La tomografía CBCT es un estudio de imágenes 3D de la zona dental y maxilofacial, útil para diagnósticos precisos en odontología.',
+      radiografias: 'Las radiografías dentales permiten ver los dientes y estructuras cercanas para detectar caries, infecciones o problemas óseos.',
+      panoramicas: 'La panorámica es una radiografía que muestra toda la boca en una sola imagen, útil para evaluaciones generales.',
+      telerradiografias: 'La telerradiografía es una radiografía lateral del cráneo, utilizada principalmente en ortodoncia.',
+      atm: 'El estudio ATM evalúa la articulación de la mandíbula para detectar alteraciones funcionales o estructurales.',
+      cefalometrias: 'La cefalometría es una radiografía del cráneo usada para análisis ortodóncicos y planificación de tratamientos.',
+    };
+    const mensajeFinal =
+      '\n\n💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!';
+    if (Object.keys(servicioDescripciones).includes(optionValue)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant',
+          content: servicioDescripciones[optionValue] + mensajeFinal,
+          timestamp: new Date(),
+          options: [
+            { label: '📋 Sí, cargar orden ahora', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
+            { label: '🏠 Volver al inicio', value: 'inicio' },
+          ],
+        },
+      ]);
+      return;
+    }
+
     // Si selecciona subir orden, abrir selector de archivos
     if (optionValue === 'subir_orden') {
       fileInputRef.current?.click();
@@ -769,7 +797,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
                           <path d="M5 12h14" />
                           <path d="m12 5 7 7-7 7" />
                         </svg>
-                      </div>
+bra                      </div>
                     </button>
                   ))}
                 </div>
