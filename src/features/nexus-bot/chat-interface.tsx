@@ -150,26 +150,49 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     setMessages((prev) => [...prev, userMessage]);
 
-    // Si selecciona "Conocer servicios", mostrar botones de servicios
+    // Si selecciona "Conocer servicios", mostrar loader 5s y luego los botones de servicios
     if (optionValue === 'servicios') {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content:
-            '🔬 Estos son nuestros servicios de diagnóstico por imágenes:\n\nSeleccioná el que te interese para más información:',
-          timestamp: new Date(),
-          options: [
-            { label: '🦷 CBCT (Tomografía Dental)', value: 'cbct' },
-            { label: '📷 Radiografías Dentales', value: 'radiografias' },
-            { label: '🔍 Panorámicas', value: 'panoramicas' },
-            { label: '📸 Telerradiografías', value: 'telerradiografias' },
-            { label: '💀 Estudios ATM', value: 'atm' },
-            { label: '🎯 Cefalometrías', value: 'cefalometrias' },
-          ],
-        },
-      ]);
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              '🔬 Estos son nuestros servicios de diagnóstico por imágenes:\n\nSeleccioná el que te interese para más información:',
+            timestamp: new Date(),
+            options: [
+              { label: '🦷 CBCT (Tomografía Dental)', value: 'cbct' },
+              { label: '📷 Radiografías Dentales', value: 'radiografias' },
+              { label: '🔍 Panorámicas', value: 'panoramicas' },
+              { label: '📸 Telerradiografías', value: 'telerradiografias' },
+              { label: '💀 Estudios ATM', value: 'atm' },
+              { label: '🎯 Cefalometrías', value: 'cefalometrias' },
+            ],
+          },
+        ]);
+      }, 5000);
+      return;
+    }
+
+    // Si selecciona "Ubicación y horarios", mostrar loader 5s y luego la respuesta correcta
+    if (optionValue === 'ubicacion_horarios') {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              'Nuestra ubicación es:\n📍 Balcarce 1001, Rosario, Santa Fe, Argentina\n\nNuestros horarios de atención son:\n⏰ Lunes a Viernes de 8:00 a 19:00hs\n\nNo trabajamos con turnos, la atención es por orden de llegada. Podés acercarte directamente en ese horario. ',
+            timestamp: new Date(),
+          },
+        ]);
+      }, 5000);
       return;
     }
 
@@ -185,19 +208,23 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     const mensajeFinal =
       '\n\n💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!';
     if (Object.keys(servicioDescripciones).includes(optionValue)) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 2).toString(),
-          role: 'assistant',
-          content: servicioDescripciones[optionValue] + mensajeFinal,
-          timestamp: new Date(),
-          options: [
-            { label: '📋 Sí, cargar orden ahora', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
-            { label: '🏠 Volver al inicio', value: 'inicio' },
-          ],
-        },
-      ]);
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 2).toString(),
+            role: 'assistant',
+            content: servicioDescripciones[optionValue] + mensajeFinal,
+            timestamp: new Date(),
+            options: [
+              { label: '📋 Sí, cargar orden ahora', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
+              { label: '🏠 Volver al inicio', value: 'inicio' },
+            ],
+          },
+        ]);
+      }, 5000);
       return;
     }
 
