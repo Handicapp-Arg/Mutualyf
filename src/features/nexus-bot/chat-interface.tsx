@@ -28,6 +28,13 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
+  // Opciones principales siempre visibles arriba del chat
+  const mainOptions = [
+    { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
+    { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
+    { label: '📞 Información de contacto', value: 'contacto' },
+    { label: 'ℹ️ Conocé sobre CIOR', value: 'sobre_cior' },
+  ];
   // ...existing code...
   // Estado para autocompletar el estudio en la orden médica
   const [selectedEstudio, setSelectedEstudio] = useState<string>('');
@@ -740,6 +747,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden md:rounded-3xl">
+
       {/* Header mejorado */}
       <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
         <div className="flex items-center gap-3">
@@ -768,6 +776,24 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             <X size={20} />
           </button>
         </div>
+      </div>
+
+      {/* Botones principales debajo del header, en un solo renglón con scroll */}
+      <div className="z-20 flex w-full gap-3 overflow-x-auto bg-gradient-to-br from-white/70 to-cyan-50/60 px-4 py-3 backdrop-blur-md shadow-lg scrollbar-hide">
+        {mainOptions.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => handleOptionClick(option.value, option.label)}
+            disabled={isLoading}
+            className="group relative flex items-center gap-2 rounded-2xl bg-white/80 px-5 py-3 text-base font-semibold text-cyan-700 shadow-md ring-1 ring-cyan-100/60 transition-all duration-200 hover:bg-cyan-100/80 hover:text-cyan-900 hover:shadow-xl active:scale-97 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 disabled:opacity-50"
+            style={{ boxShadow: '0 4px 24px 0 rgba(0, 200, 255, 0.08)' }}
+          >
+            <span className="drop-shadow-sm select-none">
+              {option.label}
+            </span>
+            <span className="absolute -bottom-1 left-1/2 h-1 w-2/3 -translate-x-1/2 rounded-full bg-cyan-200 opacity-0 group-hover:opacity-60 blur-sm transition-all duration-200" />
+          </button>
+        ))}
       </div>
 
       {/* Mensajes con estilo chat moderno y limpio */}
