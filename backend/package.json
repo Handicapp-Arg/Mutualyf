@@ -1,8 +1,8 @@
 {
-  "name": "chill-back",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "name": "@ciorimagen/backend",
+  "version": "1.0.0",
+  "description": "CIOR Backend - API REST con NestJS",
+  "author": "CIOR Imagen Argentina",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

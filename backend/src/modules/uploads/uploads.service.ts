@@ -37,17 +37,20 @@ export class UploadsService {
   }
 
   /**
-   * Analizar archivo con OCR y extraer datos
+   * Analizar archivo con OCR (RÁPIDO - sin IA)
    */
   async analyzeFile(file: Express.Multer.File, sessionId: string) {
     try {
-      this.logger.log(`Analizando archivo con OCR: ${file.originalname}`);
+      this.logger.log(`\n⚡ ===== ANÁLISIS RÁPIDO (SOLO OCR) =====`);
+      this.logger.log(`📄 Archivo: ${file.originalname}`);
 
       // Validar archivo
       this.validateFile(file);
 
-      // Procesar con OCR
+      // Procesar solo con OCR (sin IA)
       const extractedData = await this.ocrService.processFile(file.path, file.mimetype);
+
+      this.logger.log(`✅ Análisis OCR completado. Preparando respuesta...`);
 
       // Mapear confianza a validación
       const validation = {
@@ -117,13 +120,16 @@ export class UploadsService {
       ).length;
       const detectionRate = (detectedFields / totalFields) * 100;
 
+      this.logger.log(`\n📊 RESULTADO: ${detectedFields}/${totalFields} campos detectados (OCR rápido)`);
+
       return {
         success: true,
-        message: `Análisis completado. ${detectedFields}/${totalFields} campos detectados`,
+        message: `Análisis rápido completado. ${detectedFields}/${totalFields} campos detectados`,
         data: {
           sessionId,
           fileName: file.originalname,
           detectionRate: Math.round(detectionRate),
+          aiUsed: 'OCR_ONLY',
           fields: validation,
           tempFilePath: file.path,
         },

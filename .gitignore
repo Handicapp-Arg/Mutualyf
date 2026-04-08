@@ -1,126 +1,44 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-pnpm-lock.yaml
-yarn.lock
-
-# Dependency directories
+# Dependencies
 node_modules/
 
 # Build output
 dist/
-dist-ssr
+dist-ssr/
 
 # Environment files
-.env*
+.env
+.env.*
 
-# IDEs and editors
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE
 .vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
 .idea/
+
+# OS files
 .DS_Store
-.suo
-.ntvs*
-.njsproj
-.sln
-.sw?
+Thumbs.db
+Desktop.ini
 
 # Coverage
 coverage/
 
-# Misc
-*.tgz
-*.bak
-*.tmp
-*.temp
+# Cache
 *.cache
 .eslintcache
 .turbo/
-.vercel/
-.parcel-cache/
-.firebase/
-.sass-cache/
-.nyc_output/
-.next/cache/
-.cache/
-.expo/
-.expo-shared/
-.cypress/
-.storybook/
-.serverless/
-.tmp/
-.yarn/
-.pnp.*
-.npm/
-.envrc
-.python-version
-.node_repl_history
-.npmrc
-.yarnrc
-.editorconfig
-.prettier*
-.husky/
-.lintstagedrc*
-.commitlintrc*
-.stylelintrc*
-.browserslistrc
-.nvmrc
-.dockerignore
-docker-compose*.yml
-Dockerfile*
-.gitlab-ci.yml
-.github/
-.circleci/
-.vagrant/
-.terraform/
-.idea/
-.project
-.classpath
-.settings/
-.metadata/
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-*.iml
-*.ipr
-*.iws
-*.sublime-workspace
-*.sublime-project
-*.code-workspace
-*.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Environment variables
-.env
-.env.local
-.env.production.local
-.env.development.local
-
-# Testing
-coverage
-
-# Misc
-.turbo
-.vercel
-
-# Lock files
+# Lock files (each package manages its own)
 package-lock.json
+
+# Backend specific
+backend/uploads/
+backend/data/*.db
+
+# Frontend specific
+frontend/dist/

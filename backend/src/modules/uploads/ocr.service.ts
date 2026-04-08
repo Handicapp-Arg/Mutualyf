@@ -19,6 +19,10 @@ export interface ExtractedMedicalData {
   doctorLicense: { value: string; confidence: number };
   healthInsurance: { value: string; confidence: number };
   requestedStudies: { value: string[]; confidence: number };
+  _metadata?: {
+    aiUsed: string;
+    ocrConfidence: number;
+  };
 }
 
 @Injectable()
@@ -354,174 +358,28 @@ export class OCRService {
   }
 
   /**
-   * Procesar archivo completo CON IA (Método mejorado)
+   * Procesar archivo con OCR solamente (RÁPIDO - sin IA)
    */
   async processFile(filePath: string, mimeType: string): Promise<ExtractedMedicalData> {
-    this.logger.log(`Procesando archivo con OCR + IA: ${filePath}`);
+    this.logger.log(`⚡ ANÁLISIS RÁPIDO CON OCR: ${filePath}`);
 
     // Paso 1: Extraer texto con OCR
+    this.logger.log('📷 Paso 1/2: Extrayendo texto con OCR...');
     const ocrResult = await this.extractText(filePath, mimeType);
 
-    this.logger.debug(
-      `Texto extraído (confianza: ${(ocrResult.confidence * 100).toFixed(1)}%)`
+    this.logger.log(
+      `✅ OCR completado (confianza: ${(ocrResult.confidence * 100).toFixed(1)}%)`
     );
     this.logger.debug(`Primeras 300 caracteres: ${ocrResult.text.substring(0, 300)}`);
 
-    // Paso 2: Usar regex como fallback
-    const regexExtractedData = this.analyzeMedicalData(ocrResult.text);
+    // Paso 2: Usar regex para extraer datos
+    this.logger.log('🔍 Paso 2/2: Analizando con expresiones regulares...');
+    const finalData = this.analyzeMedicalData(ocrResult.text);
+    const aiUsed = 'OCR_ONLY';
 
-    // Paso 3: Usar IA para mejorar extracción (solo si hay texto suficiente)
-    // Sistema de fallback inteligente: Ollama → Gemini → OCR puro
-    let finalData = regexExtractedData;
-    let aiUsed = 'ninguna';
-
-    if (ocrResult.text.length > 50) {
-      // Intentar primero con Ollama (local, rápido, gratis)
-      try {
-        this.logger.log('🤖 Intentando analizar con Ollama (IA Local)...');
-        const aiData = await this.ollamaService.analyzeMedicalOrder(ocrResult.text);
-        aiUsed = 'Ollama';
-
-        // Combinar resultados: usar IA si tiene confianza, sino usar regex
-        finalData = {
-          patientDNI: {
-            value: aiData.patientDNI || regexExtractedData.patientDNI.value,
-            confidence: aiData.patientDNI
-              ? 0.9
-              : regexExtractedData.patientDNI.confidence,
-          },
-          patientName: {
-            value: aiData.patientName || regexExtractedData.patientName.value,
-            confidence: aiData.patientName
-              ? 0.9
-              : regexExtractedData.patientName.confidence,
-          },
-          orderDate: {
-            value: aiData.orderDate || regexExtractedData.orderDate.value,
-            confidence: aiData.orderDate ? 0.9 : regexExtractedData.orderDate.confidence,
-          },
-          doctorName: {
-            value: aiData.doctorName || regexExtractedData.doctorName.value,
-            confidence: aiData.doctorName
-              ? 0.9
-              : regexExtractedData.doctorName.confidence,
-          },
-          doctorLicense: {
-            value: aiData.doctorLicense || regexExtractedData.doctorLicense.value,
-            confidence: aiData.doctorLicense
-              ? 0.9
-              : regexExtractedData.doctorLicense.confidence,
-          },
-          healthInsurance: {
-            value: aiData.healthInsurance || regexExtractedData.healthInsurance.value,
-            confidence: aiData.healthInsurance
-              ? 0.85
-              : regexExtractedData.healthInsurance.confidence,
-          },
-          requestedStudies: {
-            value:
-              aiData.requestedStudies?.length > 0
-                ? aiData.requestedStudies
-                : regexExtractedData.requestedStudies.value,
-            confidence:
-              aiData.requestedStudies?.length > 0
-                ? 0.85
-                : regexExtractedData.requestedStudies.confidence,
-          },
-        };
-
-        this.logger.log('✅ Análisis con Ollama completado');
-      } catch (ollamaError) {
-        // Si Ollama falla, intentar con Gemini (nube)
-        this.logger.warn(`⚠️ Ollama no disponible: ${ollamaError.message}`);
-
-        try {
-          this.logger.log('🤖 Intentando analizar con Gemini (IA Nube)...');
-          const aiData = await this.geminiService.analyzeMedicalOrder(ocrResult.text);
-          aiUsed = 'Gemini';
-
-          // Debug: ver qué devuelve Gemini
-          this.logger.debug(`📊 Respuesta de Gemini: ${JSON.stringify(aiData, null, 2)}`);
-
-          // Combinar resultados con Gemini (validar que no sean strings vacíos)
-          finalData = {
-            patientDNI: {
-              value:
-                (aiData.patientDNI && aiData.patientDNI.trim()) ||
-                regexExtractedData.patientDNI.value,
-              confidence:
-                aiData.patientDNI && aiData.patientDNI.trim()
-                  ? 0.9
-                  : regexExtractedData.patientDNI.confidence,
-            },
-            patientName: {
-              value:
-                (aiData.patientName && aiData.patientName.trim()) ||
-                regexExtractedData.patientName.value,
-              confidence:
-                aiData.patientName && aiData.patientName.trim()
-                  ? 0.9
-                  : regexExtractedData.patientName.confidence,
-            },
-            orderDate: {
-              value:
-                (aiData.orderDate && aiData.orderDate.trim()) ||
-                regexExtractedData.orderDate.value,
-              confidence:
-                aiData.orderDate && aiData.orderDate.trim()
-                  ? 0.9
-                  : regexExtractedData.orderDate.confidence,
-            },
-            doctorName: {
-              value:
-                (aiData.doctorName && aiData.doctorName.trim()) ||
-                regexExtractedData.doctorName.value,
-              confidence:
-                aiData.doctorName && aiData.doctorName.trim()
-                  ? 0.9
-                  : regexExtractedData.doctorName.confidence,
-            },
-            doctorLicense: {
-              value:
-                (aiData.doctorLicense && aiData.doctorLicense.trim()) ||
-                regexExtractedData.doctorLicense.value,
-              confidence:
-                aiData.doctorLicense && aiData.doctorLicense.trim()
-                  ? 0.9
-                  : regexExtractedData.doctorLicense.confidence,
-            },
-            healthInsurance: {
-              value:
-                (aiData.healthInsurance && aiData.healthInsurance.trim()) ||
-                regexExtractedData.healthInsurance.value,
-              confidence:
-                aiData.healthInsurance && aiData.healthInsurance.trim()
-                  ? 0.85
-                  : regexExtractedData.healthInsurance.confidence,
-            },
-            requestedStudies: {
-              value:
-                aiData.requestedStudies?.length > 0
-                  ? aiData.requestedStudies
-                  : regexExtractedData.requestedStudies.value,
-              confidence:
-                aiData.requestedStudies?.length > 0
-                  ? 0.85
-                  : regexExtractedData.requestedStudies.confidence,
-            },
-          };
-
-          this.logger.log('✅ Análisis con Gemini completado');
-        } catch (geminiError) {
-          // Ambas IAs fallaron, usar solo OCR + regex
-          this.logger.warn(`⚠️ Gemini también falló: ${geminiError.message}`);
-          this.logger.warn('📝 Usando solo OCR + Regex para extracción');
-          finalData = regexExtractedData;
-        }
-      }
-    }
-
-    this.logger.log(`📋 Datos finales extraídos (IA usada: ${aiUsed}):`);
+    this.logger.log(`\n✅ ===== ANÁLISIS COMPLETADO (OCR RÁPIDO) =====`);
+    this.logger.log(`⚡ Método: Solo OCR + Regex (sin IA)`);
+    this.logger.log(`📋 Datos extraídos:`);
     this.logger.log(
       `- DNI: ${finalData.patientDNI.value} (${(finalData.patientDNI.confidence * 100).toFixed(0)}%)`
     );
@@ -544,6 +402,13 @@ export class OCRService {
       `- Estudios: ${finalData.requestedStudies.value.length} encontrado(s) (${(finalData.requestedStudies.confidence * 100).toFixed(0)}%)`
     );
 
-    return finalData;
+    // Agregar metadata indicando que NO se usó IA
+    return {
+      ...finalData,
+      _metadata: {
+        aiUsed,
+        ocrConfidence: ocrResult.confidence,
+      }
+    };
   }
 }
