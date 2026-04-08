@@ -12,6 +12,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { AiController } from './ai/ai.controller';
 import { GeminiService } from './ai/gemini.service';
 import { OllamaService } from './ai/ollama.service';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { OllamaService } from './ai/ollama.service';
     ]),
 
     // Módulos de funcionalidad
+    EventsModule,
     PrismaModule,
     UsersModule,
     ConversationsModule,

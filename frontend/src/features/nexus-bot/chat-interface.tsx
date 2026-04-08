@@ -77,6 +77,80 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     // NO guardar en el cleanup del useEffect, solo al cerrar explícitamente
   }, []);
 
+  // Auto-guardado en vivo: cada vez que cambia el array de mensajes,
+  // se reprograma un save 800ms después. El debounce evita guardar en cada
+  // chunk durante el streaming — solo guarda cuando el estado se asienta.
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      const messagesToSave = messages.map(({ role, content, timestamp }) => ({
+        role,
+        content,
+        timestamp,
+      }));
+      backendService.current
+        .saveConversation(messagesToSave, userNameRef.current || 'Anónimo')
+        .catch((err) => {
+          console.warn('⚠️ Error en auto-save:', err);
+        });
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [messages]);
+
+  // Heartbeat: marcar el chat como EN VIVO mientras esté abierto.
+  // Hace un ping cada 10s al backend con sessionId + userName actual.
+  // Al desmontarse (cualquier camino: X, overlay, navegación), marca la sesión
+  // como cerrada para que desaparezca de "en vivo" inmediatamente.
+  useEffect(() => {
+    // @ts-ignore - Vite env variables
+    const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+    const sessionId = backendService.current['sessionId'];
+
+    const sendHeartbeat = () => {
+      fetch(`${BACKEND_URL}/sessions/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          userName: userNameRef.current || 'Anónimo',
+        }),
+      }).catch(() => {
+        // Silencioso: si falla el heartbeat no rompemos la UX del chat
+      });
+    };
+
+    // Primer ping inmediato + intervalo cada 10s
+    sendHeartbeat();
+    const intervalId = setInterval(sendHeartbeat, 10000);
+
+    // Handler para cuando la pestaña se cierra o navega fuera
+    const handleBeforeUnload = () => {
+      const payload = JSON.stringify({ sessionId });
+      // sendBeacon es la forma confiable de enviar al backend en unload
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          `${BACKEND_URL}/sessions/end`,
+          new Blob([payload], { type: 'application/json' })
+        );
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Marcar sesión como inactiva al desmontar (cualquier camino de cierre)
+      fetch(`${BACKEND_URL}/sessions/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+  }, []);
+
   const loadConversationHistory = async () => {
     try {
       const history = await backendService.current.getConversationHistory();
@@ -739,6 +813,20 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       } catch (err) {
         console.error('❌ Error guardando conversación:', err);
       }
+    }
+
+    // Marcar la sesión como inactiva en el backend para que desaparezca
+    // de "en vivo" inmediatamente (sin esperar el timeout de 60s)
+    try {
+      // @ts-ignore - Vite env variables
+      const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+      await fetch(`${BACKEND_URL}/sessions/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: backendService.current['sessionId'] }),
+      });
+    } catch (err) {
+      console.warn('⚠️ No se pudo marcar la sesión como cerrada:', err);
     }
 
     isSaving.current = false;

@@ -9,12 +9,35 @@ import {
   DatabaseException,
   BusinessException,
 } from '../common/exceptions/business.exception';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsGateway,
+  ) {}
+
+  /**
+   * Formatea una conversación de la DB al shape que consume el frontend admin.
+   */
+  private formatConversation(conv: any) {
+    return {
+      id: conv.id.toString(),
+      sessionId: conv.sessionId,
+      userName: conv.userName || 'Anónimo',
+      messages: (() => {
+        try {
+          return JSON.parse(conv.messages || '[]');
+        } catch {
+          return [];
+        }
+      })(),
+      timestamp: conv.timestamp,
+    };
+  }
 
   async deleteAll() {
     try {
@@ -47,47 +70,60 @@ export class ConversationsService {
   }
 
   /**
-   * Crear nueva conversación
-   * Cada vez que se cierra el chat, se crea una nueva conversación
+   * Crear o actualizar conversación EN VIVO (upsert por sessionId).
+   * Se llama después de cada mensaje del usuario y de cada respuesta del bot,
+   * así que la fila va creciendo a medida que la charla avanza.
    */
   async create(data: CreateConversationDto) {
     try {
-      this.logger.debug(`Guardando conversación para sessionId: ${data.sessionId}`);
+      this.logger.debug(`Upsert conversación para sessionId: ${data.sessionId}`);
       this.logger.debug(`Total mensajes recibidos: ${data.messages?.length || 0}`);
 
-      // Extraer último mensaje del usuario y última respuesta del bot
+      if (!data.messages || data.messages.length === 0) {
+        throw new BusinessException('La conversación debe tener al menos un mensaje');
+      }
+
+      // Último mensaje del usuario y última respuesta del bot (pueden estar vacíos
+      // en estados intermedios, ej. justo después de enviar antes de que el bot responda)
       const userMessages = data.messages.filter((m) => m.role === 'user');
       const assistantMessages = data.messages.filter((m) => m.role === 'assistant');
-
       const userMessage = userMessages[userMessages.length - 1]?.content || '';
       const botResponse = assistantMessages[assistantMessages.length - 1]?.content || '';
 
-      // Validación de negocio adicional
-      if (userMessage.trim().length === 0) {
-        throw new BusinessException('El mensaje del usuario no puede estar vacío');
-      }
+      const timestamp = data.timestamp || new Date().toISOString();
+      const messagesJson = JSON.stringify(data.messages);
 
-      if (botResponse.trim().length === 0) {
-        throw new BusinessException('La respuesta del bot no puede estar vacía');
-      }
-
-      // CREAR una nueva conversación (sin borrar las anteriores)
-      const conversation = await this.prisma.conversation.create({
-        data: {
+      const conversation = await this.prisma.conversation.upsert({
+        where: { sessionId: data.sessionId },
+        create: {
           sessionId: data.sessionId,
           userName: data.userName || null,
-          userMessage: userMessage,
-          botResponse: botResponse,
-          messages: JSON.stringify(data.messages),
-          timestamp: data.timestamp || new Date().toISOString(),
+          userMessage,
+          botResponse,
+          messages: messagesJson,
+          timestamp,
           aiModel: data.aiModel || null,
           userFeedback: data.userFeedback ?? null,
+        },
+        update: {
+          // Solo sobreescribir userName si llega uno nuevo no vacío
+          ...(data.userName ? { userName: data.userName } : {}),
+          userMessage,
+          botResponse,
+          messages: messagesJson,
+          timestamp,
+          ...(data.aiModel ? { aiModel: data.aiModel } : {}),
+          ...(data.userFeedback !== undefined ? { userFeedback: data.userFeedback } : {}),
         },
       });
 
       this.logger.log(
-        `✅ Conversación guardada con ${data.messages?.length} mensajes (ID: ${conversation.id})`
+        `✅ Conversación upsert OK (${data.messages.length} mensajes, ID: ${conversation.id})`
       );
+
+      // 🔴 Emitir evento en tiempo real al panel admin
+      this.events.emitConversationUpserted(this.formatConversation(conversation));
+
       return {
         id: conversation.id,
         message: 'Conversación guardada exitosamente',
@@ -192,19 +228,7 @@ export class ConversationsService {
       const totalMessages = allConversations.length * 2; // cada conversación = 1 user + 1 bot
 
       // Formatear conversaciones para el frontend
-      const conversations = allConversations.map((conv) => ({
-        id: conv.id.toString(),
-        sessionId: conv.sessionId,
-        userName: conv.userName || 'Anónimo',
-        messages: (() => {
-          try {
-            return JSON.parse(conv.messages || '[]');
-          } catch {
-            return [];
-          }
-        })(),
-        timestamp: conv.timestamp,
-      }));
+      const conversations = allConversations.map((conv) => this.formatConversation(conv));
 
       const result = {
         total: totalConversations,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   MessageSquare,
@@ -7,8 +7,10 @@ import {
   TrendingUp,
   Download,
   Trash2,
+  Radio,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAdminSocket } from '@/hooks/use-admin-socket';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -48,6 +50,12 @@ interface Stats {
   avgMessagesPerConversation: number;
 }
 
+interface LiveSession {
+  sessionId: string;
+  userName?: string | null;
+  lastSeen: string;
+}
+
 export function AdminPortal() {
   const [activeTab, setActiveTab] = useState<
     'conversations' | 'uploads' | 'stats' | 'feedback'
@@ -64,13 +72,76 @@ export function AdminPortal() {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
 
   // @ts-ignore - Vite env variables
   const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
+  // Set de sessionIds en vivo (para lookup O(1) al renderizar la lista)
+  const liveSessionIds = new Set(liveSessions.map((s) => s.sessionId));
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Fetch inicial de sesiones en vivo (después el socket toma el control)
+  useEffect(() => {
+    const fetchLive = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/sessions/live/list`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const data = (json.data || []) as LiveSession[];
+        setLiveSessions(data);
+      } catch {
+        // silencioso
+      }
+    };
+    fetchLive();
+  }, []);
+
+  // Handler: upsert de una conversación recibida por socket.
+  // Si ya existe en el estado (mismo sessionId), la reemplaza in-place;
+  // si no, la agrega al inicio. Recalcula stats sobre el array resultante.
+  const handleConversationUpserted = useCallback((incoming: Conversation) => {
+    setConversations((prev) => {
+      const idx = prev.findIndex((c) => c.sessionId === incoming.sessionId);
+      const next =
+        idx >= 0
+          ? prev.map((c, i) => (i === idx ? { ...c, ...incoming } : c))
+          : [incoming, ...prev];
+
+      // Recalcular stats sobre el array nuevo (fuente única de verdad)
+      const totalMessages = next.reduce(
+        (acc, conv) => acc + (conv.messages?.length || 0),
+        0
+      );
+      setStats((s) => ({
+        ...s,
+        totalConversations: next.length,
+        totalMessages,
+        avgMessagesPerConversation: next.length > 0 ? totalMessages / next.length : 0,
+      }));
+
+      return next;
+    });
+
+    // Si la conversación abierta en el panel de detalle es la que se actualizó,
+    // refrescarla también para que los mensajes nuevos aparezcan en vivo.
+    setSelectedConversation((prev) =>
+      prev && prev.sessionId === incoming.sessionId ? { ...prev, ...incoming } : prev
+    );
+  }, []);
+
+  const handleLiveSessions = useCallback((sessions: LiveSession[]) => {
+    setLiveSessions(sessions);
+  }, []);
+
+  // Conexión WebSocket: actualizaciones en tiempo real
+  useAdminSocket({
+    onConversationUpserted: handleConversationUpserted,
+    onLiveSessions: handleLiveSessions,
+  });
 
   const loadData = async () => {
     setIsLoading(true);
@@ -215,7 +286,7 @@ export function AdminPortal() {
 
       <div className="border-b bg-white">
         <div className="container mx-auto px-4 py-6">
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -260,6 +331,47 @@ export function AdminPortal() {
                 </div>
                 <div className="rounded-lg bg-green-100 p-3">
                   <FileText className="text-green-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl border p-4 transition-colors ${
+                liveSessions.length > 0
+                  ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-white'
+                  : 'border-slate-200 bg-gradient-to-br from-slate-50 to-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase text-slate-500">En Línea</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p
+                      className={`text-3xl font-black ${
+                        liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-400'
+                      }`}
+                    >
+                      {liveSessions.length}
+                    </p>
+                    {liveSessions.length > 0 && (
+                      <span className="relative flex h-3 w-3">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div
+                  className={`rounded-lg p-3 ${
+                    liveSessions.length > 0 ? 'bg-emerald-100' : 'bg-slate-100'
+                  }`}
+                >
+                  <Radio
+                    className={
+                      liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-400'
+                    }
+                    size={24}
+                  />
                 </div>
               </div>
             </div>
@@ -371,54 +483,118 @@ export function AdminPortal() {
                       </button>
                     </div>
                   </div>
+                  {/* Sección "EN VIVO" - chats abiertos en este momento */}
+                  {liveSessions.length > 0 && (
+                    <div className="mb-4 rounded-lg border-2 border-green-400 bg-green-50 p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="relative flex h-3 w-3">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
+                        </span>
+                        <h3 className="text-xs font-black uppercase text-green-700">
+                          Chats en vivo ahora ({liveSessions.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-1.5">
+                        {liveSessions.map((s) => (
+                          <div
+                            key={s.sessionId}
+                            className="flex items-center justify-between rounded bg-white px-3 py-2 text-xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                              <span className="font-bold text-slate-700">
+                                {s.userName || 'Anónimo'}
+                              </span>
+                              <span className="font-mono text-[10px] text-slate-400">
+                                {s.sessionId.slice(-8)}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500">
+                              activo {formatDate(s.lastSeen)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="max-h-[600px] space-y-2 overflow-y-auto">
                     {conversations.length === 0 ? (
                       <p className="py-8 text-center text-sm text-slate-400">
                         No hay conversaciones registradas
                       </p>
                     ) : (
-                      conversations.map((conv) => (
-                        <button
-                          key={conv.id}
-                          onClick={() => {
-                            console.log('🖱️ Conversación seleccionada:', {
-                              id: conv.id,
-                              sessionId: conv.sessionId,
-                              userName: conv.userName,
-                              totalMensajes: conv.messages?.length,
-                              esArray: Array.isArray(conv.messages),
-                              mensajes: conv.messages,
-                            });
-                            setSelectedConversation(conv);
-                          }}
-                          className={`w-full rounded-lg border p-4 text-left transition-all hover:shadow-md ${
-                            selectedConversation?.id === conv.id
-                              ? 'border-corporate bg-blue-50'
-                              : 'border-slate-200 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="mb-1 flex items-center gap-2">
-                                <p className="text-sm font-bold text-corporate">
-                                  {conv.userName || 'Anónimo'}
+                      conversations.map((conv) => {
+                        const isLive = liveSessionIds.has(conv.sessionId);
+                        return (
+                          <button
+                            key={conv.id}
+                            onClick={() => {
+                              console.log('🖱️ Conversación seleccionada:', {
+                                id: conv.id,
+                                sessionId: conv.sessionId,
+                                userName: conv.userName,
+                                totalMensajes: conv.messages?.length,
+                                esArray: Array.isArray(conv.messages),
+                                mensajes: conv.messages,
+                              });
+                              setSelectedConversation(conv);
+                            }}
+                            className={`w-full rounded-lg border-2 p-4 text-left transition-all hover:shadow-md ${
+                              isLive
+                                ? 'border-green-500 bg-green-50 shadow-sm'
+                                : selectedConversation?.id === conv.id
+                                  ? 'border-corporate bg-blue-50'
+                                  : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="mb-1 flex items-center gap-2">
+                                  {isLive && (
+                                    <span className="relative flex h-2.5 w-2.5">
+                                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500"></span>
+                                    </span>
+                                  )}
+                                  <p
+                                    className={`text-sm font-bold ${
+                                      isLive ? 'text-green-700' : 'text-corporate'
+                                    }`}
+                                  >
+                                    {conv.userName || 'Anónimo'}
+                                  </p>
+                                  {isLive && (
+                                    <span className="rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
+                                      En vivo
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-sm font-medium text-slate-700">
+                                  {conv.messages.length} mensajes
+                                </p>
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {formatDate(conv.timestamp)}
                                 </p>
                               </div>
-                              <p className="mt-1 text-sm font-medium text-slate-700">
-                                {conv.messages.length} mensajes
-                              </p>
-                              <p className="mt-1 text-xs text-slate-400">
-                                {formatDate(conv.timestamp)}
-                              </p>
+                              <div
+                                className={`rounded-full px-3 py-1 ${
+                                  isLive ? 'bg-green-500/20' : 'bg-corporate/10'
+                                }`}
+                              >
+                                <span
+                                  className={`text-xs font-bold ${
+                                    isLive ? 'text-green-700' : 'text-corporate'
+                                  }`}
+                                >
+                                  {conv.messages.filter((m) => m.role === 'user').length}
+                                </span>
+                              </div>
                             </div>
-                            <div className="rounded-full bg-corporate/10 px-3 py-1">
-                              <span className="text-xs font-bold text-corporate">
-                                {conv.messages.filter((m) => m.role === 'user').length}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      ))
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 </div>

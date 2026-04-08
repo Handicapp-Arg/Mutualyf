@@ -5,12 +5,33 @@ import {
   DatabaseException,
   ResourceNotFoundException,
 } from '../common/exceptions/business.exception';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class SessionsService {
   private readonly logger = new Logger(SessionsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsGateway,
+  ) {}
+
+  /**
+   * Helper privado: consulta sesiones en vivo y las emite por WebSocket.
+   * Llamarse después de cualquier mutación que afecte el conjunto vivo.
+   */
+  private async broadcastLiveSessions(): Promise<void> {
+    try {
+      const sixtySecondsAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const live = await this.prisma.userSession.findMany({
+        where: { lastSeen: { gte: sixtySecondsAgo } },
+        orderBy: { lastSeen: 'desc' },
+      });
+      this.events.emitLiveSessions(live);
+    } catch (error) {
+      this.logger.warn(`No se pudo broadcast de sesiones vivas: ${error.message}`);
+    }
+  }
 
   /**
    * Crear o actualizar sesión de usuario
@@ -126,6 +147,83 @@ export class SessionsService {
 
       this.logger.error(`Error al buscar sesión: ${error.message}`);
       throw new DatabaseException('findById session', error.message);
+    }
+  }
+
+  /**
+   * Heartbeat ligero: solo actualiza lastSeen (y crea la fila si no existe).
+   * No corre lookup/propagation de UserIdentity. Pensado para llamarse cada
+   * pocos segundos desde el frontend mientras el chat esté abierto.
+   */
+  async heartbeat(sessionId: string, userName?: string) {
+    try {
+      const now = new Date().toISOString();
+      const session = await this.prisma.userSession.upsert({
+        where: { sessionId },
+        create: {
+          sessionId,
+          userName: userName || null,
+          lastSeen: now,
+        },
+        update: {
+          lastSeen: now,
+          ...(userName ? { userName } : {}),
+        },
+      });
+
+      // Broadcast en tiempo real (no bloqueante)
+      this.broadcastLiveSessions();
+
+      return { message: 'ok', data: { sessionId: session.sessionId, lastSeen: session.lastSeen } };
+    } catch (error) {
+      this.logger.error(`Error en heartbeat: ${error.message}`);
+      throw new DatabaseException('heartbeat', error.message);
+    }
+  }
+
+  /**
+   * Marcar una sesión como cerrada: pone lastSeen muy en el pasado para
+   * que deje de aparecer en getLiveSessions inmediatamente.
+   */
+  async endSession(sessionId: string) {
+    try {
+      const past = new Date(0).toISOString();
+      await this.prisma.userSession.updateMany({
+        where: { sessionId },
+        data: { lastSeen: past },
+      });
+
+      // Broadcast inmediato al admin para que el chat desaparezca al instante
+      this.broadcastLiveSessions();
+
+      return { message: 'ok', data: { sessionId } };
+    } catch (error) {
+      this.logger.error(`Error en endSession: ${error.message}`);
+      throw new DatabaseException('endSession', error.message);
+    }
+  }
+
+  /**
+   * Obtener sesiones EN VIVO (vistas en los últimos 60 segundos).
+   * Estas son los chats que están abiertos y enviando heartbeats ahora mismo.
+   */
+  async getLiveSessions() {
+    try {
+      const sixtySecondsAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const liveSessions = await this.prisma.userSession.findMany({
+        where: {
+          lastSeen: { gte: sixtySecondsAgo },
+        },
+        orderBy: { lastSeen: 'desc' },
+      });
+      return {
+        message: 'Sesiones en vivo obtenidas',
+        data: liveSessions,
+        count: liveSessions.length,
+      };
+    } catch (error) {
+      this.logger.error(`Error al obtener sesiones en vivo: ${error.message}`);
+      throw new DatabaseException('getLiveSessions', error.message);
     }
   }
 
