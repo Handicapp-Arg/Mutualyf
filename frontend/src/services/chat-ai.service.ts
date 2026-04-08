@@ -20,12 +20,23 @@ export class ChatAIService {
 
   /**
    * Enviar mensaje y obtener respuesta streaming
-   * Cascada: Grok → Gemini → Fallback
+   * Cascada: Ollama → Grok → Gemini → Fallback
    */
   async *sendMessage(userMessage: string): AsyncGenerator<string, void, unknown> {
     this.history.push({ role: 'user', content: userMessage });
 
-    // Nivel 1: Intentar con Grok primero (vía backend con Groq API)
+    // Nivel 0: Intentar con Ollama primero (local, vía backend)
+    try {
+      console.log('🦙 Intentando con Ollama...');
+      yield* this.streamWithOllama(userMessage);
+      return;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn('⚠️ Ollama falló:', errorMsg);
+      console.log('🔄 Intentando con Grok...');
+    }
+
+    // Nivel 1: Intentar con Grok (vía backend con Groq API)
     try {
       console.log('🤖 Intentando con Grok (Groq API)...');
       yield* this.streamWithGrok(userMessage);
@@ -124,6 +135,73 @@ Pregunta: ${message}`;
           }
         }
       }
+    }
+
+    this.history.push({ role: 'assistant', content: fullResponse });
+  }
+
+  /**
+   * System prompt compartido para los modelos de chat (Ollama / Grok)
+   */
+  private getCiorSystemPrompt(): string {
+    return `Eres Nexus, el asistente virtual oficial de CIOR Imágenes, centro de diagnóstico por imágenes odontológicas y maxilofaciales en Rosario, Argentina.
+
+**INFORMACIÓN DE CONTACTO:**
+📍 Dirección: Balcarce 1001, Rosario, Santa Fe, Argentina
+📞 Teléfonos: (0341) 425-8501 / 421-1408
+💬 WhatsApp: 3413017960
+⏰ Horario: Lunes a Viernes de 8:00 a 19:00hs
+
+**SERVICIOS:** Radiología odontológica, ortodoncia, tomografía 3D CBCT, odontología digital.
+**EQUIPO:** Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal Jaef.
+
+**SISTEMA DE ATENCIÓN MUY IMPORTANTE:**
+- CIOR trabaja por ORDEN DE LLEGADA, NO hay sistema de turnos
+- Los pacientes pueden acercarse directamente en el horario de atención
+- Para AGILIZAR la atención y EVITAR ESPERAS en mesa de entrada, siempre recomendá que carguen su orden médica desde este chat ANTES de venir
+- La orden queda registrada en el sistema, lo que acelera el proceso
+
+NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesional y conciso.`;
+  }
+
+  /**
+   * Stream con Ollama (vía backend, modelo local)
+   */
+  private async *streamWithOllama(message: string): AsyncGenerator<string> {
+    const systemPrompt = this.getCiorSystemPrompt();
+
+    const response = await fetch(`${BACKEND_URL}/ai/ollama`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        history: this.history.slice(0, -1),
+        newMessage: message,
+        systemPrompt,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Ollama API error: ${response.status}`);
+
+    const result = await response.json();
+
+    let fullResponse = '';
+    if (result.data) {
+      fullResponse = result.data.response || '';
+    } else if (result.response) {
+      fullResponse = result.response;
+    }
+
+    if (!fullResponse || typeof fullResponse !== 'string' || fullResponse.trim() === '') {
+      throw new Error('Respuesta vacía de Ollama');
+    }
+
+    console.log('✅ Ollama respondió:', fullResponse.substring(0, 100));
+
+    // Simular streaming para consistencia visual
+    for (let i = 0; i < fullResponse.length; i += 5) {
+      const chunk = fullResponse.slice(i, i + 5);
+      yield chunk;
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
 
     this.history.push({ role: 'assistant', content: fullResponse });

@@ -1,10 +1,14 @@
 import { Controller, Post, Body, InternalServerErrorException } from '@nestjs/common';
 import fetch from 'node-fetch';
 import { GeminiService } from './gemini.service';
+import { OllamaService } from './ollama.service';
 
 @Controller('ai')
 export class AiController {
-  constructor(private readonly geminiService: GeminiService) {}
+  constructor(
+    private readonly geminiService: GeminiService,
+    private readonly ollamaService: OllamaService,
+  ) {}
 
   @Post('gemini')
   async gemini(@Body() body: any) {
@@ -69,7 +73,12 @@ export class AiController {
 
   @Post('ollama')
   async ollama(@Body() body: any) {
-    // Implementa lógica real de Ollama aquí
-    return { response: `Ollama recibió: ${body.newMessage}` };
+    const { history, newMessage, systemPrompt } = body;
+    const response = await this.ollamaService.generateResponse(
+      history || [],
+      newMessage,
+      systemPrompt,
+    );
+    return { response };
   }
 }

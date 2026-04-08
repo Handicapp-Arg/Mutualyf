@@ -11,6 +11,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { AiController } from './ai/ai.controller';
 import { GeminiService } from './ai/gemini.service';
+import { OllamaService } from './ai/ollama.service';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { GeminiService } from './ai/gemini.service';
   controllers: [AppController, AiController],
   providers: [
     GeminiService,
+    OllamaService,
     // Aplicar rate limiting globalmente
     {
       provide: APP_GUARD,
