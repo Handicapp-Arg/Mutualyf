@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSessionDto } from './dto/session.dto';
 import {
@@ -8,13 +8,30 @@ import {
 import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
-export class SessionsService {
+export class SessionsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SessionsService.name);
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
   ) {}
+
+  /**
+   * Broadcast periódico cada 15s para limpiar sesiones expiradas en el admin.
+   * Cubre el caso donde un usuario cierra el navegador sin que el endSession llegue.
+   */
+  onModuleInit() {
+    this.cleanupInterval = setInterval(() => {
+      this.broadcastLiveSessions();
+    }, 15000);
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
 
   /**
    * Helper privado: consulta sesiones en vivo y las emite por WebSocket.

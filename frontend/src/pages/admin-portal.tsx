@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft,
   MessageSquare,
@@ -8,6 +8,9 @@ import {
   Download,
   Trash2,
   Radio,
+  LogIn,
+  LogOut,
+  SendHorizontal,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
@@ -73,6 +76,10 @@ export function AdminPortal() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+  const [adminChatSessionId, setAdminChatSessionId] = useState<string | null>(null);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [isSendingAdmin, setIsSendingAdmin] = useState(false);
+  const adminMessagesEndRef = useRef<HTMLDivElement>(null);
 
   // @ts-ignore - Vite env variables
   const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
@@ -136,6 +143,61 @@ export function AdminPortal() {
   const handleLiveSessions = useCallback((sessions: LiveSession[]) => {
     setLiveSessions(sessions);
   }, []);
+
+  // Entrar a una conversación en vivo como admin
+  const handleJoinChat = async (sessionId: string) => {
+    try {
+      await fetch(`${BACKEND_URL}/conversations/admin-takeover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, active: true }),
+      });
+      setAdminChatSessionId(sessionId);
+      // Seleccionar la conversación para ver los mensajes
+      const conv = conversations.find((c) => c.sessionId === sessionId);
+      if (conv) setSelectedConversation(conv);
+    } catch (err) {
+      console.error('Error al entrar al chat:', err);
+    }
+  };
+
+  // Abandonar la conversación
+  const handleLeaveChat = async () => {
+    if (!adminChatSessionId) return;
+    try {
+      await fetch(`${BACKEND_URL}/conversations/admin-takeover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: adminChatSessionId, active: false }),
+      });
+    } catch (err) {
+      console.error('Error al abandonar el chat:', err);
+    }
+    setAdminChatSessionId(null);
+  };
+
+  // Enviar mensaje como admin
+  const handleSendAdminMessage = async () => {
+    if (!adminChatSessionId || !adminMessage.trim() || isSendingAdmin) return;
+    setIsSendingAdmin(true);
+    try {
+      await fetch(`${BACKEND_URL}/conversations/admin-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: adminChatSessionId, content: adminMessage.trim() }),
+      });
+      setAdminMessage('');
+    } catch (err) {
+      console.error('Error al enviar mensaje:', err);
+    } finally {
+      setIsSendingAdmin(false);
+    }
+  };
+
+  // Scroll automático en el chat del admin
+  useEffect(() => {
+    adminMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedConversation?.messages]);
 
   // Conexión WebSocket: actualizaciones en tiempo real
   useAdminSocket({
@@ -483,42 +545,6 @@ export function AdminPortal() {
                       </button>
                     </div>
                   </div>
-                  {/* Sección "EN VIVO" - chats abiertos en este momento */}
-                  {liveSessions.length > 0 && (
-                    <div className="mb-4 rounded-lg border-2 border-green-400 bg-green-50 p-3">
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
-                          <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
-                        </span>
-                        <h3 className="text-xs font-black uppercase text-green-700">
-                          Chats en vivo ahora ({liveSessions.length})
-                        </h3>
-                      </div>
-                      <div className="space-y-1.5">
-                        {liveSessions.map((s) => (
-                          <div
-                            key={s.sessionId}
-                            className="flex items-center justify-between rounded bg-white px-3 py-2 text-xs"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-                              <span className="font-bold text-slate-700">
-                                {s.userName || 'Anónimo'}
-                              </span>
-                              <span className="font-mono text-[10px] text-slate-400">
-                                {s.sessionId.slice(-8)}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-slate-500">
-                              activo {formatDate(s.lastSeen)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="max-h-[600px] space-y-2 overflow-y-auto">
                     {conversations.length === 0 ? (
                       <p className="py-8 text-center text-sm text-slate-400">
@@ -527,26 +553,19 @@ export function AdminPortal() {
                     ) : (
                       conversations.map((conv) => {
                         const isLive = liveSessionIds.has(conv.sessionId);
+                        const isAdminHere = adminChatSessionId === conv.sessionId;
                         return (
-                          <button
+                          <div
                             key={conv.id}
-                            onClick={() => {
-                              console.log('🖱️ Conversación seleccionada:', {
-                                id: conv.id,
-                                sessionId: conv.sessionId,
-                                userName: conv.userName,
-                                totalMensajes: conv.messages?.length,
-                                esArray: Array.isArray(conv.messages),
-                                mensajes: conv.messages,
-                              });
-                              setSelectedConversation(conv);
-                            }}
-                            className={`w-full rounded-lg border-2 p-4 text-left transition-all hover:shadow-md ${
-                              isLive
-                                ? 'border-green-500 bg-green-50 shadow-sm'
-                                : selectedConversation?.id === conv.id
-                                  ? 'border-corporate bg-blue-50'
-                                  : 'border-slate-200 bg-white'
+                            onClick={() => setSelectedConversation(conv)}
+                            className={`w-full cursor-pointer rounded-lg border-2 p-4 text-left transition-all hover:shadow-md ${
+                              isAdminHere
+                                ? 'border-orange-500 bg-orange-50 shadow-sm'
+                                : isLive
+                                  ? 'border-green-500 bg-green-50 shadow-sm'
+                                  : selectedConversation?.id === conv.id
+                                    ? 'border-corporate bg-blue-50'
+                                    : 'border-slate-200 bg-white'
                             }`}
                           >
                             <div className="flex items-start justify-between">
@@ -560,12 +579,17 @@ export function AdminPortal() {
                                   )}
                                   <p
                                     className={`text-sm font-bold ${
-                                      isLive ? 'text-green-700' : 'text-corporate'
+                                      isAdminHere ? 'text-orange-700' : isLive ? 'text-green-700' : 'text-corporate'
                                     }`}
                                   >
                                     {conv.userName || 'Anónimo'}
                                   </p>
-                                  {isLive && (
+                                  {isAdminHere && (
+                                    <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
+                                      Admin activo
+                                    </span>
+                                  )}
+                                  {isLive && !isAdminHere && (
                                     <span className="rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
                                       En vivo
                                     </span>
@@ -578,21 +602,43 @@ export function AdminPortal() {
                                   {formatDate(conv.timestamp)}
                                 </p>
                               </div>
-                              <div
-                                className={`rounded-full px-3 py-1 ${
-                                  isLive ? 'bg-green-500/20' : 'bg-corporate/10'
-                                }`}
-                              >
-                                <span
-                                  className={`text-xs font-bold ${
-                                    isLive ? 'text-green-700' : 'text-corporate'
+                              <div className="flex flex-col items-end gap-2">
+                                <div
+                                  className={`rounded-full px-3 py-1 ${
+                                    isLive ? 'bg-green-500/20' : 'bg-corporate/10'
                                   }`}
                                 >
-                                  {conv.messages.filter((m) => m.role === 'user').length}
-                                </span>
+                                  <span
+                                    className={`text-xs font-bold ${
+                                      isLive ? 'text-green-700' : 'text-corporate'
+                                    }`}
+                                  >
+                                    {conv.messages.filter((m) => m.role === 'user').length}
+                                  </span>
+                                </div>
+                                {isLive && (
+                                  isAdminHere ? (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleLeaveChat(); }}
+                                      className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-600"
+                                    >
+                                      <LogOut size={12} />
+                                      Abandonar
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleJoinChat(conv.sessionId); }}
+                                      disabled={!!adminChatSessionId}
+                                      className="flex items-center gap-1 rounded-lg bg-corporate px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-50"
+                                    >
+                                      <LogIn size={12} />
+                                      Entrar
+                                    </button>
+                                  )
+                                )}
                               </div>
                             </div>
-                          </button>
+                          </div>
                         );
                       })
                     )}
@@ -600,54 +646,89 @@ export function AdminPortal() {
                 </div>
 
                 {/* Detalle de conversación */}
-                <div className="rounded-xl border bg-white p-6">
-                  <h2 className="mb-4 text-lg font-black text-slate-800">
-                    Detalle de Conversación
-                  </h2>
+                <div className="flex flex-col rounded-xl border bg-white p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-black text-slate-800">
+                      Detalle de Conversación
+                    </h2>
+                    {selectedConversation && adminChatSessionId === selectedConversation.sessionId && (
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
+                          Chat activo como Admin
+                        </span>
+                        <button
+                          onClick={handleLeaveChat}
+                          className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-red-600"
+                        >
+                          <LogOut size={12} />
+                          Abandonar chat
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {selectedConversation ? (
-                    <div className="max-h-[600px] space-y-4 overflow-y-auto">
-                      {(() => {
-                        console.log('🎨 Renderizando mensajes:', {
-                          total: selectedConversation.messages?.length,
-                          esArray: Array.isArray(selectedConversation.messages),
-                          primerMensaje: selectedConversation.messages?.[0],
-                          mensajes: selectedConversation.messages,
-                        });
-                        return null;
-                      })()}
-                      {selectedConversation.messages &&
-                      Array.isArray(selectedConversation.messages) &&
-                      selectedConversation.messages.length > 0 ? (
-                        selectedConversation.messages.map((msg, idx) => (
-                          <div
-                            key={idx}
-                            className={`rounded-lg p-4 ${
-                              msg.role === 'user'
-                                ? 'bg-corporate text-white'
-                                : 'bg-slate-100 text-slate-800'
-                            }`}
-                          >
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-xs font-bold uppercase opacity-70">
-                                {msg.role === 'user' ? 'Usuario' : 'Asistente'}
-                              </span>
-                              <span className="text-xs opacity-70">
-                                {formatDate(msg.timestamp)}
-                              </span>
+                    <div className="flex flex-1 flex-col">
+                      <div className="max-h-[500px] flex-1 space-y-4 overflow-y-auto">
+                        {selectedConversation.messages &&
+                        Array.isArray(selectedConversation.messages) &&
+                        selectedConversation.messages.length > 0 ? (
+                          selectedConversation.messages.map((msg, idx) => (
+                            <div
+                              key={idx}
+                              className={`rounded-lg p-4 ${
+                                msg.role === 'user'
+                                  ? 'bg-corporate text-white'
+                                  : 'bg-slate-100 text-slate-800'
+                              }`}
+                            >
+                              <div className="mb-1 flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase opacity-70">
+                                  {msg.role === 'user' ? 'Usuario' : 'Asistente'}
+                                </span>
+                                <span className="text-xs opacity-70">
+                                  {formatDate(msg.timestamp)}
+                                </span>
+                              </div>
+                              <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                             </div>
-                            <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                          ))
+                        ) : (
+                          <div className="rounded-lg bg-yellow-50 p-4 text-center">
+                            <p className="text-sm text-yellow-800">
+                              No hay mensajes disponibles
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="rounded-lg bg-yellow-50 p-4 text-center">
-                          <p className="text-sm text-yellow-800">
-                            ⚠️ No hay mensajes disponibles o formato incorrecto
-                          </p>
-                          <p className="mt-2 text-xs text-yellow-600">
-                            Tipo: {typeof selectedConversation.messages} | Es Array:{' '}
-                            {Array.isArray(selectedConversation.messages) ? 'Sí' : 'No'} |
-                            Longitud: {selectedConversation.messages?.length || 0}
-                          </p>
+                        )}
+                        <div ref={adminMessagesEndRef} />
+                      </div>
+
+                      {/* Input del admin cuando está en un chat activo */}
+                      {adminChatSessionId === selectedConversation.sessionId && (
+                        <div className="mt-4 border-t pt-4">
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleSendAdminMessage();
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="text"
+                              value={adminMessage}
+                              onChange={(e) => setAdminMessage(e.target.value)}
+                              placeholder="Escribir mensaje como admin..."
+                              className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
+                              disabled={isSendingAdmin}
+                            />
+                            <button
+                              type="submit"
+                              disabled={!adminMessage.trim() || isSendingAdmin}
+                              className="flex h-10 w-10 items-center justify-center rounded-lg bg-corporate text-white transition-colors hover:bg-corporate/90 disabled:opacity-50"
+                            >
+                              <SendHorizontal size={18} />
+                            </button>
+                          </form>
                         </div>
                       )}
                     </div>

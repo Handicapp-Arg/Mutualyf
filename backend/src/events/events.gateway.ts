@@ -51,4 +51,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitLiveSessions(sessions: unknown[]): void {
     this.server?.emit('session.live', sessions);
   }
+
+  /**
+   * Emitir mensaje de admin a una sesión específica.
+   */
+  emitAdminMessage(sessionId: string, message: { role: string; content: string; timestamp: string }): void {
+    this.server?.emit('admin.message', { sessionId, message });
+  }
+
+  /**
+   * Emitir cambio de estado de takeover de admin.
+   */
+  emitAdminTakeover(sessionId: string, active: boolean): void {
+    this.server?.emit('admin.takeover', { sessionId, active });
+  }
 }

@@ -87,4 +87,34 @@ export class ConversationsController {
   async deleteAll() {
     return this.conversationsService.deleteAll();
   }
+
+  /**
+   * Activar/desactivar control de admin sobre una sesión
+   * POST /api/conversations/admin-takeover
+   */
+  @Post('admin-takeover')
+  @HttpCode(HttpStatus.OK)
+  async adminTakeover(@Body() body: { sessionId: string; active: boolean }) {
+    return this.conversationsService.adminTakeover(body.sessionId, body.active);
+  }
+
+  /**
+   * Enviar mensaje del admin a una sesión
+   * POST /api/conversations/admin-message
+   */
+  @Post('admin-message')
+  @HttpCode(HttpStatus.OK)
+  async adminMessage(@Body() body: { sessionId: string; content: string }) {
+    return this.conversationsService.sendAdminMessage(body.sessionId, body.content);
+  }
+
+  /**
+   * Verificar si una sesión está controlada por el admin
+   * GET /api/conversations/admin-status/:sessionId
+   */
+  @Get('admin-status/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  async adminStatus(@Param('sessionId') sessionId: string) {
+    return { adminTakeover: this.conversationsService.isAdminControlled(sessionId) };
+  }
 }

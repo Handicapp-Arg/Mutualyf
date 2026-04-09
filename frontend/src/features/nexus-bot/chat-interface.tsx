@@ -8,7 +8,8 @@ const SERVICIO_LABELS: Record<string, string> = {
   cefalometrias: 'Cefalometrías',
 };
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Upload, X } from 'lucide-react';
+import { Send, Loader2, X } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { BotFace } from './bot-face';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
@@ -56,6 +57,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const isInitialized = useRef(false);
   const messagesRef = useRef(messages);
   const userNameRef = useRef(userName);
+  const [adminActive, setAdminActive] = useState(false);
+  const adminActiveRef = useRef(false);
 
   // Mantener refs actualizados
   useEffect(() => {
@@ -150,6 +153,70 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       }).catch(() => {});
     };
   }, []);
+
+  // Socket: escuchar mensajes de admin y estado de takeover
+  useEffect(() => {
+    // @ts-ignore
+    const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+    const SOCKET_URL = BACKEND_URL.replace(/\/api\/?$/, '');
+    const sessionId = backendService.current['sessionId'];
+
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+    });
+
+    socket.on('admin.takeover', (data: { sessionId: string; active: boolean }) => {
+      if (data.sessionId === sessionId) {
+        setAdminActive(data.active);
+        adminActiveRef.current = data.active;
+        if (data.active) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: 'Un agente humano se ha conectado a la conversación. A partir de ahora te asistirá directamente.',
+              timestamp: new Date(),
+            },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: 'El agente humano ha dejado la conversación. Soy Nexus nuevamente, tu asistente virtual. ¿En qué puedo ayudarte?',
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      }
+    });
+
+    socket.on('admin.message', (data: { sessionId: string; message: { role: string; content: string; timestamp: string } }) => {
+      if (data.sessionId === sessionId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: data.message.content,
+            timestamp: new Date(data.message.timestamp),
+          },
+        ]);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Mantener ref de adminActive sincronizado
+  useEffect(() => {
+    adminActiveRef.current = adminActive;
+  }, [adminActive]);
 
   const loadConversationHistory = async () => {
     try {
@@ -349,6 +416,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
+    // Si el admin está controlando, no llamar a la IA
+    if (adminActiveRef.current) {
+      return;
+    }
+
     setIsLoading(true);
 
     // Simular procesamiento y enviar a la IA
@@ -433,6 +505,19 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
+
+    // Si admin está activo, solo enviar el mensaje del usuario (sin respuesta del bot)
+    if (adminActiveRef.current) {
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: inputText,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInputText('');
+      return;
+    }
 
     // Si el usuario solo dice "hola" o variantes, mostrar saludo conversacional
     const normalized = inputText.trim().toLowerCase();
@@ -850,9 +935,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
               Nexus Assistant
             </h4>
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+              <div className={`h-2 w-2 rounded-full ${adminActive ? 'bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]' : 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]'}`} />
               <span className="text-xs font-medium text-white/90">
-                En línea - IA activa
+                {adminActive ? 'Agente humano conectado' : 'En línea - IA activa'}
               </span>
             </div>
           </div>

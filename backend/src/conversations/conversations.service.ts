@@ -15,6 +15,9 @@ import { EventsGateway } from '../events/events.gateway';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
+  /** Sesiones controladas por el admin (en memoria) */
+  private adminSessions = new Set<string>();
+
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
@@ -128,6 +131,7 @@ export class ConversationsService {
         id: conversation.id,
         message: 'Conversación guardada exitosamente',
         data: conversation,
+        adminTakeover: this.adminSessions.has(data.sessionId),
       };
     } catch (error) {
       if (error instanceof BusinessException) {
@@ -255,6 +259,85 @@ export class ConversationsService {
     } catch (error) {
       this.logger.error(`Error al calcular estadísticas: ${error.message}`);
       throw new DatabaseException('getStats', error.message);
+    }
+  }
+
+  /**
+   * Verificar si una sesión está controlada por el admin.
+   */
+  isAdminControlled(sessionId: string): boolean {
+    return this.adminSessions.has(sessionId);
+  }
+
+  /**
+   * Activar/desactivar control de admin sobre una sesión.
+   */
+  adminTakeover(sessionId: string, active: boolean) {
+    if (active) {
+      this.adminSessions.add(sessionId);
+      this.logger.log(`🛡️ Admin tomó control de sesión: ${sessionId}`);
+    } else {
+      this.adminSessions.delete(sessionId);
+      this.logger.log(`🔓 Admin liberó sesión: ${sessionId}`);
+    }
+    this.events.emitAdminTakeover(sessionId, active);
+    return { success: true, sessionId, adminActive: active };
+  }
+
+  /**
+   * Enviar un mensaje del admin a una sesión y guardarlo en la conversación.
+   */
+  async sendAdminMessage(sessionId: string, content: string) {
+    try {
+      const now = new Date().toISOString();
+      const adminMessage = { role: 'assistant', content, timestamp: now };
+
+      // Buscar la conversación existente
+      const existing = await this.prisma.conversation.findUnique({
+        where: { sessionId },
+      });
+
+      let messages: any[] = [];
+      if (existing) {
+        try {
+          messages = JSON.parse(existing.messages || '[]');
+        } catch {
+          messages = [];
+        }
+      }
+
+      // Agregar el mensaje del admin
+      messages.push(adminMessage);
+      const messagesJson = JSON.stringify(messages);
+
+      // Upsert conversación
+      const conversation = await this.prisma.conversation.upsert({
+        where: { sessionId },
+        create: {
+          sessionId,
+          userMessage: '',
+          botResponse: content,
+          messages: messagesJson,
+          timestamp: now,
+        },
+        update: {
+          botResponse: content,
+          messages: messagesJson,
+          timestamp: now,
+        },
+      });
+
+      // Emitir el mensaje al usuario vía socket
+      this.events.emitAdminMessage(sessionId, adminMessage);
+
+      // Emitir conversación actualizada al panel admin
+      this.events.emitConversationUpserted(this.formatConversation(conversation));
+
+      this.logger.log(`💬 Admin envió mensaje a sesión: ${sessionId}`);
+      return { success: true, message: adminMessage };
+    } catch (error) {
+      this.logger.error(`Error al enviar mensaje de admin: ${error.message}`);
+      throw new DatabaseException('sendAdminMessage', error.message);
     }
   }
 }
