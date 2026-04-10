@@ -1,9 +1,4 @@
-/**
- * Servicio para comunicación con el backend de Chill
- */
-
-// @ts-ignore - Vite env variables
-const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
 interface ConversationData {
   userId?: string;

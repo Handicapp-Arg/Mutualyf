@@ -4,12 +4,6 @@ import { motion } from 'framer-motion';
 
 import { Button } from '@/components/ui';
 
-const stats = [
-  { value: '+25', label: 'Años de experiencia' },
-  { value: '+50k', label: 'Estudios realizados' },
-  { value: '100%', label: 'Digital  Sin esperas' },
-];
-
 /**
  * Hero Section  Video Background cinematográfico
  */

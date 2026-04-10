@@ -1,10 +1,9 @@
-import { useRef, useState, useEffect } from 'react';
+import { memo, useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import {
   Float,
   Environment,
   ContactShadows,
-  Sparkles,
   Sphere,
   RoundedBox,
   Torus,
@@ -297,7 +296,7 @@ function ToothKawaiiModel({ animation }: ToothKawaiiModelProps) {
   );
 }
 
-export function BotFace() {
+export const BotFace = memo(function BotFace() {
   const animations = ['idle', 'salto_mortal', 'salto_alto', 'giro', 'salto_divertido'];
   const [animation, setAnimation] = useState<string>('idle');
 
@@ -370,4 +369,4 @@ export function BotFace() {
       </Canvas>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 import { BotFace } from './bot-face';
@@ -61,11 +61,7 @@ export function NexusBot() {
         {/* Burbuja de Saludo */}
         <BotGreeting
           show={showGreeting && !isBotActive}
-          message={
-            greetingIndex >= 0 && greetingIndex < greetingMessages.length
-              ? greetingMessages[greetingIndex]
-              : greetingMessages[0]
-          }
+          message={greetingMessages[greetingIndex] ?? greetingMessages[0]!}
         />
 
         {/* Botón Flotante y overlays: solo visible cuando el bot está cerrado */}

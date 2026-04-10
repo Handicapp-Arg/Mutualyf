@@ -115,6 +115,6 @@ export class ConversationsController {
   @Get('admin-status/:sessionId')
   @HttpCode(HttpStatus.OK)
   async adminStatus(@Param('sessionId') sessionId: string) {
-    return { adminTakeover: this.conversationsService.isAdminControlled(sessionId) };
+    return { adminTakeover: await this.conversationsService.isAdminControlled(sessionId) };
   }
 }

@@ -102,7 +102,7 @@ export class AppController {
   @HttpCode(HttpStatus.OK)
   async resetDatabase() {
     try {
-      this.logger.warn('🗑️ Iniciando borrado de toda la base de datos...');
+      this.logger.warn('Iniciando borrado de toda la base de datos...');
 
       // Borrar en orden correcto para respetar las relaciones
   const beforeCount = await this.prisma.medicalOrder.count();
@@ -128,7 +128,7 @@ export class AppController {
         });
       }
 
-      this.logger.log('✅ Base de datos limpiada exitosamente');
+      this.logger.log('Base de datos limpiada exitosamente');
 
       return {
         success: true,
@@ -147,7 +147,7 @@ export class AppController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`❌ Error al limpiar base de datos: ${error.message}`);
+      this.logger.error(`Error al limpiar base de datos: ${error.message}`);
       throw error;
     }
   }

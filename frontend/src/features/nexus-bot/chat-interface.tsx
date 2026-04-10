@@ -7,22 +7,16 @@ const SERVICIO_LABELS: Record<string, string> = {
   atm: 'ATM (Articulación Temporomandibular)',
   cefalometrias: 'Cefalometrías',
 };
-import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, X } from 'lucide-react';
-import { io } from 'socket.io-client';
-import { BotFace } from './bot-face';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
 import { MedicalOrderFormOCR, MedicalOrderData } from './medical-order-form-ocr';
-import { AnalyzingOrderLoader } from './components/analyzing-order-loader';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  options?: Array<{ label: string; value: string }>;
-}
+import { useChatSocket } from '@/hooks/use-chat-socket';
+import { ChatHeader } from './components/chat-header';
+import { ChatMessageBubble } from './components/chat-message-bubble';
+import { TypingIndicator } from './components/typing-indicator';
+import { ChatInput } from './components/chat-input';
+import type { ChatMessage } from '@/types';
 
 interface ChatInterfaceProps {
   onClose: () => void;
@@ -40,10 +34,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   // Estado para autocompletar el estudio en la orden médica
   const [selectedEstudio, setSelectedEstudio] = useState<string>('');
   // Declaración única de todos los hooks y refs
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [_isUploading, setIsUploading] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [analyzedData, setAnalyzedData] = useState<any>(null);
@@ -57,8 +51,20 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const isInitialized = useRef(false);
   const messagesRef = useRef(messages);
   const userNameRef = useRef(userName);
-  const [adminActive, setAdminActive] = useState(false);
-  const adminActiveRef = useRef(false);
+
+  // Socket.io + heartbeat via hook
+  const { adminActive, adminActiveRef, adminMessages, clearAdminMessages } = useChatSocket({
+    sessionId: backendService.current['sessionId'],
+    userName,
+  });
+
+  // Integrar mensajes del admin en el chat
+  useEffect(() => {
+    if (adminMessages.length > 0) {
+      setMessages((prev) => [...prev, ...adminMessages]);
+      clearAdminMessages();
+    }
+  }, [adminMessages, clearAdminMessages]);
 
   // Mantener refs actualizados
   useEffect(() => {
@@ -101,122 +107,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     return () => clearTimeout(timeoutId);
   }, [messages]);
-
-  // Heartbeat: marcar el chat como EN VIVO mientras esté abierto.
-  // Hace un ping cada 10s al backend con sessionId + userName actual.
-  // Al desmontarse (cualquier camino: X, overlay, navegación), marca la sesión
-  // como cerrada para que desaparezca de "en vivo" inmediatamente.
-  useEffect(() => {
-    // @ts-ignore - Vite env variables
-    const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
-    const sessionId = backendService.current['sessionId'];
-
-    const sendHeartbeat = () => {
-      fetch(`${BACKEND_URL}/sessions/heartbeat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          userName: userNameRef.current || 'Anónimo',
-        }),
-      }).catch(() => {
-        // Silencioso: si falla el heartbeat no rompemos la UX del chat
-      });
-    };
-
-    // Primer ping inmediato + intervalo cada 10s
-    sendHeartbeat();
-    const intervalId = setInterval(sendHeartbeat, 10000);
-
-    // Handler para cuando la pestaña se cierra o navega fuera
-    const handleBeforeUnload = () => {
-      const payload = JSON.stringify({ sessionId });
-      // sendBeacon es la forma confiable de enviar al backend en unload
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          `${BACKEND_URL}/sessions/end`,
-          new Blob([payload], { type: 'application/json' })
-        );
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      // Marcar sesión como inactiva al desmontar (cualquier camino de cierre)
-      fetch(`${BACKEND_URL}/sessions/end`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-        keepalive: true,
-      }).catch(() => {});
-    };
-  }, []);
-
-  // Socket: escuchar mensajes de admin y estado de takeover
-  useEffect(() => {
-    // @ts-ignore
-    const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
-    const SOCKET_URL = BACKEND_URL.replace(/\/api\/?$/, '');
-    const sessionId = backendService.current['sessionId'];
-
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-    });
-
-    socket.on('admin.takeover', (data: { sessionId: string; active: boolean }) => {
-      if (data.sessionId === sessionId) {
-        setAdminActive(data.active);
-        adminActiveRef.current = data.active;
-        if (data.active) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: 'Un agente humano se ha conectado a la conversación. A partir de ahora te asistirá directamente.',
-              timestamp: new Date(),
-            },
-          ]);
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: 'El agente humano ha dejado la conversación. Soy Nexus nuevamente, tu asistente virtual. ¿En qué puedo ayudarte?',
-              timestamp: new Date(),
-            },
-          ]);
-        }
-      }
-    });
-
-    socket.on('admin.message', (data: { sessionId: string; message: { role: string; content: string; timestamp: string } }) => {
-      if (data.sessionId === sessionId) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: data.message.content,
-            timestamp: new Date(data.message.timestamp),
-          },
-        ]);
-      }
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  // Mantener ref de adminActive sincronizado
-  useEffect(() => {
-    adminActiveRef.current = adminActive;
-  }, [adminActive]);
 
   const loadConversationHistory = async () => {
     try {
@@ -274,12 +164,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Función para limpiar markdown no soportado
-  const cleanMarkdown = (text: string): string => {
+  const cleanMarkdown = useCallback((text: string): string => {
     return text
-      .replace(/\*\*(.+?)\*\*/g, '$1') // Quitar ** de bold
-      .replace(/\*(.+?)\*/g, '$1'); // Quitar * de italic
-  };
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1');
+  }, []);
 
   const handleOptionClick = (optionValue: string, optionLabel: string) => {
     // Si el valor es subir_orden|servicio, extraer el nombre del estudio
@@ -289,7 +178,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       optionValue = 'subir_orden';
     }
     // Agregar mensaje del usuario con la opción seleccionada
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: optionLabel,
@@ -508,7 +397,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     // Si admin está activo, solo enviar el mensaje del usuario (sin respuesta del bot)
     if (adminActiveRef.current) {
-      const userMessage: Message = {
+      const userMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
         content: inputText,
@@ -531,7 +420,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         'buen día',
       ].includes(normalized)
     ) {
-      const userMessage: Message = {
+      const userMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
         content: inputText,
@@ -568,7 +457,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     // Si pregunta por servicios específicamente, mostrar lista con botones
     if (normalized.includes('servicio') || normalized.includes('🔬 conocer servicios')) {
-      const userMessage: Message = {
+      const userMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
         content: inputText,
@@ -598,7 +487,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: inputText,
@@ -903,8 +792,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     // Marcar la sesión como inactiva en el backend para que desaparezca
     // de "en vivo" inmediatamente (sin esperar el timeout de 60s)
     try {
-      // @ts-ignore - Vite env variables
-      const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
       await fetch(`${BACKEND_URL}/sessions/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -920,38 +808,9 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden md:rounded-3xl">
+      <ChatHeader adminActive={adminActive} onClose={handleClose} />
 
-      {/* Header mejorado */}
-      <div className="relative z-10 flex-shrink-0 border-b border-slate-200 bg-corporate p-4">
-        <div className="flex items-center gap-3">
-          {/* Icono de Muelita en Header */}
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden">
-            <div className="h-20 w-20">
-              <BotFace />
-            </div>
-          </div>
-          <div className="flex-1">
-            <h4 className="text-base font-bold text-white drop-shadow-sm">
-              Nexus Assistant
-            </h4>
-            <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${adminActive ? 'bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]' : 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]'}`} />
-              <span className="text-xs font-medium text-white/90">
-                {adminActive ? 'Agente humano conectado' : 'En línea - IA activa'}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={handleClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all hover:rotate-90 hover:scale-110 hover:bg-white/20 active:scale-95"
-            aria-label="Cerrar chat"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Botones principales debajo del header, en un solo renglón con scroll */}
+      {/* Botones principales debajo del header */}
       <div className="z-20 flex w-full gap-3 overflow-x-auto bg-gradient-to-br from-white/70 to-cyan-50/60 px-4 py-3 backdrop-blur-md shadow-lg scrollbar-hide">
         {mainOptions.map((option) => (
           <button
@@ -961,157 +820,37 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             className="group relative flex items-center gap-2 rounded-2xl bg-white/80 px-5 py-3 text-base font-semibold text-cyan-700 shadow-md ring-1 ring-cyan-100/60 transition-all duration-200 hover:bg-cyan-100/80 hover:text-cyan-900 hover:shadow-xl active:scale-97 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 disabled:opacity-50"
             style={{ boxShadow: '0 4px 24px 0 rgba(0, 200, 255, 0.08)' }}
           >
-            <span className="drop-shadow-sm select-none">
-              {option.label}
-            </span>
+            <span className="drop-shadow-sm select-none">{option.label}</span>
             <span className="absolute -bottom-1 left-1/2 h-1 w-2/3 -translate-x-1/2 rounded-full bg-cyan-200 opacity-0 group-hover:opacity-60 blur-sm transition-all duration-200" />
           </button>
         ))}
       </div>
 
-      {/* Mensajes con estilo chat moderno y limpio */}
+      {/* Mensajes */}
       <div className="scrollbar-hide relative z-10 flex h-full max-h-full min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4">
         {messages.map((message) => (
-          <div
+          <ChatMessageBubble
             key={message.id}
-            className={`flex w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
-          >
-            <div
-              className={`flex max-w-[85%] flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
-            >
-              <div
-                className={`px-5 py-3.5 shadow-sm ${
-                  message.role === 'user'
-                    ? 'rounded-[20px] rounded-tr-sm bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
-                    : 'rounded-[20px] rounded-tl-sm bg-white text-slate-700'
-                }`}
-              >
-                {/* Renderizado especial para mensaje de análisis de orden médica */}
-                {message.content.startsWith('__ANALYZING_ORDER__') ? (
-                  <AnalyzingOrderLoader progress={uploadProgress} />
-                ) : (
-                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-                    {cleanMarkdown(message.content)}
-                  </p>
-                )}
-              </div>
-
-              {/* Botones de opciones */}
-              {message.options && message.options.length > 0 && (
-                <div className="mt-3 flex w-full max-w-full flex-col gap-2">
-                  {message.options.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleOptionClick(option.value, option.label)}
-                      disabled={isLoading}
-                      className="group flex w-full items-center justify-between rounded-2xl border border-cyan-100 bg-white px-5 py-3 text-left shadow-sm transition-all hover:border-cyan-300 hover:bg-cyan-50/50 hover:shadow-md active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span className="text-sm font-medium text-slate-600 group-hover:text-cyan-700">
-                        {option.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Timestamp discreto */}
-              <span
-                className={`mt-1 px-1 text-[10px] ${message.role === 'user' ? 'text-right text-slate-400' : 'text-left text-slate-400'}`}
-              >
-                {new Date(message.timestamp).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          </div>
+            message={message}
+            uploadProgress={uploadProgress}
+            isLoading={isLoading}
+            onOptionClick={handleOptionClick}
+            cleanMarkdown={cleanMarkdown}
+          />
         ))}
-
-        {/* Indicador de "escribiendo" mejorado */}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-md">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-200/40">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-corporate"
-                >
-                  <path
-                    d="M8.5 2C6.5 2 5 3.5 5 5.5V8c0 1.5 1 2.5 1.5 3c-1 1-1.5 2.5-1.5 4v3c0 1.5 1.5 3 3 3h.5c1 0 1.5-.5 1.5-1.5V16c0-.5.5-1 1-1s1 .5 1 1v3.5c0 1 .5 1.5 1.5 1.5h.5c1.5 0 3-1.5 3-3v-3c0-1.5-.5-3-1.5-4c.5-.5 1.5-1.5 1.5-3V5.5C19 3.5 17.5 2 15.5 2c-1.5 0-2.5 1-3.5 2c-1-1-2-2-3.5-2z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-medium text-slate-600">
-                  Nexus está escribiendo
-                </span>
-                <span className="flex gap-1">
-                  <span className="text-cyan-400">.</span>
-                  <span className="text-cyan-400">.</span>
-                  <span className="text-cyan-400">.</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+        {isLoading && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input y botón flotantes, fuera del recuadro, con glass y glow */}
-      <form
+      <ChatInput
+        inputText={inputText}
+        isLoading={isLoading}
+        onInputChange={setInputText}
         onSubmit={handleSubmit}
-        className="pointer-events-auto absolute bottom-0 left-0 right-0 z-30 flex items-end justify-center bg-gradient-to-t from-white to-transparent p-4 pb-6"
-      >
-        <div className="relative flex w-full max-w-xl items-end gap-2 drop-shadow-2xl">
-          {/* Botón de subir archivo flotante */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="image/*,.pdf"
-            className="hidden"
-          />
+        onFileUpload={handleFileUpload}
+        fileInputRef={fileInputRef}
+      />
 
-          <div className="relative flex-1 rounded-[24px] bg-white shadow-xl ring-1 ring-black/5 transition-shadow focus-within:ring-2 focus-within:ring-cyan-400/50">
-            <textarea
-              value={inputText}
-              onChange={(e) => {
-                setInputText(e.target.value);
-                // Auto-adjust height
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e as any);
-                }
-              }}
-              placeholder="Escribí tu consulta..."
-              className="flex max-h-[120px] min-h-[50px] w-full resize-none bg-transparent px-5 py-3.5 text-base text-slate-700 placeholder:text-slate-400 focus:outline-none"
-              disabled={isLoading}
-              rows={1}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading || !inputText.trim()}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <Send size={20} className="ml-0.5" />
-            )}
-          </button>
-        </div>
-      </form>
-
-      {/* Formulario de validación de orden médica con OCR */}
       {showOrderForm && pendingFile && analyzedData && (
         <MedicalOrderFormOCR
           file={pendingFile}

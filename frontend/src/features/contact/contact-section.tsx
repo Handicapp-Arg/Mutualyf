@@ -5,7 +5,6 @@ import {
   Clock,
   MessageCircle,
   ExternalLink,
-  Navigation,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui';
@@ -19,14 +18,6 @@ export function ContactSection() {
   const handleWhatsApp = () => {
     window.open(
       `https://wa.me/${siteConfig.contact.whatsapp}?text=Hola, quiero solicitar un turno`,
-      '_blank'
-    );
-  };
-
-  const handleMap = () => {
-    const location = siteConfig.locations[0];
-    window.open(
-      `https://www.google.com/maps/search/?api=1&query=${location.coordinates.lat},${location.coordinates.lng}`,
       '_blank'
     );
   };

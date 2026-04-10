@@ -13,6 +13,7 @@ import { AiController } from './ai/ai.controller';
 import { GeminiService } from './ai/gemini.service';
 import { OllamaService } from './ai/ollama.service';
 import { EventsModule } from './events/events.module';
+import { validateEnv } from './config/validation';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { EventsModule } from './events/events.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
     }),
 
     // Rate Limiting: Limita peticiones para prevenir abuso

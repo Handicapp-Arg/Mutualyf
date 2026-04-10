@@ -1,15 +1,12 @@
-﻿import { useState, useRef, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Scan,
   Brain,
   Printer,
   Activity,
-  ChevronLeft,
-  ChevronRight,
-  Info,
 } from 'lucide-react';
-import { Button, Badge } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 // Categorías con íconos actualizados
@@ -129,7 +126,7 @@ const services = [
 ];
 
 export function ServicesSection() {
-  const [activeService, setActiveService] = useState(services[0]);
+  const [activeService, setActiveService] = useState(services[0]!);
   const [activeCategory, setActiveCategory] = useState('diagnostico');
 
   const filteredServices = services.filter((s) => s.category === activeCategory);

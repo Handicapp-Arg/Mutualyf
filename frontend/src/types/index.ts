@@ -2,42 +2,17 @@
  * Type Definitions - CIOR
  */
 
-export interface Service {
+/** Mensaje de chat completo (usado en UI) */
+export interface ChatMessage {
   id: string;
-  title: string;
-  description: string;
-  icon: string;
-  category: 'imaging' | 'orthodontics' | 'diagnostics';
-  features?: string[];
-}
-
-export interface Location {
-  id: number;
-  name: string;
-  address: string;
-  phone: string;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-}
-
-export interface ContactInfo {
-  phone: string;
-  email: string;
-  whatsapp: string;
-}
-
-export interface BotMessage {
-  id: string;
+  role: 'user' | 'assistant';
   content: string;
-  type: 'bot' | 'user';
   timestamp: Date;
+  options?: Array<{ label: string; value: string }>;
 }
 
-export interface PatientOrder {
-  id: string;
-  file: File;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  uploadedAt: Date;
+/** Mensaje mínimo para historial de IA (usado en services) */
+export interface AIChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }

@@ -87,23 +87,23 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
       // Determinar el nombre final (prioridad: nuevo > existente en Identity)
       const finalUserName = data.userName || userIdentity?.userName || null;
 
-      // Primero crear/actualizar la sesión
+      // Crear/actualizar la sesión (incluye relación con UserIdentity si existe)
       const session = await this.prisma.userSession.upsert({
         where: { sessionId: data.sessionId },
         create: {
           sessionId: data.sessionId,
           userName: finalUserName,
           lastSeen: data.lastSeen,
+          ...(userIdentityId ? { userIdentity: { connect: { id: userIdentityId } } } : {}),
         },
         update: {
           userName: finalUserName,
           lastSeen: data.lastSeen,
+          ...(userIdentityId ? { userIdentity: { connect: { id: userIdentityId } } } : {}),
         },
       });
 
-      // Luego actualizar la relación con raw SQL si hay userIdentityId
       if (userIdentityId) {
-        await this.prisma.$executeRaw`UPDATE user_sessions SET user_identity_id = ${userIdentityId} WHERE session_id = ${data.sessionId}`;
         
         // 🔄 Si esta sesión tiene nombre, propagarlo a TODAS las sesiones del mismo usuario
         if (finalUserName) {
@@ -118,10 +118,10 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
               where: { id: userIdentityId },
               data: { userName: finalUserName },
             });
-            this.logger.log(`✅ Nombre "${finalUserName}" guardado en UserIdentity`);
+            this.logger.log(`Nombre "${finalUserName}" guardado en UserIdentity`);
           }
           
-          this.logger.log(`✅ Nombre "${finalUserName}" propagado a ${propagated.count} sesiones`);
+          this.logger.log(`Nombre "${finalUserName}" propagado a ${propagated.count} sesiones`);
         }
       }
 

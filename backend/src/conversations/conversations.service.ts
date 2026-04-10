@@ -15,9 +15,6 @@ import { EventsGateway } from '../events/events.gateway';
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
 
-  /** Sesiones controladas por el admin (en memoria) */
-  private adminSessions = new Set<string>();
-
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
@@ -121,17 +118,23 @@ export class ConversationsService {
       });
 
       this.logger.log(
-        `✅ Conversación upsert OK (${data.messages.length} mensajes, ID: ${conversation.id})`
+        `Conversación upsert OK (${data.messages.length} mensajes, ID: ${conversation.id})`
       );
 
-      // 🔴 Emitir evento en tiempo real al panel admin
+      // Emitir evento en tiempo real al panel admin
       this.events.emitConversationUpserted(this.formatConversation(conversation));
+
+      // Verificar si la sesión está controlada por admin
+      const session = await this.prisma.userSession.findUnique({
+        where: { sessionId: data.sessionId },
+        select: { adminControlled: true },
+      });
 
       return {
         id: conversation.id,
         message: 'Conversación guardada exitosamente',
         data: conversation,
-        adminTakeover: this.adminSessions.has(data.sessionId),
+        adminTakeover: session?.adminControlled ?? false,
       };
     } catch (error) {
       if (error instanceof BusinessException) {
@@ -265,21 +268,30 @@ export class ConversationsService {
   /**
    * Verificar si una sesión está controlada por el admin.
    */
-  isAdminControlled(sessionId: string): boolean {
-    return this.adminSessions.has(sessionId);
+  async isAdminControlled(sessionId: string): Promise<boolean> {
+    const session = await this.prisma.userSession.findUnique({
+      where: { sessionId },
+      select: { adminControlled: true },
+    });
+    return session?.adminControlled ?? false;
   }
 
   /**
    * Activar/desactivar control de admin sobre una sesión.
+   * Persiste en DB para sobrevivir reinicios del servidor.
    */
-  adminTakeover(sessionId: string, active: boolean) {
+  async adminTakeover(sessionId: string, active: boolean) {
+    await this.prisma.userSession.updateMany({
+      where: { sessionId },
+      data: { adminControlled: active },
+    });
+
     if (active) {
-      this.adminSessions.add(sessionId);
-      this.logger.log(`🛡️ Admin tomó control de sesión: ${sessionId}`);
+      this.logger.log(`Admin took control of session: ${sessionId}`);
     } else {
-      this.adminSessions.delete(sessionId);
-      this.logger.log(`🔓 Admin liberó sesión: ${sessionId}`);
+      this.logger.log(`Admin released session: ${sessionId}`);
     }
+
     this.events.emitAdminTakeover(sessionId, active);
     return { success: true, sessionId, adminActive: active };
   }
@@ -333,7 +345,7 @@ export class ConversationsService {
       // Emitir conversación actualizada al panel admin
       this.events.emitConversationUpserted(this.formatConversation(conversation));
 
-      this.logger.log(`💬 Admin envió mensaje a sesión: ${sessionId}`);
+      this.logger.log(`Admin envió mensaje a sesión: ${sessionId}`);
       return { success: true, message: adminMessage };
     } catch (error) {
       this.logger.error(`Error al enviar mensaje de admin: ${error.message}`);

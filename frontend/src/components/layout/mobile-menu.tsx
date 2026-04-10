@@ -5,13 +5,12 @@ interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   services: Array<{ title: string; desc: string; href: string }>;
-  patientLinks: Array<{ title: string; href: string }>;
 }
 
 /**
  * Menú móvil fullscreen
  */
-export function MobileMenu({ isOpen, onClose, services }: MobileMenuProps) {
+export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   if (!isOpen) return null;
 
   return (

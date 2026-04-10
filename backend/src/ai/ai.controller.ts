@@ -2,6 +2,7 @@ import { Controller, Post, Body, InternalServerErrorException } from '@nestjs/co
 import fetch from 'node-fetch';
 import { GeminiService } from './gemini.service';
 import { OllamaService } from './ollama.service';
+import { ChatRequestDto } from './dto/ai.dto';
 
 @Controller('ai')
 export class AiController {
@@ -11,24 +12,21 @@ export class AiController {
   ) {}
 
   @Post('gemini')
-  async gemini(@Body() body: any) {
-    const { history, newMessage, userName } = body;
+  async gemini(@Body() body: ChatRequestDto) {
     const response = await this.geminiService.generateResponse(
-      history,
-      newMessage,
-      userName
+      body.history || [],
+      body.newMessage,
+      body.userName,
     );
     return { response };
   }
 
   @Post('grok')
-  async grok(@Body() body: any) {
+  async grok(@Body() body: ChatRequestDto) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new InternalServerErrorException('Groq API key not configured');
-    const { history, newMessage, userName, systemPrompt } = body;
 
-    // Usar el systemPrompt enviado desde el frontend, o uno por defecto
-    const finalSystemPrompt = systemPrompt || 'Eres un asistente útil y profesional.';
+    const finalSystemPrompt = body.systemPrompt || 'Eres un asistente útil y profesional.';
 
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -41,8 +39,8 @@ export class AiController {
           model: 'llama-3.3-70b-versatile',
           messages: [
             { role: 'system', content: finalSystemPrompt },
-            ...(history || []).map((msg) => ({ role: msg.role, content: msg.content })),
-            { role: 'user', content: newMessage },
+            ...(body.history || []).map((msg) => ({ role: msg.role, content: msg.content })),
+            { role: 'user', content: body.newMessage },
           ],
           max_tokens: 800,
           temperature: 0.7,
@@ -66,18 +64,17 @@ export class AiController {
       return { response: 'Sin respuesta de Groq.' };
     } catch (e) {
       throw new InternalServerErrorException(
-        'Error al consultar Groq: ' + (e instanceof Error ? e.message : e)
+        'Error al consultar Groq: ' + (e instanceof Error ? e.message : e),
       );
     }
   }
 
   @Post('ollama')
-  async ollama(@Body() body: any) {
-    const { history, newMessage, systemPrompt } = body;
+  async ollama(@Body() body: ChatRequestDto) {
     const response = await this.ollamaService.generateResponse(
-      history || [],
-      newMessage,
-      systemPrompt,
+      body.history || [],
+      body.newMessage,
+      body.systemPrompt,
     );
     return { response };
   }

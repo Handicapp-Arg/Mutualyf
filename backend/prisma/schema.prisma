@@ -55,15 +55,16 @@ model Conversation {
 }
 
 model UserSession {
-  id             Int           @id @default(autoincrement())
-  sessionId      String        @unique @map("session_id")
-  userName       String?       @map("user_name")
-  lastSeen       String        @map("last_seen")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  
+  id              Int           @id @default(autoincrement())
+  sessionId       String        @unique @map("session_id")
+  userName        String?       @map("user_name")
+  lastSeen        String        @map("last_seen")
+  adminControlled Boolean       @default(false) @map("admin_controlled")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
   // Relación con UserIdentity
-  userIdentityId Int?          @map("user_identity_id")
-  userIdentity   UserIdentity? @relation(fields: [userIdentityId], references: [id])
+  userIdentityId  Int?          @map("user_identity_id")
+  userIdentity    UserIdentity? @relation(fields: [userIdentityId], references: [id])
 
   @@index([userIdentityId])
   @@map("user_sessions")

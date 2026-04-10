@@ -16,7 +16,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit() {
     try {
       await this.$connect();
-      this.logger.log('✅ Conexión a base de datos establecida');
+      this.logger.log('Conexión a base de datos establecida');
 
       // Logging de queries en desarrollo para Prisma 7
       if (process.env.NODE_ENV === 'development') {
@@ -25,7 +25,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         });
       }
     } catch (error) {
-      this.logger.error('❌ Error al conectar con la base de datos:', error);
+      this.logger.error('Error al conectar con la base de datos:', error);
       throw error;
     }
   }
@@ -33,9 +33,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleDestroy() {
     try {
       await this.$disconnect();
-      this.logger.log('🔌 Desconexión de base de datos exitosa');
+      this.logger.log('Desconexión de base de datos exitosa');
     } catch (error) {
-      this.logger.error('❌ Error al desconectar de la base de datos:', error);
+      this.logger.error('Error al desconectar de la base de datos:', error);
     }
   }
 

@@ -31,11 +31,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   handleConnection(client: Socket) {
-    this.logger.debug(`🔌 Cliente conectado: ${client.id}`);
+    this.logger.debug(`Cliente conectado: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.debug(`❌ Cliente desconectado: ${client.id}`);
+    this.logger.debug(`Cliente desconectado: ${client.id}`);
   }
 
   /**

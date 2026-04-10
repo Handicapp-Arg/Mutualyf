@@ -27,8 +27,7 @@ export function useAdminSocket(handlers: AdminSocketHandlers): Socket | null {
   }, [handlers]);
 
   useEffect(() => {
-    // @ts-ignore - Vite env variables
-    const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
     // Quitar el sufijo /api porque socket.io conecta al root del servidor
     const SOCKET_URL = BACKEND_URL.replace(/\/api\/?$/, '');
 

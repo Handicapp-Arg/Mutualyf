@@ -1,4 +1,4 @@
-import { FileText, Loader2, Cpu } from 'lucide-react';
+import { FileText, Cpu } from 'lucide-react';
 
 export const AnalyzingOrderLoader = ({ progress }: { progress: number }) => {
   return (

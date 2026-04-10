@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Award, GraduationCap, Heart, ChevronRight, Activity } from 'lucide-react';
+import { Heart, ChevronRight, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { Badge } from '@/components/ui';

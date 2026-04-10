@@ -361,25 +361,25 @@ export class OCRService {
    * Procesar archivo con OCR solamente (RÁPIDO - sin IA)
    */
   async processFile(filePath: string, mimeType: string): Promise<ExtractedMedicalData> {
-    this.logger.log(`⚡ ANÁLISIS RÁPIDO CON OCR: ${filePath}`);
+    this.logger.log(`Análisis rápido con OCR: ${filePath}`);
 
     // Paso 1: Extraer texto con OCR
-    this.logger.log('📷 Paso 1/2: Extrayendo texto con OCR...');
+    this.logger.log('Paso 1/2: Extrayendo texto con OCR...');
     const ocrResult = await this.extractText(filePath, mimeType);
 
     this.logger.log(
-      `✅ OCR completado (confianza: ${(ocrResult.confidence * 100).toFixed(1)}%)`
+      `OCR completado (confianza: ${(ocrResult.confidence * 100).toFixed(1)}%)`
     );
     this.logger.debug(`Primeras 300 caracteres: ${ocrResult.text.substring(0, 300)}`);
 
     // Paso 2: Usar regex para extraer datos
-    this.logger.log('🔍 Paso 2/2: Analizando con expresiones regulares...');
+    this.logger.log('Paso 2/2: Analizando con expresiones regulares...');
     const finalData = this.analyzeMedicalData(ocrResult.text);
     const aiUsed = 'OCR_ONLY';
 
-    this.logger.log(`\n✅ ===== ANÁLISIS COMPLETADO (OCR RÁPIDO) =====`);
-    this.logger.log(`⚡ Método: Solo OCR + Regex (sin IA)`);
-    this.logger.log(`📋 Datos extraídos:`);
+    this.logger.log('Análisis completado (OCR rápido)');
+    this.logger.log('Método: Solo OCR + Regex (sin IA)');
+    this.logger.log('Datos extraídos:');
     this.logger.log(
       `- DNI: ${finalData.patientDNI.value} (${(finalData.patientDNI.confidence * 100).toFixed(0)}%)`
     );

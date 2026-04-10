@@ -3,14 +3,11 @@ import { IsInt, IsString, IsOptional, validateSync } from 'class-validator';
 
 class EnvironmentVariables {
   @IsInt()
-  PORT: number;
+  @IsOptional()
+  PORT?: number;
 
   @IsString()
   DATABASE_URL: string;
-
-  @IsString()
-  @IsOptional()
-  JWT_SECRET?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

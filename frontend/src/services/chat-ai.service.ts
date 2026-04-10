@@ -3,20 +3,16 @@
  * Simplificado y adaptado desde Chill Bot
  */
 
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import type { AIChatMessage } from '@/types';
 
-// @ts-ignore - Vite env variables
-const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY || '';
-const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
 /**
  * Servicio principal de chat con IA
  */
 export class ChatAIService {
-  private history: ChatMessage[] = [];
+  private history: AIChatMessage[] = [];
 
   /**
    * Enviar mensaje y obtener respuesta streaming
@@ -74,10 +70,7 @@ export class ChatAIService {
    * Stream con Gemini API
    */
   private async *streamWithGemini(message: string): AsyncGenerator<string> {
-    // System prompt compacto incluido en el mensaje
-    const fullPrompt = `Contexto: Eres Nexus, asistente de CIOR Imágenes (Balcarce 1001, Rosario). Tel: (0341) 425-8501. WhatsApp: 3413017960. Horario: L-V 8-19hs. IMPORTANTE: Trabajamos por ORDEN DE LLEGADA, NO hay sistema de turnos. Los pacientes pueden venir directamente. Para AGILIZAR su atención, recomendá cargar la orden médica desde este chat antes de venir, así evitan esperas en mesa de entrada. Servicios: radiología odontológica, tomografía 3D CBCT, ortodoncia digital. Equipo: Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal. NO hacés diagnósticos. Tono: amable, profesional.
-
-Pregunta: ${message}`;
+    const fullPrompt = `${this.getCiorSystemPrompt()}\n\nPregunta: ${message}`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${GEMINI_API_KEY}`,
@@ -211,24 +204,7 @@ NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesiona
    * Stream con Grok API (vía backend)
    */
   private async *streamWithGrok(message: string): AsyncGenerator<string> {
-    const systemPrompt = `Eres Nexus, el asistente virtual oficial de CIOR Imágenes, centro de diagnóstico por imágenes odontológicas y maxilofaciales en Rosario, Argentina.
-
-**INFORMACIÓN DE CONTACTO:**
-📍 Dirección: Balcarce 1001, Rosario, Santa Fe, Argentina
-📞 Teléfonos: (0341) 425-8501 / 421-1408
-💬 WhatsApp: 3413017960
-⏰ Horario: Lunes a Viernes de 8:00 a 19:00hs
-
-**SERVICIOS:** Radiología odontológica, ortodoncia, tomografía 3D CBCT, odontología digital.
-**EQUIPO:** Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal Jaef.
-
-**SISTEMA DE ATENCIÓN MUY IMPORTANTE:**
-- CIOR trabaja por ORDEN DE LLEGADA, NO hay sistema de turnos
-- Los pacientes pueden acercarse directamente en el horario de atención
-- Para AGILIZAR la atención y EVITAR ESPERAS en mesa de entrada, siempre recomendá que carguen su orden médica desde este chat ANTES de venir
-- La orden queda registrada en el sistema, lo que acelera el proceso
-
-NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesional y conciso.`;
+    const systemPrompt = this.getCiorSystemPrompt();
 
     const response = await fetch(`${BACKEND_URL}/ai/grok`, {
       method: 'POST',

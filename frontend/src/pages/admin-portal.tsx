@@ -14,18 +14,13 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import type { ChatMessage } from '@/types';
 
 interface Conversation {
   id: string;
   sessionId: string;
   userName?: string;
-  messages: Message[];
+  messages: ChatMessage[];
   timestamp: Date;
 }
 
@@ -81,8 +76,7 @@ export function AdminPortal() {
   const [isSendingAdmin, setIsSendingAdmin] = useState(false);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  // @ts-ignore - Vite env variables
-  const BACKEND_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
   // Set de sessionIds en vivo (para lookup O(1) al renderizar la lista)
   const liveSessionIds = new Set(liveSessions.map((s) => s.sessionId));

@@ -58,14 +58,11 @@ async function bootstrap() {
     const port = process.env.PORT || 3001;
     await app.listen(port);
 
-    logger.log(`🚀 Chill Backend ejecutándose en http://localhost:${port}`);
-    logger.log(`📊 API disponible en http://localhost:${port}/api`);
-    logger.log(`🔒 Seguridad: Helmet habilitado`);
-    logger.log(`✅ Validación automática activada`);
-    logger.log(`📝 Logging y transformación de respuestas activos`);
-    logger.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+    logger.log(`Backend ejecutándose en http://localhost:${port}`);
+    logger.log(`API disponible en http://localhost:${port}/api`);
+    logger.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
   } catch (error) {
-    logger.error('❌ Error al iniciar la aplicación:', error);
+    logger.error('Error al iniciar la aplicación:', error);
     process.exit(1);
   }
 }
