@@ -5,6 +5,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 
 /**
@@ -27,11 +28,24 @@ import { Server, Socket } from 'socket.io';
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(EventsGateway.name);
 
+  constructor(private readonly jwtService: JwtService) {}
+
   @WebSocketServer()
   server: Server;
 
   handleConnection(client: Socket) {
-    this.logger.debug(`Cliente conectado: ${client.id}`);
+    const token = client.handshake?.auth?.token;
+    if (token) {
+      try {
+        const payload = this.jwtService.verify(token);
+        client.data = { user: payload };
+        this.logger.debug(`Admin conectado: ${client.id} (${payload.email})`);
+      } catch {
+        this.logger.debug(`Cliente conectado con token inválido: ${client.id}`);
+      }
+    } else {
+      this.logger.debug(`Cliente conectado (anónimo): ${client.id}`);
+    }
   }
 
   handleDisconnect(client: Socket) {

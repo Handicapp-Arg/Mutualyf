@@ -4,6 +4,7 @@ import {
   Post,
   Put,
   UseInterceptors,
+  UseGuards,
   UploadedFile,
   Body,
   Param,
@@ -17,15 +18,16 @@ import { extname, join } from 'path';
 import { existsSync } from 'fs';
 import { UploadsService } from './uploads.service';
 import { CreateMedicalOrderDto, ValidateMedicalOrderDto } from './dto/medical-order.dto';
+import { Public } from '../../auth/decorators/public.decorator';
+import { RequirePermissions } from '../../auth/decorators/require-permissions.decorator';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { PermissionCode } from '../../auth/constants/permissions.enum';
 
 @Controller('uploads')
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
-  /**
-   * Procesar archivo con OCR y extraer datos
-   * Este endpoint se llama PRIMERO para analizar el archivo
-   */
+  @Public()
   @Post('medical-order/analyze')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -55,6 +57,7 @@ export class UploadsController {
    * Subir orden médica con validación completa
    * Este endpoint se llama DESPUÉS de que el usuario confirme los datos
    */
+  @Public()
   @Post('medical-order')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -93,6 +96,8 @@ export class UploadsController {
    * Descargar archivo de orden médica
    * IMPORTANTE: Esta ruta debe ir ANTES de las rutas genéricas para evitar conflictos
    */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders/file/:id')
   async downloadOrderFile(@Param('id') id: string, @Res() res: Response) {
     console.log('🔍 Solicitando archivo de orden ID:', id);
@@ -135,6 +140,8 @@ export class UploadsController {
   /**
    * Obtener todas las órdenes médicas
    */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders')
   async getAllOrders() {
     return this.uploadsService.getAllOrders();
@@ -143,6 +150,8 @@ export class UploadsController {
   /**
    * Obtener órdenes por DNI
    */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders/dni/:dni')
   async getOrdersByDNI(@Param('dni') dni: string) {
     return this.uploadsService.getOrdersByDNI(dni);
@@ -151,12 +160,15 @@ export class UploadsController {
   /**
    * Validar o rechazar orden médica
    */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.UPLOADS_VALIDATE)
   @Put('medical-orders/validate')
   async validateOrder(@Body() dto: ValidateMedicalOrderDto) {
     return this.uploadsService.validateOrder(dto);
   }
 
-  // Mantener endpoint legacy para compatibilidad
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('all')
   async findAll() {
     return this.uploadsService.getAllOrders();

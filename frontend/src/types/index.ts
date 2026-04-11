@@ -5,7 +5,7 @@
 /** Mensaje de chat completo (usado en UI) */
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'admin';
   content: string;
   timestamp: Date;
   options?: Array<{ label: string; value: string }>;
@@ -13,6 +13,6 @@ export interface ChatMessage {
 
 /** Mensaje mínimo para historial de IA (usado en services) */
 export interface AIChatMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'admin';
   content: string;
 }

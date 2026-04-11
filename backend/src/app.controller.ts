@@ -1,6 +1,7 @@
 import { Controller, Get, Delete, Logger, HttpCode, HttpStatus, Res } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
 import type { Response } from 'express';
+import { Public } from './auth/decorators/public.decorator';
 
 @Controller()
 export class AppController {
@@ -8,10 +9,7 @@ export class AppController {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Favicon - Devuelve vacío para evitar errores 404
-   * GET /favicon.ico
-   */
+  @Public()
   @Get('favicon.ico')
   favicon(@Res() res: Response) {
     res.status(204).end();
@@ -21,6 +19,7 @@ export class AppController {
    * Health check endpoint
    * GET /api/health
    */
+  @Public()
   @Get('health')
   health() {
     this.logger.debug('Health check solicitado');

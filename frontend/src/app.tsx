@@ -1,16 +1,37 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { HomePage } from '@/pages';
-import { AdminPortal } from '@/pages/admin-portal';
+import { LoginPage } from '@/pages/login';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { PortalDashboard } from '@/pages/portal/dashboard';
+import { UserManagement } from '@/pages/portal/user-management';
+import { PermissionMatrix } from '@/pages/portal/permission-matrix';
+import { useAuthStore } from '@/stores/auth.store';
 
-/**
- * App Component - Root de la aplicación
- */
 export function App() {
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rutas públicas */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/admin" element={<AdminPortal />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Redirect legacy /admin */}
+        <Route path="/admin" element={<Navigate to="/portal/dashboard" replace />} />
+
+        {/* Rutas protegidas del portal */}
+        <Route path="/portal" element={<ProtectedRoute />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<PortalDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="roles" element={<PermissionMatrix />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

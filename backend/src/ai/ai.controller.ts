@@ -3,7 +3,9 @@ import fetch from 'node-fetch';
 import { GeminiService } from './gemini.service';
 import { OllamaService } from './ollama.service';
 import { ChatRequestDto } from './dto/ai.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
+@Public()
 @Controller('ai')
 export class AiController {
   constructor(

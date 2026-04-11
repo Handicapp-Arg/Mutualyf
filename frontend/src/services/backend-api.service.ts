@@ -4,7 +4,7 @@ interface ConversationData {
   userId?: string;
   sessionId: string;
   messages: Array<{
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'admin';
     content: string;
     timestamp: Date;
   }>;

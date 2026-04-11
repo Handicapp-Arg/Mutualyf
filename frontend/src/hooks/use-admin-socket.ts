@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface AdminSocketHandlers {
   onConversationUpserted?: (conversation: any) => void;
@@ -31,12 +32,14 @@ export function useAdminSocket(handlers: AdminSocketHandlers): Socket | null {
     // Quitar el sufijo /api porque socket.io conecta al root del servidor
     const SOCKET_URL = BACKEND_URL.replace(/\/api\/?$/, '');
 
+    const token = useAuthStore.getState().token;
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      auth: token ? { token } : undefined,
     });
 
     socketRef.current = socket;

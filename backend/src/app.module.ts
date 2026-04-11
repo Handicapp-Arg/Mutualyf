@@ -14,24 +14,30 @@ import { GeminiService } from './ai/gemini.service';
 import { OllamaService } from './ai/ollama.service';
 import { EventsModule } from './events/events.module';
 import { validateEnv } from './config/validation';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { AdminUsersModule } from './admin-users/admin-users.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
-    // Configuración de variables de entorno
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
       validate: validateEnv,
     }),
 
-    // Rate Limiting: Limita peticiones para prevenir abuso
-    // Por defecto: 10 peticiones por 60 segundos por IP
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 60 segundos
-        limit: 100, // 100 peticiones por minuto
+        ttl: 60000,
+        limit: 100,
       },
     ]),
+
+    // Autenticación y RBAC
+    AuthModule,
+    AdminUsersModule,
+    RolesModule,
 
     // Módulos de funcionalidad
     EventsModule,
@@ -46,10 +52,13 @@ import { validateEnv } from './config/validation';
   providers: [
     GeminiService,
     OllamaService,
-    // Aplicar rate limiting globalmente
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

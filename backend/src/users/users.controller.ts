@@ -13,7 +13,9 @@ import {
   CreateUserIdentityDto,
   UpdateUserNameDto,
 } from './dto/user-identity.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
+@Public()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

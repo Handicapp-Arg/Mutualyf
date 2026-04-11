@@ -9,52 +9,47 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  Delete
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import {
   CreateConversationDto,
   UpdateConversationFeedbackDto,
 } from './dto/conversation.dto';
+import { Public } from '../auth/decorators/public.decorator';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { PermissionCode } from '../auth/constants/permissions.enum';
+
 @Controller('conversations')
 export class ConversationsController {
   constructor(
     private readonly conversationsService: ConversationsService,
   ) {}
 
-  /**
-   * Obtener todos los sessionId únicos
-   * GET /api/conversations/sessions
-   */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.CONVERSATIONS_READ)
   @Get('sessions')
   async getAllSessions() {
     return this.conversationsService.getAllSessions();
   }
 
-  /**
-   * Crear nueva conversación
-   * POST /api/conversations
-   */
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateConversationDto) {
     return this.conversationsService.create(dto);
   }
 
-  /**
-   * Actualizar feedback de conversación
-   * PUT /api/conversations/feedback
-   */
+  @Public()
   @Put('feedback')
   @HttpCode(HttpStatus.OK)
   async updateFeedback(@Body() dto: UpdateConversationFeedbackDto) {
     return this.conversationsService.updateFeedback(dto);
   }
 
-  /**
-   * Obtener conversaciones por sessionId
-   * GET /api/conversations/session/:sessionId
-   */
+  @Public()
   @Get('session/:sessionId')
   @HttpCode(HttpStatus.OK)
   async getBySession(
@@ -65,53 +60,39 @@ export class ConversationsController {
     return this.conversationsService.getBySession(sessionId, limitNum);
   }
 
-  /**
-   * Obtener estadísticas de conversaciones
-   * GET /api/conversations/stats
-   */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.CONVERSATIONS_READ)
   @Get('stats')
   @HttpCode(HttpStatus.OK)
   async getStats() {
     return this.conversationsService.getStats();
   }
-  /**
-   * Eliminar todas las conversaciones
-   * DELETE /api/conversations
-   */
-  /**
-   * Eliminar todas las conversaciones
-   * DELETE /api/conversations
-   */
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.CONVERSATIONS_DELETE)
   @Delete()
   @HttpCode(HttpStatus.OK)
   async deleteAll() {
     return this.conversationsService.deleteAll();
   }
 
-  /**
-   * Activar/desactivar control de admin sobre una sesión
-   * POST /api/conversations/admin-takeover
-   */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.CONVERSATIONS_TAKEOVER)
   @Post('admin-takeover')
   @HttpCode(HttpStatus.OK)
   async adminTakeover(@Body() body: { sessionId: string; active: boolean }) {
     return this.conversationsService.adminTakeover(body.sessionId, body.active);
   }
 
-  /**
-   * Enviar mensaje del admin a una sesión
-   * POST /api/conversations/admin-message
-   */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.CONVERSATIONS_TAKEOVER)
   @Post('admin-message')
   @HttpCode(HttpStatus.OK)
   async adminMessage(@Body() body: { sessionId: string; content: string }) {
     return this.conversationsService.sendAdminMessage(body.sessionId, body.content);
   }
 
-  /**
-   * Verificar si una sesión está controlada por el admin
-   * GET /api/conversations/admin-status/:sessionId
-   */
+  @Public()
   @Get('admin-status/:sessionId')
   @HttpCode(HttpStatus.OK)
   async adminStatus(@Param('sessionId') sessionId: string) {
