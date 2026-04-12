@@ -103,20 +103,20 @@ export function UserManagement() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      <div className="bg-corporate shadow-lg">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/portal/dashboard" className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-corporate">
-                <ArrowLeft size={18} />Volver
+            <div className="flex items-center gap-3">
+              <Link to="/portal/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-white/80 transition-colors hover:text-white">
+                <ArrowLeft size={16} />Volver
               </Link>
-              <div className="h-6 w-px bg-slate-200" />
-              <h1 className="text-xl font-black text-slate-800">Gestion de Usuarios</h1>
+              <div className="h-5 w-px bg-white/20" />
+              <h1 className="text-lg font-bold text-white">Gestion de Usuarios</h1>
             </div>
             {canManage && (
               <button onClick={openCreateModal}
-                className="flex items-center gap-2 rounded-lg bg-corporate px-4 py-2 text-sm font-bold text-white hover:bg-corporate/90">
-                <Plus size={16} />Nuevo Usuario
+                className="flex items-center gap-2 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/25">
+                <Plus size={15} />Nuevo Usuario
               </button>
             )}
           </div>

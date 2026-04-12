@@ -25,10 +25,10 @@ interface ChatInterfaceProps {
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
   // Opciones principales siempre visibles arriba del chat
   const mainOptions = [
-    { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
-    { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
-    { label: '📞 Información de contacto', value: 'contacto' },
-    { label: 'ℹ️ Conocé sobre CIOR', value: 'sobre_cior' },
+    { label: 'Servicios', value: 'servicios', icon: '🔬' },
+    { label: 'Ubicación y horarios', value: 'ubicacion_horarios', icon: '📍' },
+    { label: 'Contacto', value: 'contacto', icon: '📞' },
+    { label: 'Sobre CIOR', value: 'sobre_cior', icon: 'ℹ️' },
   ];
   // ...existing code...
   // Estado para autocompletar el estudio en la orden médica
@@ -810,18 +810,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     <div className="relative flex h-full w-full flex-col overflow-hidden md:rounded-3xl">
       <ChatHeader adminActive={adminActive} onClose={handleClose} />
 
-      {/* Botones principales debajo del header */}
-      <div className="z-20 flex w-full gap-3 overflow-x-auto bg-gradient-to-br from-white/70 to-cyan-50/60 px-4 py-3 backdrop-blur-md shadow-lg scrollbar-hide">
+      {/* Accesos rápidos */}
+      <div className="z-20 flex w-full gap-2 overflow-x-auto border-b border-slate-100 bg-white/90 px-3 py-2.5 backdrop-blur-sm scrollbar-hide">
         {mainOptions.map((option) => (
           <button
             key={option.value}
-            onClick={() => handleOptionClick(option.value, option.label)}
+            onClick={() => handleOptionClick(option.value, `${option.icon} ${option.label}`)}
             disabled={isLoading}
-            className="group relative flex items-center gap-2 rounded-2xl bg-white/80 px-5 py-3 text-base font-semibold text-cyan-700 shadow-md ring-1 ring-cyan-100/60 transition-all duration-200 hover:bg-cyan-100/80 hover:text-cyan-900 hover:shadow-xl active:scale-97 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 disabled:opacity-50"
-            style={{ boxShadow: '0 4px 24px 0 rgba(0, 200, 255, 0.08)' }}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 transition-all hover:border-corporate/30 hover:bg-corporate/5 hover:text-corporate active:scale-[0.97] disabled:opacity-40"
           >
-            <span className="drop-shadow-sm select-none">{option.label}</span>
-            <span className="absolute -bottom-1 left-1/2 h-1 w-2/3 -translate-x-1/2 rounded-full bg-cyan-200 opacity-0 group-hover:opacity-60 blur-sm transition-all duration-200" />
+            <span className="text-sm">{option.icon}</span>
+            <span>{option.label}</span>
           </button>
         ))}
       </div>

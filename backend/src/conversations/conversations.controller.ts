@@ -2,7 +2,6 @@
 import {
   Controller,
   Post,
-  Put,
   Get,
   Body,
   Param,
@@ -13,10 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
-import {
-  CreateConversationDto,
-  UpdateConversationFeedbackDto,
-} from './dto/conversation.dto';
+import { CreateConversationDto } from './dto/conversation.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -40,13 +36,6 @@ export class ConversationsController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateConversationDto) {
     return this.conversationsService.create(dto);
-  }
-
-  @Public()
-  @Put('feedback')
-  @HttpCode(HttpStatus.OK)
-  async updateFeedback(@Body() dto: UpdateConversationFeedbackDto) {
-    return this.conversationsService.updateFeedback(dto);
   }
 
   @Public()

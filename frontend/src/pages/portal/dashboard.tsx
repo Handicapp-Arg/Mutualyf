@@ -60,7 +60,7 @@ export function PortalDashboard() {
   const { user, logout, hasPermission } = useAuthStore();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'conversations' | 'uploads' | 'stats' | 'feedback'>('conversations');
+  const [activeTab, setActiveTab] = useState<'conversations' | 'uploads' | 'stats'>('conversations');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -241,146 +241,150 @@ export function PortalDashboard() {
     navigate('/login', { replace: true });
   };
 
+  const sidebarItems = [
+    ...(canReadConversations ? [{ key: 'conversations' as const, label: 'Conversaciones', icon: MessageSquare }] : []),
+    ...(canReadUploads ? [{ key: 'uploads' as const, label: 'Ordenes', icon: FileText }] : []),
+    ...(canReadSessions ? [{ key: 'stats' as const, label: 'Estadisticas', icon: TrendingUp }] : []),
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header con auth */}
-      <div className="border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/" className="text-sm font-bold text-slate-600 transition-colors hover:text-corporate">
-                CIOR
-              </Link>
-              <div className="h-6 w-px bg-slate-200" />
-              <h1 className="text-xl font-black text-slate-800">Portal</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Nav links basados en permisos */}
-              {canManageUsers && (
-                <Link to="/portal/users" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100">
-                  <Users size={14} />
-                  Usuarios
-                </Link>
+    <div className="flex h-screen bg-slate-50">
+      {/* Sidebar */}
+      <aside className="flex w-56 flex-col bg-corporate">
+        {/* Logo */}
+        <div className="px-5 py-5">
+          <Link to="/" className="text-xl font-black tracking-wide text-white transition-opacity hover:opacity-80">
+            CIOR
+          </Link>
+          <p className="mt-0.5 text-[10px] font-medium text-white/40">Panel de gestion</p>
+        </div>
+
+        {/* Nav principal */}
+        <nav className="flex-1 space-y-0.5 px-3">
+          <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-white/30">Principal</p>
+          {sidebarItems.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === key
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/60 hover:bg-white/8 hover:text-white/90'
+              }`}
+            >
+              <Icon size={16} />
+              {label}
+              {key === 'conversations' && liveSessions.length > 0 && (
+                <span className="ml-auto flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-300">{liveSessions.length}</span>
+                </span>
               )}
-              {canManageRoles && (
-                <Link to="/portal/roles" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100">
-                  <Shield size={14} />
-                  Roles
-                </Link>
-              )}
-              <div className="h-6 w-px bg-slate-200" />
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <p className="text-xs font-bold text-slate-700">{user?.fullName}</p>
-                  <p className="text-[10px] text-slate-400">{user?.role.displayName}</p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                  title="Cerrar sesión"
-                >
-                  <Power size={16} />
-                </button>
-              </div>
+            </button>
+          ))}
+
+          {canManageUsers && (
+            <Link to="/portal/users"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/8 hover:text-white/90">
+              <Users size={16} />Usuarios
+            </Link>
+          )}
+          {canManageRoles && (
+            <Link to="/portal/roles"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/8 hover:text-white/90">
+              <Shield size={16} />Roles
+            </Link>
+          )}
+        </nav>
+
+        {/* Usuario */}
+        <div className="border-t border-white/10 p-3">
+          <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-bold text-white">
+              {user?.fullName?.charAt(0).toUpperCase()}
             </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="truncate text-xs font-semibold text-white">{user?.fullName}</p>
+              <p className="text-[10px] text-white/50">{user?.role.displayName}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="rounded-md p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+              title="Cerrar sesión"
+            >
+              <Power size={14} />
+            </button>
           </div>
         </div>
-      </div>
+      </aside>
 
-      {/* Stats cards */}
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-6">
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">Conversaciones</p>
-                  <p className="mt-1 text-3xl font-black text-corporate">{stats.totalConversations}</p>
-                </div>
-                <div className="rounded-lg bg-corporate/10 p-3">
-                  <MessageSquare className="text-corporate" size={24} />
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-purple-50 to-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">Mensajes Totales</p>
-                  <p className="mt-1 text-3xl font-black text-purple-600">{stats.totalMessages}</p>
-                </div>
-                <div className="rounded-lg bg-purple-100 p-3">
-                  <Users className="text-purple-600" size={24} />
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-green-50 to-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">Ordenes Subidas</p>
-                  <p className="mt-1 text-3xl font-black text-green-600">{stats.totalUploads}</p>
-                </div>
-                <div className="rounded-lg bg-green-100 p-3">
-                  <FileText className="text-green-600" size={24} />
-                </div>
-              </div>
-            </div>
-            <div className={`rounded-xl border p-4 transition-colors ${
-              liveSessions.length > 0
-                ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-white'
-                : 'border-slate-200 bg-gradient-to-br from-slate-50 to-white'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">En Linea</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <p className={`text-3xl font-black ${liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                      {liveSessions.length}
-                    </p>
-                    {liveSessions.length > 0 && (
-                      <span className="relative flex h-3 w-3">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
-                      </span>
-                    )}
+      {/* Contenido principal */}
+      <main className="flex-1 overflow-y-auto">
+        {/* Stats cards */}
+        <div className="border-b bg-white shadow-sm">
+          <div className="px-6 py-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="rounded-lg bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-md bg-corporate/10 p-2">
+                    <MessageSquare className="text-corporate" size={18} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-slate-800">{stats.totalConversations}</p>
+                    <p className="text-[11px] font-medium text-slate-400">Conversaciones</p>
                   </div>
                 </div>
-                <div className={`rounded-lg p-3 ${liveSessions.length > 0 ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                  <Radio className={liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-400'} size={24} />
+              </div>
+              <div className="rounded-lg bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-md bg-purple-50 p-2">
+                    <TrendingUp className="text-purple-500" size={18} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-slate-800">{stats.totalMessages}</p>
+                    <p className="text-[11px] font-medium text-slate-400">Mensajes</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-md bg-green-50 p-2">
+                    <FileText className="text-green-500" size={18} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-slate-800">{stats.totalUploads}</p>
+                    <p className="text-[11px] font-medium text-slate-400">Ordenes</p>
+                  </div>
+                </div>
+              </div>
+              <div className={`rounded-lg px-4 py-3 ${liveSessions.length > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`rounded-md p-2 ${liveSessions.length > 0 ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                    <Radio className={liveSessions.length > 0 ? 'text-emerald-500' : 'text-slate-400'} size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-2xl font-black ${liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>{liveSessions.length}</p>
+                      {liveSessions.length > 0 && (
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-400">En linea</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-4">
-          <div className="flex gap-4">
-            {canReadConversations && (
-              <button onClick={() => setActiveTab('conversations')}
-                className={`border-b-2 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'conversations' ? 'border-corporate text-corporate' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                <div className="flex items-center gap-2"><MessageSquare size={16} />Conversaciones</div>
-              </button>
-            )}
-            {canReadUploads && (
-              <button onClick={() => setActiveTab('uploads')}
-                className={`border-b-2 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'uploads' ? 'border-corporate text-corporate' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                <div className="flex items-center gap-2"><FileText size={16} />Ordenes Medicas</div>
-              </button>
-            )}
-            {canReadSessions && (
-              <button onClick={() => setActiveTab('stats')}
-                className={`border-b-2 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'stats' ? 'border-corporate text-corporate' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                <div className="flex items-center gap-2"><TrendingUp size={16} />Estadisticas</div>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="container mx-auto px-4 py-6">
+        {/* Content */}
+        <div className="px-6 py-6">
         {isLoading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-center">
@@ -634,6 +638,7 @@ export function PortalDashboard() {
           </>
         )}
       </div>
+      </main>
     </div>
   );
 }

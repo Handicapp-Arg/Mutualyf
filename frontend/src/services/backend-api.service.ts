@@ -86,32 +86,6 @@ export class BackendAPIService {
     }
   }
 
-  /**
-   * Enviar feedback sobre una respuesta
-   */
-  async sendFeedback(
-    messageId: string,
-    rating: 'positive' | 'negative',
-    comment?: string
-  ): Promise<void> {
-    try {
-      await fetch(`${BACKEND_URL}/feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: this.sessionId,
-          messageId,
-          rating,
-          comment,
-          timestamp: new Date(),
-        }),
-      });
-    } catch (error) {
-      console.warn('Error enviando feedback:', error);
-    }
-  }
 
   /**
    * Analizar orden médica con OCR (paso 1)

@@ -11,7 +11,6 @@ const PERMISSIONS_SEED = [
   { code: 'sessions:live', displayName: 'Ver sesiones en vivo', module: 'sessions' },
   { code: 'uploads:read', displayName: 'Ver órdenes médicas', module: 'uploads' },
   { code: 'uploads:validate', displayName: 'Validar órdenes médicas', module: 'uploads' },
-  { code: 'feedback:read', displayName: 'Ver feedback', module: 'feedback' },
   { code: 'users:read', displayName: 'Ver usuarios', module: 'users' },
   { code: 'users:manage', displayName: 'Gestionar usuarios', module: 'users' },
   { code: 'roles:read', displayName: 'Ver roles', module: 'roles' },

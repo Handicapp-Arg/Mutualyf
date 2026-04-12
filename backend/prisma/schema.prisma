@@ -41,7 +41,6 @@ model Conversation {
   messages       String?       // JSON string con array completo de mensajes
   timestamp      String
   aiModel        String?       @map("ai_model")
-  userFeedback   Boolean?      @map("user_feedback")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
   
@@ -68,22 +67,6 @@ model UserSession {
 
   @@index([userIdentityId])
   @@map("user_sessions")
-}
-
-model Feedback {
-  id            Int      @id @default(autoincrement())
-  feedback      String   // "positive" o "negative"
-  userMessage   String?  @map("user_message")
-  botResponse   String?  @map("bot_response")
-  userSessionId String?  @map("user_session_id")
-  ip            String?
-  userName      String?  @map("user_name")
-  timestamp     DateTime @default(now())
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  @@index([feedback])
-  @@index([userSessionId])
-  @@map("feedbacks")
 }
 
 // ==========================================

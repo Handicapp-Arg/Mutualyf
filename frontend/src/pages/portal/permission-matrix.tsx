@@ -99,7 +99,13 @@ export function PermissionMatrix() {
       const allGrants = [...changedGrants];
 
       if (allGrants.length > 0) {
-        await apiClient.put('/roles/matrix', { grants: allGrants });
+        // Enviar solo roleId, permissionId, granted (sin id ni campos extra)
+        const cleanGrants = allGrants.map(({ roleId, permissionId, granted }) => ({
+          roleId,
+          permissionId,
+          granted,
+        }));
+        await apiClient.put('/roles/matrix', { grants: cleanGrants });
       }
 
       setOriginalGrants(JSON.parse(JSON.stringify(grants)));
@@ -136,7 +142,6 @@ export function PermissionMatrix() {
     conversations: 'Conversaciones',
     sessions: 'Sesiones',
     uploads: 'Ordenes Medicas',
-    feedback: 'Feedback',
     users: 'Usuarios',
     roles: 'Roles y Permisos',
   };
@@ -144,27 +149,27 @@ export function PermissionMatrix() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      <div className="bg-corporate shadow-lg">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/portal/dashboard" className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-corporate">
-                <ArrowLeft size={18} />Volver
-              </Link>
-              <div className="h-6 w-px bg-slate-200" />
-              <h1 className="text-xl font-black text-slate-800">Roles y Permisos</h1>
-            </div>
             <div className="flex items-center gap-3">
+              <Link to="/portal/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-white/80 transition-colors hover:text-white">
+                <ArrowLeft size={16} />Volver
+              </Link>
+              <div className="h-5 w-px bg-white/20" />
+              <h1 className="text-lg font-bold text-white">Roles y Permisos</h1>
+            </div>
+            <div className="flex items-center gap-2">
               {canManage && (
                 <button onClick={() => setShowNewRole(true)}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50">
-                  <Plus size={16} />Nuevo Rol
+                  className="flex items-center gap-2 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/25">
+                  <Plus size={15} />Nuevo Rol
                 </button>
               )}
               {canManage && hasChanges && (
                 <button onClick={handleSave} disabled={isSaving}
-                  className="flex items-center gap-2 rounded-lg bg-corporate px-4 py-2 text-sm font-bold text-white hover:bg-corporate/90 disabled:opacity-50">
-                  <Save size={16} />{isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                  className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-bold text-corporate transition-colors hover:bg-white/90 disabled:opacity-50">
+                  <Save size={15} />{isSaving ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               )}
             </div>

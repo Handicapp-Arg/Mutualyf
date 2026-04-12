@@ -2,9 +2,6 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
-  IsBoolean,
-  IsISO8601,
-  Length,
   IsArray,
   ValidateNested,
   IsDateString,
@@ -52,17 +49,6 @@ export class CreateConversationDto {
   @IsString()
   aiModel?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  userFeedback?: boolean;
-}
-
-export class UpdateConversationFeedbackDto {
-  @IsNotEmpty({ message: 'El ID de la conversación es obligatorio' })
-  id: number;
-
-  @IsBoolean({ message: 'El feedback debe ser un valor booleano' })
-  userFeedback: boolean;
 }
 
 export class ConversationResponseDto {
@@ -72,5 +58,4 @@ export class ConversationResponseDto {
   botResponse: string;
   timestamp: string;
   aiModel: string | null;
-  userFeedback: boolean | null;
 }

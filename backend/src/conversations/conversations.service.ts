@@ -1,9 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  CreateConversationDto,
-  UpdateConversationFeedbackDto,
-} from './dto/conversation.dto';
+import { CreateConversationDto } from './dto/conversation.dto';
 import {
   ResourceNotFoundException,
   DatabaseException,
@@ -103,7 +100,6 @@ export class ConversationsService {
           messages: messagesJson,
           timestamp,
           aiModel: data.aiModel || null,
-          userFeedback: data.userFeedback ?? null,
         },
         update: {
           // Solo sobreescribir userName si llega uno nuevo no vacío
@@ -113,7 +109,6 @@ export class ConversationsService {
           messages: messagesJson,
           timestamp,
           ...(data.aiModel ? { aiModel: data.aiModel } : {}),
-          ...(data.userFeedback !== undefined ? { userFeedback: data.userFeedback } : {}),
         },
       });
 
@@ -143,34 +138,6 @@ export class ConversationsService {
 
       this.logger.error(`Error al guardar conversación: ${error.message}`);
       throw new DatabaseException('guardar conversation', error.message);
-    }
-  }
-
-  /**
-   * Actualizar feedback de una conversación específica
-   * @throws ResourceNotFoundException si la conversación no existe
-   */
-  async updateFeedback(dto: UpdateConversationFeedbackDto) {
-    try {
-      this.logger.debug(`Actualizando feedback para conversación: ${dto.id}`);
-
-      const updated = await this.prisma.conversation.update({
-        where: { id: dto.id },
-        data: { userFeedback: dto.userFeedback },
-      });
-
-      this.logger.log(`Feedback actualizado para conversación: ${updated.id}`);
-      return {
-        message: 'Feedback actualizado exitosamente',
-        data: updated,
-      };
-    } catch (error) {
-      if (error.code === 'P2025') {
-        throw new ResourceNotFoundException('Conversación', dto.id);
-      }
-
-      this.logger.error(`Error al actualizar feedback: ${error.message}`);
-      throw new DatabaseException('updateFeedback', error.message);
     }
   }
 
@@ -208,23 +175,8 @@ export class ConversationsService {
     try {
       this.logger.debug('Calculando estadísticas de conversaciones');
 
-      const [
-        totalConversations,
-        conversationsWithFeedback,
-        positiveFeedback,
-        negativeFeedback,
-        allConversations,
-      ] = await Promise.all([
+      const [totalConversations, allConversations] = await Promise.all([
         this.prisma.conversation.count(),
-        this.prisma.conversation.count({
-          where: { userFeedback: { not: null } },
-        }),
-        this.prisma.conversation.count({
-          where: { userFeedback: true },
-        }),
-        this.prisma.conversation.count({
-          where: { userFeedback: false },
-        }),
         this.prisma.conversation.findMany({
           orderBy: { createdAt: 'desc' },
           take: 500,
@@ -242,17 +194,6 @@ export class ConversationsService {
         totalMessages: totalMessages,
         conversations: conversations,
         totalConversations,
-        conversationsWithFeedback,
-        positiveFeedback,
-        negativeFeedback,
-        feedbackRate:
-          totalConversations > 0
-            ? ((conversationsWithFeedback / totalConversations) * 100).toFixed(2) + '%'
-            : '0%',
-        satisfactionRate:
-          conversationsWithFeedback > 0
-            ? ((positiveFeedback / conversationsWithFeedback) * 100).toFixed(2) + '%'
-            : '0%',
       };
 
       this.logger.log(

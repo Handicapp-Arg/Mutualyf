@@ -56,7 +56,7 @@ interface LiveSession {
 
 export function AdminPortal() {
   const [activeTab, setActiveTab] = useState<
-    'conversations' | 'uploads' | 'stats' | 'feedback'
+    'conversations' | 'uploads' | 'stats'
   >('conversations');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
@@ -243,9 +243,6 @@ export function AdminPortal() {
           totalUploads: 0, // Se actualizará con los uploads
           avgMessagesPerConversation:
             allConversations.length > 0 ? totalMessages / allConversations.length : 0,
-          totalFeedbacks: 0,
-          positiveFeedbacks: 0,
-          negativeFeedbacks: 0,
         };
 
         setStats(calculatedStats);

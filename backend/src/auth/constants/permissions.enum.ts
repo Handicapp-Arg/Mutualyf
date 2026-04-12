@@ -12,9 +12,6 @@ export enum PermissionCode {
   UPLOADS_READ = 'uploads:read',
   UPLOADS_VALIDATE = 'uploads:validate',
 
-  // Feedback
-  FEEDBACK_READ = 'feedback:read',
-
   // Users
   USERS_READ = 'users:read',
   USERS_MANAGE = 'users:manage',
@@ -32,7 +29,6 @@ export const PERMISSIONS_SEED = [
   { code: PermissionCode.SESSIONS_LIVE, displayName: 'Ver sesiones en vivo', module: 'sessions' },
   { code: PermissionCode.UPLOADS_READ, displayName: 'Ver órdenes médicas', module: 'uploads' },
   { code: PermissionCode.UPLOADS_VALIDATE, displayName: 'Validar órdenes médicas', module: 'uploads' },
-  { code: PermissionCode.FEEDBACK_READ, displayName: 'Ver feedback', module: 'feedback' },
   { code: PermissionCode.USERS_READ, displayName: 'Ver usuarios', module: 'users' },
   { code: PermissionCode.USERS_MANAGE, displayName: 'Gestionar usuarios', module: 'users' },
   { code: PermissionCode.ROLES_READ, displayName: 'Ver roles', module: 'roles' },
