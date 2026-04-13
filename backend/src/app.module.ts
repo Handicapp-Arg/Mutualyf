@@ -11,6 +11,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { AiController } from './ai/ai.controller';
 import { GeminiService } from './ai/gemini.service';
 import { OllamaService } from './ai/ollama.service';
+import { GroqService } from './ai/groq.service';
 import { EventsModule } from './events/events.module';
 import { validateEnv } from './config/validation';
 import { AuthModule } from './auth/auth.module';
@@ -18,7 +19,6 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { RolesModule } from './roles/roles.module';
 import { AiConfigModule } from './ai-config/ai-config.module';
-import { AiConfigService } from './ai-config/ai-config.service';
 
 @Module({
   imports: [
@@ -55,6 +55,7 @@ import { AiConfigService } from './ai-config/ai-config.service';
   providers: [
     GeminiService,
     OllamaService,
+    GroqService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

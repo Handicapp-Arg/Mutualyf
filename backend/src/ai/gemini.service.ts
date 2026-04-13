@@ -1,65 +1,62 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
 import { buildMedicalOrderPrompt, extractJsonFromResponse, MedicalOrderAnalysis } from './ai.constants';
 
 @Injectable()
 export class GeminiService {
-  async generateResponse(
-    history: any[],
-    newMessage: string,
-    userName?: string
-  ): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new InternalServerErrorException('Gemini API key not configured');
+  private readonly apiKey: string;
 
-    // Construir el prompt para Gemini
-    const prompt = [
-      ...history.map(
-        (msg) => `${msg.role === 'user' ? 'Usuario' : 'Bot'}: ${msg.content}`
-      ),
-      userName ? `Usuario (${userName}): ${newMessage}` : `Usuario: ${newMessage}`,
-    ].join('\n');
+  constructor(private readonly configService: ConfigService) {
+    this.apiKey = this.configService.get<string>('GEMINI_API_KEY', '');
+  }
+
+  async generateResponse(
+    history: Array<{ role: string; content: string }>,
+    newMessage: string,
+    systemPrompt: string,
+    temperature = 0.7,
+    maxTokens = 800,
+  ): Promise<string> {
+    if (!this.apiKey) {
+      throw new InternalServerErrorException('Gemini API key not configured');
+    }
+
+    const contents = [
+      ...(systemPrompt ? [{ role: 'user', parts: [{ text: systemPrompt }] }, { role: 'model', parts: [{ text: 'Entendido. Soy Nexus, el asistente de CIOR Imágenes. ¿En qué puedo ayudarte?' }] }] : []),
+      ...history.map((msg) => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }],
+      })),
+      { role: 'user', parts: [{ text: newMessage }] },
+    ];
 
     try {
       const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=' +
-          apiKey,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents,
+            generationConfig: { temperature, maxOutputTokens: maxTokens },
           }),
-        }
+        },
       );
+
       if (!res.ok) {
-        let errorMsg = `Gemini API error: ${res.status}`;
-        try {
-          const errData = await res.json();
-          if (res.status === 404) {
-            errorMsg =
-              '❌ Gemini API: La clave API no es válida o el modelo no está disponible';
-          } else if (res.status === 429) {
-            errorMsg =
-              '⚠️ Gemini API: Se excedió la cuota de requests. Intenta más tarde o verifica tu cuenta en Google AI Studio';
-          } else if (res.status === 403) {
-            errorMsg =
-              '❌ Gemini API: Acceso denegado. Verifica que la API key tenga los permisos necesarios';
-          } else {
-            errorMsg += ' - ' + JSON.stringify(errData);
-          }
-        } catch {}
-        throw new InternalServerErrorException(errorMsg);
+        const errData = await res.json().catch(() => ({}));
+        throw new InternalServerErrorException(
+          `Gemini API error: ${res.status} - ${JSON.stringify(errData)}`,
+        );
       }
-      const data = await res.json();
-      // Gemini responde en data.candidates[0].content.parts[0].text
-      return data && typeof data === 'object' && Array.isArray((data as any).candidates)
-        ? (data as any).candidates[0]?.content?.parts?.[0]?.text ||
-            'Sin respuesta de Gemini.'
-        : 'Sin respuesta de Gemini.';
+
+      const data: any = await res.json();
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.';
     } catch (e) {
+      if (e instanceof InternalServerErrorException) throw e;
       throw new InternalServerErrorException(
-        'Error al consultar Gemini: ' + (e instanceof Error ? e.message : e)
+        'Error al consultar Gemini: ' + (e instanceof Error ? e.message : e),
       );
     }
   }
@@ -68,15 +65,15 @@ export class GeminiService {
    * Analizar orden médica con IA - Extrae datos estructurados de texto OCR
    */
   async analyzeMedicalOrder(ocrText: string): Promise<MedicalOrderAnalysis> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new InternalServerErrorException('Gemini API key not configured');
+    if (!this.apiKey) {
+      throw new InternalServerErrorException('Gemini API key not configured');
+    }
 
     const prompt = buildMedicalOrderPrompt(ocrText);
 
     try {
       const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=' +
-          apiKey,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
