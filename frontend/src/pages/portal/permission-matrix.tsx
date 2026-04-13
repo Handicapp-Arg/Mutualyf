@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
+import { Save, Plus, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
+import { PortalLayout } from '@/components/portal/portal-layout';
 
 interface Role {
   id: number;
@@ -147,38 +147,28 @@ export function PermissionMatrix() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <PortalLayout>
       {/* Header */}
-      <div className="bg-corporate shadow-lg">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link to="/portal/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-white/80 transition-colors hover:text-white">
-                <ArrowLeft size={16} />Volver
-              </Link>
-              <div className="h-5 w-px bg-white/20" />
-              <h1 className="text-lg font-bold text-white">Roles y Permisos</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              {canManage && (
-                <button onClick={() => setShowNewRole(true)}
-                  className="flex items-center gap-2 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/25">
-                  <Plus size={15} />Nuevo Rol
-                </button>
-              )}
-              {canManage && hasChanges && (
-                <button onClick={handleSave} disabled={isSaving}
-                  className="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-bold text-corporate transition-colors hover:bg-white/90 disabled:opacity-50">
-                  <Save size={15} />{isSaving ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              )}
-            </div>
-          </div>
+      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+        <h1 className="text-lg font-bold text-slate-800">Roles y Permisos</h1>
+        <div className="flex items-center gap-2">
+          {canManage && (
+            <button onClick={() => setShowNewRole(true)}
+              className="flex items-center gap-2 rounded-lg bg-corporate px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-corporate/90">
+              <Plus size={15} />Nuevo Rol
+            </button>
+          )}
+          {canManage && hasChanges && (
+            <button onClick={handleSave} disabled={isSaving}
+              className="flex items-center gap-2 rounded-lg bg-corporate px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-50">
+              <Save size={15} />{isSaving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Matrix */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="px-6 py-6">
         {hasChanges && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
             Hay cambios sin guardar
@@ -295,6 +285,6 @@ export function PermissionMatrix() {
           </div>
         </div>
       )}
-    </div>
+    </PortalLayout>
   );
 }

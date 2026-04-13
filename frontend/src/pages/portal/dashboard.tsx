@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MessageSquare,
   FileText,
-  Users,
   TrendingUp,
   Download,
   Trash2,
@@ -10,13 +9,12 @@ import {
   LogIn,
   LogOut,
   SendHorizontal,
-  Shield,
-  Power,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
+import { PortalLayout } from '@/components/portal/portal-layout';
 import type { ChatMessage } from '@/types';
 
 interface Conversation {
@@ -57,10 +55,9 @@ interface LiveSession {
 }
 
 export function PortalDashboard() {
-  const { user, logout, hasPermission } = useAuthStore();
-  const navigate = useNavigate();
-
-  const [activeTab, setActiveTab] = useState<'conversations' | 'uploads' | 'stats'>('conversations');
+  const { user, hasPermission } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') || 'conversations') as 'conversations' | 'uploads' | 'stats';
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -84,8 +81,6 @@ export function PortalDashboard() {
   const canTakeover = hasPermission('conversations:takeover');
   const canReadUploads = hasPermission('uploads:read');
   const canReadSessions = hasPermission('sessions:read');
-  const canManageUsers = hasPermission('users:read');
-  const canManageRoles = hasPermission('roles:read');
 
   useEffect(() => {
     if (user) {
@@ -236,189 +231,102 @@ export function PortalDashboard() {
     window.open(`${BACKEND_URL}/uploads/medical-orders/file/${orderId}?token=${token}`, '_blank');
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const sidebarItems = [
-    ...(canReadConversations ? [{ key: 'conversations' as const, label: 'Conversaciones', icon: MessageSquare }] : []),
-    ...(canReadUploads ? [{ key: 'uploads' as const, label: 'Ordenes', icon: FileText }] : []),
-    ...(canReadSessions ? [{ key: 'stats' as const, label: 'Estadisticas', icon: TrendingUp }] : []),
-  ];
-
   return (
-    <div className="flex h-screen bg-slate-50">
-      {/* Sidebar */}
-      <aside className="flex w-56 flex-col bg-corporate">
-        {/* Logo */}
-        <div className="px-5 py-5">
-          <Link to="/" className="text-xl font-black tracking-wide text-white transition-opacity hover:opacity-80">
-            CIOR
-          </Link>
-          <p className="mt-0.5 text-[10px] font-medium text-white/40">Panel de gestion</p>
-        </div>
-
-        {/* Nav principal */}
-        <nav className="flex-1 space-y-0.5 px-3">
-          <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-white/30">Principal</p>
-          {sidebarItems.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                activeTab === key
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-              }`}
-            >
-              <Icon size={16} />
-              {label}
-              {key === 'conversations' && liveSessions.length > 0 && (
-                <span className="ml-auto flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-300">{liveSessions.length}</span>
-                </span>
-              )}
-            </button>
-          ))}
-
-          {canManageUsers && (
-            <Link to="/portal/users"
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/8 hover:text-white/90">
-              <Users size={16} />Usuarios
-            </Link>
-          )}
-          {canManageRoles && (
-            <Link to="/portal/roles"
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/8 hover:text-white/90">
-              <Shield size={16} />Roles
-            </Link>
-          )}
-        </nav>
-
-        {/* Usuario */}
-        <div className="border-t border-white/10 p-3">
-          <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-bold text-white">
-              {user?.fullName?.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="truncate text-xs font-semibold text-white">{user?.fullName}</p>
-              <p className="text-[10px] text-white/50">{user?.role.displayName}</p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="rounded-md p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-              title="Cerrar sesión"
-            >
-              <Power size={14} />
-            </button>
+    <PortalLayout liveSessions={liveSessions.length}>
+      {isLoading ? (
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-corporate" />
+            <p className="mt-4 text-sm font-bold text-slate-500">Cargando datos...</p>
           </div>
         </div>
-      </aside>
-
-      {/* Contenido principal */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Stats cards */}
-        <div className="border-b bg-white shadow-sm">
-          <div className="px-6 py-4">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-md bg-corporate/10 p-2">
-                    <MessageSquare className="text-corporate" size={18} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-black text-slate-800">{stats.totalConversations}</p>
-                    <p className="text-[11px] font-medium text-slate-400">Conversaciones</p>
-                  </div>
+      ) : (
+        <>
+          {/* Conversations Tab */}
+          {activeTab === 'conversations' && canReadConversations && (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+                <h1 className="text-lg font-bold text-slate-800">Conversaciones</h1>
+                <div className="flex items-center gap-2">
+                  <button onClick={downloadConversationCSV}
+                    className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                    <Download size={14} />CSV
+                  </button>
+                  {canDeleteConversations && (
+                    <button onClick={async () => {
+                      if (!window.confirm('Seguro que quieres borrar TODAS las conversaciones?')) return;
+                      try {
+                        await apiClient.delete('/conversations');
+                        loadData();
+                      } catch { alert('Error al limpiar'); }
+                    }}
+                      className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-100">
+                      <Trash2 size={14} />Limpiar
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-md bg-purple-50 p-2">
-                    <TrendingUp className="text-purple-500" size={18} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-black text-slate-800">{stats.totalMessages}</p>
-                    <p className="text-[11px] font-medium text-slate-400">Mensajes</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-md bg-green-50 p-2">
-                    <FileText className="text-green-500" size={18} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-black text-slate-800">{stats.totalUploads}</p>
-                    <p className="text-[11px] font-medium text-slate-400">Ordenes</p>
-                  </div>
-                </div>
-              </div>
-              <div className={`rounded-lg px-4 py-3 ${liveSessions.length > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`rounded-md p-2 ${liveSessions.length > 0 ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                    <Radio className={liveSessions.length > 0 ? 'text-emerald-500' : 'text-slate-400'} size={18} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className={`text-2xl font-black ${liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>{liveSessions.length}</p>
-                      {liveSessions.length > 0 && (
-                        <span className="relative flex h-2 w-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                        </span>
-                      )}
+              {/* Stats cards */}
+              <div className="px-6 pt-6">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <div className="rounded-lg border bg-white px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-md bg-corporate/10 p-2">
+                        <MessageSquare className="text-corporate" size={18} />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-slate-800">{stats.totalConversations}</p>
+                        <p className="text-[11px] font-medium text-slate-400">Conversaciones</p>
+                      </div>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-400">En linea</p>
+                  </div>
+                  <div className="rounded-lg border bg-white px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-md bg-purple-50 p-2">
+                        <TrendingUp className="text-purple-500" size={18} />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-slate-800">{stats.totalMessages}</p>
+                        <p className="text-[11px] font-medium text-slate-400">Mensajes</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-white px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-md bg-green-50 p-2">
+                        <FileText className="text-green-500" size={18} />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-slate-800">{stats.totalUploads}</p>
+                        <p className="text-[11px] font-medium text-slate-400">Ordenes</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border px-4 py-3 ${liveSessions.length > 0 ? 'border-emerald-200 bg-emerald-50' : 'bg-white'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-md p-2 ${liveSessions.length > 0 ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                        <Radio className={liveSessions.length > 0 ? 'text-emerald-500' : 'text-slate-400'} size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className={`text-2xl font-black ${liveSessions.length > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>{liveSessions.length}</p>
+                          {liveSessions.length > 0 && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-medium text-slate-400">En linea</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="px-6 py-6">
-        {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-corporate" />
-              <p className="mt-4 text-sm font-bold text-slate-500">Cargando datos...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Conversations Tab */}
-            {activeTab === 'conversations' && canReadConversations && (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Lista + Detalle */}
+              <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2">
                 <div className="rounded-xl border bg-white p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-lg font-black text-slate-800">Conversaciones</h2>
-                    <div className="flex items-center gap-2">
-                      <button onClick={downloadConversationCSV}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
-                        <Download size={14} />CSV
-                      </button>
-                      {canDeleteConversations && (
-                        <button onClick={async () => {
-                          if (!window.confirm('Seguro que quieres borrar TODAS las conversaciones?')) return;
-                          try {
-                            await apiClient.delete('/conversations');
-                            loadData();
-                          } catch { alert('Error al limpiar'); }
-                        }}
-                          className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100">
-                          <Trash2 size={14} />Limpiar
-                        </button>
-                      )}
-                    </div>
-                  </div>
                   <div className="max-h-[600px] space-y-2 overflow-y-auto">
                     {conversations.length === 0 ? (
                       <p className="py-8 text-center text-sm text-slate-400">No hay conversaciones</p>
@@ -484,9 +392,7 @@ export function PortalDashboard() {
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-lg font-black text-slate-800">Detalle</h2>
                     {selectedConversation && adminChatSessionId === selectedConversation.sessionId && (
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">Chat activo</span>
-                      </div>
+                      <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">Chat activo</span>
                     )}
                   </div>
                   {selectedConversation ? (
@@ -535,62 +441,73 @@ export function PortalDashboard() {
                   )}
                 </div>
               </div>
-            )}
+            </>
+          )}
 
-            {/* Uploads Tab */}
-            {activeTab === 'uploads' && canReadUploads && (
-              <div className="rounded-xl border bg-white p-6">
-                <h2 className="mb-4 text-lg font-black text-slate-800">Ordenes Medicas</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b text-xs font-bold uppercase text-slate-500">
-                        <th className="pb-3 pr-4">Paciente</th>
-                        <th className="pb-3 pr-4">DNI</th>
-                        <th className="pb-3 pr-4">Estudios</th>
-                        <th className="pb-3 pr-4">Estado</th>
-                        <th className="pb-3 pr-4">Fecha</th>
-                        <th className="pb-3">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {uploads.map((upload) => (
-                        <tr key={upload.id} className="border-b last:border-0">
-                          <td className="py-3 pr-4 font-medium text-slate-700">{upload.patientName}</td>
-                          <td className="py-3 pr-4 text-slate-500">{upload.patientDNI}</td>
-                          <td className="py-3 pr-4 text-slate-500">
-                            {(Array.isArray(upload.requestedStudies) ? upload.requestedStudies : JSON.parse(upload.requestedStudies as any || '[]')).join(', ')}
-                          </td>
-                          <td className="py-3 pr-4">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                              upload.validationStatus === 'validated' ? 'bg-green-100 text-green-700'
-                              : upload.validationStatus === 'rejected' ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {upload.validationStatus === 'validated' ? 'Validado' : upload.validationStatus === 'rejected' ? 'Rechazado' : 'Pendiente'}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-xs text-slate-400">{formatDate(upload.createdAt)}</td>
-                          <td className="py-3">
-                            <button onClick={() => handleDownloadOrder(upload.id)}
-                              className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50">
-                              <Download size={14} />
-                            </button>
-                          </td>
+          {/* Uploads Tab */}
+          {activeTab === 'uploads' && canReadUploads && (
+            <>
+              <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+                <h1 className="text-lg font-bold text-slate-800">Ordenes Medicas</h1>
+              </div>
+              <div className="p-6">
+                <div className="rounded-xl border bg-white p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b text-xs font-bold uppercase text-slate-500">
+                          <th className="pb-3 pr-4">Paciente</th>
+                          <th className="pb-3 pr-4">DNI</th>
+                          <th className="pb-3 pr-4">Estudios</th>
+                          <th className="pb-3 pr-4">Estado</th>
+                          <th className="pb-3 pr-4">Fecha</th>
+                          <th className="pb-3">Acciones</th>
                         </tr>
-                      ))}
-                      {uploads.length === 0 && (
-                        <tr><td colSpan={6} className="py-8 text-center text-slate-400">No hay ordenes medicas</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {uploads.map((upload) => (
+                          <tr key={upload.id} className="border-b last:border-0">
+                            <td className="py-3 pr-4 font-medium text-slate-700">{upload.patientName}</td>
+                            <td className="py-3 pr-4 text-slate-500">{upload.patientDNI}</td>
+                            <td className="py-3 pr-4 text-slate-500">
+                              {(Array.isArray(upload.requestedStudies) ? upload.requestedStudies : JSON.parse(upload.requestedStudies as any || '[]')).join(', ')}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                                upload.validationStatus === 'validated' ? 'bg-green-100 text-green-700'
+                                : upload.validationStatus === 'rejected' ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {upload.validationStatus === 'validated' ? 'Validado' : upload.validationStatus === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4 text-xs text-slate-400">{formatDate(upload.createdAt)}</td>
+                            <td className="py-3">
+                              <button onClick={() => handleDownloadOrder(upload.id)}
+                                className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50">
+                                <Download size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {uploads.length === 0 && (
+                          <tr><td colSpan={6} className="py-8 text-center text-slate-400">No hay ordenes medicas</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            )}
+            </>
+          )}
 
-            {/* Stats Tab */}
-            {activeTab === 'stats' && canReadSessions && (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Stats Tab */}
+          {activeTab === 'stats' && canReadSessions && (
+            <>
+              <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+                <h1 className="text-lg font-bold text-slate-800">Estadisticas</h1>
+              </div>
+              <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2">
                 <div className="rounded-xl border bg-white p-6">
                   <h3 className="mb-4 text-lg font-black text-slate-800">Resumen</h3>
                   <div className="space-y-3">
@@ -634,11 +551,10 @@ export function PortalDashboard() {
                   )}
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
-      </main>
-    </div>
+            </>
+          )}
+        </>
+      )}
+    </PortalLayout>
   );
 }

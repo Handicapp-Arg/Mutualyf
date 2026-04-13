@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Power, Edit2, Shield } from 'lucide-react';
+import { Plus, Power, Edit2, Shield } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
+import { PortalLayout } from '@/components/portal/portal-layout';
 
 interface Role {
   id: number;
@@ -101,30 +101,20 @@ export function UserManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <PortalLayout>
       {/* Header */}
-      <div className="bg-corporate shadow-lg">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link to="/portal/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-white/80 transition-colors hover:text-white">
-                <ArrowLeft size={16} />Volver
-              </Link>
-              <div className="h-5 w-px bg-white/20" />
-              <h1 className="text-lg font-bold text-white">Gestion de Usuarios</h1>
-            </div>
-            {canManage && (
-              <button onClick={openCreateModal}
-                className="flex items-center gap-2 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/25">
-                <Plus size={15} />Nuevo Usuario
-              </button>
-            )}
-          </div>
-        </div>
+      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+        <h1 className="text-lg font-bold text-slate-800">Gestion de Usuarios</h1>
+        {canManage && (
+          <button onClick={openCreateModal}
+            className="flex items-center gap-2 rounded-lg bg-corporate px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-corporate/90">
+            <Plus size={15} />Nuevo Usuario
+          </button>
+        )}
       </div>
 
       {/* Table */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="px-6 py-6">
         <div className="rounded-xl border bg-white p-6">
           {isLoading ? (
             <div className="flex h-32 items-center justify-center">
@@ -245,6 +235,6 @@ export function UserManagement() {
           </div>
         </div>
       )}
-    </div>
+    </PortalLayout>
   );
 }
