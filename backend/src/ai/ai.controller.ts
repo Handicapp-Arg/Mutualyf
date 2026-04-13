@@ -4,6 +4,7 @@ import { GeminiService } from './gemini.service';
 import { OllamaService } from './ollama.service';
 import { ChatRequestDto } from './dto/ai.dto';
 import { Public } from '../auth/decorators/public.decorator';
+import { AiConfigService } from '../ai-config/ai-config.service';
 
 @Public()
 @Controller('ai')
@@ -11,6 +12,7 @@ export class AiController {
   constructor(
     private readonly geminiService: GeminiService,
     private readonly ollamaService: OllamaService,
+    private readonly aiConfigService: AiConfigService,
   ) {}
 
   @Post('gemini')
@@ -28,7 +30,8 @@ export class AiController {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new InternalServerErrorException('Groq API key not configured');
 
-    const finalSystemPrompt = body.systemPrompt || 'Eres un asistente útil y profesional.';
+    const config = this.aiConfigService.getConfig();
+    const finalSystemPrompt = config.systemPrompt;
 
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -44,8 +47,8 @@ export class AiController {
             ...(body.history || []).map((msg) => ({ role: msg.role, content: msg.content })),
             { role: 'user', content: body.newMessage },
           ],
-          max_tokens: 800,
-          temperature: 0.7,
+          max_tokens: config.maxTokens,
+          temperature: config.temperature,
         }),
       });
       if (!res.ok) {
@@ -73,10 +76,13 @@ export class AiController {
 
   @Post('ollama')
   async ollama(@Body() body: ChatRequestDto) {
+    const config = this.aiConfigService.getConfig();
     const response = await this.ollamaService.generateResponse(
       body.history || [],
       body.newMessage,
-      body.systemPrompt,
+      config.systemPrompt,
+      config.temperature,
+      config.maxTokens,
     );
     return { response };
   }

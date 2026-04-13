@@ -134,6 +134,22 @@ model RolePermission {
 }
 
 // ==========================================
+// Configuración de IA
+// ==========================================
+
+model AiConfig {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @default("default")
+  systemPrompt  String   @map("system_prompt")
+  temperature   Float    @default(0.7)
+  maxTokens     Int      @default(800) @map("max_tokens")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  updatedBy     String?  @map("updated_by")
+
+  @@map("ai_configs")
+}
+
+// ==========================================
 // Modelos de Negocio
 // ==========================================
 

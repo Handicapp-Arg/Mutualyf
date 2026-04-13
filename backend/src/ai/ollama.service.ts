@@ -13,7 +13,9 @@ export class OllamaService {
   async generateResponse(
     history: Array<{ role: string; content: string }>,
     newMessage: string,
-    systemPrompt?: string
+    systemPrompt?: string,
+    temperature = 0.7,
+    maxTokens = 800,
   ): Promise<string> {
     const messages = [
       ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -30,8 +32,8 @@ export class OllamaService {
           messages,
           stream: false,
           options: {
-            temperature: 0.7,
-            num_predict: 800,
+            temperature,
+            num_predict: maxTokens,
           },
         }),
       });

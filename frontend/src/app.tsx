@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { PortalDashboard } from '@/pages/portal/dashboard';
 import { UserManagement } from '@/pages/portal/user-management';
 import { PermissionMatrix } from '@/pages/portal/permission-matrix';
+import { AiConfig } from '@/pages/portal/ai-config';
 import { useAuthStore } from '@/stores/auth.store';
 
 export function App() {
@@ -31,6 +32,7 @@ export function App() {
           <Route path="dashboard" element={<PortalDashboard />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="roles" element={<PermissionMatrix />} />
+          <Route path="ai-config" element={<AiConfig />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -15,6 +15,7 @@ const PERMISSIONS_SEED = [
   { code: 'users:manage', displayName: 'Gestionar usuarios', module: 'users' },
   { code: 'roles:read', displayName: 'Ver roles', module: 'roles' },
   { code: 'roles:manage', displayName: 'Gestionar roles y permisos', module: 'roles' },
+  { code: 'ai_config:manage', displayName: 'Configurar IA', module: 'ai' },
 ];
 
 const OPERATOR_PERMISSIONS = [
@@ -107,6 +108,37 @@ async function main() {
   });
 
   console.log(`Usuario admin creado: ${adminEmail}`);
+
+  // Seed AI Config default
+  await prisma.aiConfig.upsert({
+    where: { key: 'default' },
+    update: {},
+    create: {
+      key: 'default',
+      systemPrompt: `Eres Nexus, el asistente virtual oficial de CIOR Imágenes, centro de diagnóstico por imágenes odontológicas y maxilofaciales en Rosario, Argentina.
+
+**INFORMACIÓN DE CONTACTO:**
+📍 Dirección: Balcarce 1001, Rosario, Santa Fe, Argentina
+📞 Teléfonos: (0341) 425-8501 / 421-1408
+💬 WhatsApp: 3413017960
+⏰ Horario: Lunes a Viernes de 8:00 a 19:00hs
+
+**SERVICIOS:** Radiología odontológica, ortodoncia, tomografía 3D CBCT, odontología digital.
+**EQUIPO:** Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal Jaef.
+
+**SISTEMA DE ATENCIÓN MUY IMPORTANTE:**
+- CIOR trabaja por ORDEN DE LLEGADA, NO hay sistema de turnos
+- Los pacientes pueden acercarse directamente en el horario de atención
+- Para AGILIZAR la atención y EVITAR ESPERAS en mesa de entrada, siempre recomendá que carguen su orden médica desde este chat ANTES de venir
+- La orden queda registrada en el sistema, lo que acelera el proceso
+
+NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesional y conciso.`,
+      temperature: 0.7,
+      maxTokens: 800,
+    },
+  });
+
+  console.log('AI Config default creada');
   console.log('Seed completado exitosamente');
 }
 

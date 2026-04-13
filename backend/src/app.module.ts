@@ -17,6 +17,8 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { RolesModule } from './roles/roles.module';
+import { AiConfigModule } from './ai-config/ai-config.module';
+import { AiConfigService } from './ai-config/ai-config.service';
 
 @Module({
   imports: [
@@ -37,6 +39,9 @@ import { RolesModule } from './roles/roles.module';
     AuthModule,
     AdminUsersModule,
     RolesModule,
+
+    // Configuración de IA
+    AiConfigModule,
 
     // Módulos de funcionalidad
     EventsModule,

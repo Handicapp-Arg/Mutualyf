@@ -19,6 +19,9 @@ export enum PermissionCode {
   // Roles
   ROLES_READ = 'roles:read',
   ROLES_MANAGE = 'roles:manage',
+
+  // AI Config
+  AI_CONFIG_MANAGE = 'ai_config:manage',
 }
 
 export const PERMISSIONS_SEED = [
@@ -33,6 +36,7 @@ export const PERMISSIONS_SEED = [
   { code: PermissionCode.USERS_MANAGE, displayName: 'Gestionar usuarios', module: 'users' },
   { code: PermissionCode.ROLES_READ, displayName: 'Ver roles', module: 'roles' },
   { code: PermissionCode.ROLES_MANAGE, displayName: 'Gestionar roles y permisos', module: 'roles' },
+  { code: PermissionCode.AI_CONFIG_MANAGE, displayName: 'Configurar IA', module: 'ai' },
 ];
 
 export const OPERATOR_PERMISSIONS = [

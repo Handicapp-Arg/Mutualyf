@@ -13,6 +13,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/a
  */
 export class ChatAIService {
   private history: AIChatMessage[] = [];
+  private cachedSystemPrompt: string | null = null;
 
   /**
    * Enviar mensaje y obtener respuesta streaming
@@ -67,10 +68,28 @@ export class ChatAIService {
   }
 
   /**
+   * Obtener system prompt desde el backend (cached)
+   */
+  private async getSystemPrompt(): Promise<string> {
+    if (this.cachedSystemPrompt) return this.cachedSystemPrompt;
+    try {
+      const res = await fetch(`${BACKEND_URL}/ai-config/system-prompt`);
+      if (res.ok) {
+        const data = await res.json();
+        this.cachedSystemPrompt = data.systemPrompt || data.data?.systemPrompt;
+      }
+    } catch {
+      // silently fail, use empty string
+    }
+    return this.cachedSystemPrompt || '';
+  }
+
+  /**
    * Stream con Gemini API
    */
   private async *streamWithGemini(message: string): AsyncGenerator<string> {
-    const fullPrompt = `${this.getCiorSystemPrompt()}\n\nPregunta: ${message}`;
+    const systemPrompt = await this.getSystemPrompt();
+    const fullPrompt = `${systemPrompt}\n\nPregunta: ${message}`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${GEMINI_API_KEY}`,
@@ -134,42 +153,15 @@ export class ChatAIService {
   }
 
   /**
-   * System prompt compartido para los modelos de chat (Ollama / Grok)
-   */
-  private getCiorSystemPrompt(): string {
-    return `Eres Nexus, el asistente virtual oficial de CIOR Imágenes, centro de diagnóstico por imágenes odontológicas y maxilofaciales en Rosario, Argentina.
-
-**INFORMACIÓN DE CONTACTO:**
-📍 Dirección: Balcarce 1001, Rosario, Santa Fe, Argentina
-📞 Teléfonos: (0341) 425-8501 / 421-1408
-💬 WhatsApp: 3413017960
-⏰ Horario: Lunes a Viernes de 8:00 a 19:00hs
-
-**SERVICIOS:** Radiología odontológica, ortodoncia, tomografía 3D CBCT, odontología digital.
-**EQUIPO:** Od. Andrés Alés, Od. Carolina Alés, Od. Álvaro Alonso, Od. Julieta Pozzi, Dra. Virginia Fattal Jaef.
-
-**SISTEMA DE ATENCIÓN MUY IMPORTANTE:**
-- CIOR trabaja por ORDEN DE LLEGADA, NO hay sistema de turnos
-- Los pacientes pueden acercarse directamente en el horario de atención
-- Para AGILIZAR la atención y EVITAR ESPERAS en mesa de entrada, siempre recomendá que carguen su orden médica desde este chat ANTES de venir
-- La orden queda registrada en el sistema, lo que acelera el proceso
-
-NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesional y conciso.`;
-  }
-
-  /**
    * Stream con Ollama (vía backend, modelo local)
    */
   private async *streamWithOllama(message: string): AsyncGenerator<string> {
-    const systemPrompt = this.getCiorSystemPrompt();
-
     const response = await fetch(`${BACKEND_URL}/ai/ollama`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         history: this.history.slice(0, -1),
         newMessage: message,
-        systemPrompt,
       }),
     });
 
@@ -204,15 +196,12 @@ NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesiona
    * Stream con Grok API (vía backend)
    */
   private async *streamWithGrok(message: string): AsyncGenerator<string> {
-    const systemPrompt = this.getCiorSystemPrompt();
-
     const response = await fetch(`${BACKEND_URL}/ai/grok`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        history: this.history.slice(0, -1), // Sin el último mensaje (ya está en newMessage)
+        history: this.history.slice(0, -1),
         newMessage: message,
-        systemPrompt: systemPrompt,
       }),
     });
 
@@ -328,6 +317,7 @@ NO agendás turnos (no existen), NO hacés diagnósticos. Sé amable, profesiona
    */
   clearHistory() {
     this.history = [];
+    this.cachedSystemPrompt = null;
   }
 
   /**
