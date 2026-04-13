@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { GeminiService } from './gemini.service';
 import { GroqService } from './groq.service';
 import { OllamaService } from './ollama.service';
