@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import type { ChatMessage } from '@/types';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
-const SOCKET_URL = BACKEND_URL.replace(/\/api\/?$/, '');
+import { BACKEND_URL, SOCKET_URL } from '@/lib/constants';
 
 interface UseChatSocketOptions {
   sessionId: string;
   userName: string;
 }
 
+const PRESENCE_PING_MS = 20_000;
+
 /**
- * Hook que encapsula toda la lógica de Socket.io y heartbeat del chat.
- * - Heartbeat cada 10s al backend
- * - Escucha admin.takeover y admin.message
- * - Limpia sesión al desmontar o cerrar pestaña
+ * Encapsula socket.io del chat:
+ *  - Presencia por WebSocket: handshake registra online, `presence.ping` cada 20s,
+ *    disconnect marca offline automáticamente (sin HTTP heartbeat).
+ *  - Escucha `admin.takeover` y `admin.message`.
+ *  - Al cerrar la pestaña, avisa `sendBeacon` a /sessions/end como seguro adicional.
  */
 export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
   const [adminActive, setAdminActive] = useState(false);
@@ -22,7 +23,6 @@ export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
   const adminActiveRef = useRef(false);
   const userNameRef = useRef(userName);
 
-  // Mantener ref actualizado
   useEffect(() => {
     userNameRef.current = userName;
   }, [userName]);
@@ -31,23 +31,18 @@ export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
     adminActiveRef.current = adminActive;
   }, [adminActive]);
 
-  // Heartbeat: ping cada 10s + cleanup al desmontar
   useEffect(() => {
     if (!sessionId) return;
 
-    const sendHeartbeat = () => {
-      fetch(`${BACKEND_URL}/sessions/heartbeat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          userName: userNameRef.current || 'Anónimo',
-        }),
-      }).catch(() => {});
-    };
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      auth: { sessionId },
+    });
 
-    sendHeartbeat();
-    const intervalId = setInterval(sendHeartbeat, 10000);
+    const pingId = setInterval(() => {
+      socket.emit('presence.ping');
+    }, PRESENCE_PING_MS);
 
     const handleBeforeUnload = () => {
       const payload = JSON.stringify({ sessionId });
@@ -60,57 +55,43 @@ export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      fetch(`${BACKEND_URL}/sessions/end`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-        keepalive: true,
-      }).catch(() => {});
-    };
-  }, [sessionId]);
-
-  // Socket.io: escuchar admin.takeover y admin.message
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-    });
-
     socket.on('admin.takeover', (data: { sessionId: string; active: boolean }) => {
-      if (data.sessionId === sessionId) {
-        setAdminActive(data.active);
-        adminActiveRef.current = data.active;
+      if (data.sessionId !== sessionId) return;
+      setAdminActive(data.active);
+      adminActiveRef.current = data.active;
 
-        const statusMessage: ChatMessage = {
+      setAdminMessages((prev) => [
+        ...prev,
+        {
           id: Date.now().toString(),
           role: 'assistant',
           content: data.active
             ? 'Un agente humano se ha conectado a la conversación. A partir de ahora te asistirá directamente.'
             : 'El agente humano ha dejado la conversación. Soy Nexus nuevamente, tu asistente virtual. ¿En qué puedo ayudarte?',
           timestamp: new Date(),
-        };
-        setAdminMessages((prev) => [...prev, statusMessage]);
-      }
+        },
+      ]);
     });
 
-    socket.on('admin.message', (data: { sessionId: string; message: { role: string; content: string; timestamp: string } }) => {
-      if (data.sessionId === sessionId) {
-        const msg: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: data.message.content,
-          timestamp: new Date(data.message.timestamp),
-        };
-        setAdminMessages((prev) => [...prev, msg]);
-      }
-    });
+    socket.on(
+      'admin.message',
+      (data: { sessionId: string; message: { role: string; content: string; timestamp: string } }) => {
+        if (data.sessionId !== sessionId) return;
+        setAdminMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: data.message.content,
+            timestamp: new Date(data.message.timestamp),
+          },
+        ]);
+      },
+    );
 
     return () => {
+      clearInterval(pingId);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       socket.disconnect();
     };
   }, [sessionId]);

@@ -57,7 +57,7 @@ model UserSession {
   id              Int           @id @default(autoincrement())
   sessionId       String        @unique @map("session_id")
   userName        String?       @map("user_name")
-  lastSeen        String        @map("last_seen")
+  lastSeen        DateTime      @map("last_seen")
   adminControlled Boolean       @default(false) @map("admin_controlled")
   createdAt       DateTime      @default(now()) @map("created_at")
 
@@ -66,6 +66,7 @@ model UserSession {
   userIdentity    UserIdentity? @relation(fields: [userIdentityId], references: [id])
 
   @@index([userIdentityId])
+  @@index([lastSeen])
   @@map("user_sessions")
 }
 

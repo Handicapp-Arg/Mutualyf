@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsISO8601, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsDate, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateSessionDto {
   @IsString({ message: 'El sessionId debe ser una cadena de texto' })
@@ -9,9 +10,9 @@ export class CreateSessionDto {
   @IsString({ message: 'El nombre de usuario debe ser una cadena de texto' })
   userName?: string;
 
-  @IsString({ message: 'El lastSeen debe ser una cadena de texto' })
-  @IsISO8601({}, { message: 'El lastSeen debe estar en formato ISO 8601' })
-  lastSeen: string;
+  @Type(() => Date)
+  @IsDate({ message: 'El lastSeen debe ser una fecha válida' })
+  lastSeen: Date;
 
   @IsOptional()
   @IsString({ message: 'El fingerprint debe ser una cadena de texto' })
@@ -26,6 +27,6 @@ export class SessionResponseDto {
   id: number;
   sessionId: string;
   userName: string;
-  lastSeen: string;
+  lastSeen: Date;
   userIdentityId?: number;
 }

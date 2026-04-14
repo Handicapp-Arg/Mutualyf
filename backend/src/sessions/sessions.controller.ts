@@ -33,6 +33,7 @@ export class SessionsController {
     return this.sessionsService.findById(sessionId);
   }
 
+  /** @deprecated Preferir heartbeat por WebSocket (PresenceGateway). */
   @Public()
   @Post('heartbeat')
   @HttpCode(HttpStatus.OK)
