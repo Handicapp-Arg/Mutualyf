@@ -127,10 +127,10 @@ export class ChatAIService {
    * Respuesta de fallback cuando no hay API
    */
   private async *fallbackResponse(message: string): AsyncGenerator<string> {
-    const RESP_HORARIO = '**Nuestros horarios de atención son:**\n\nLunes a Viernes: 8:00 a 18:00hs\n\nPara más información, contactanos directamente.';
-    const RESP_SERVICIOS = '**Nuestros servicios:**\n\nContamos con diversos servicios para nuestros asociados. Contactanos para más información.';
-    const RESP_TURNO = '**Atención:**\n\nPodés acercarte directamente en nuestro horario de atención o contactarnos para más información.';
-    const RESP_UBICACION = '**Mutual Luz y Fuerza**\n\nContactanos para conocer nuestra ubicación y horarios de atención.';
+    const RESP_HORARIO = '**Horarios de atención de MutuaLyF:**\n\n📞 Teléfono: Lunes a viernes de 07:30 a 19:30 hs\n💻 Online: Disponible las 24 horas en la plataforma MiMutuaLyF\n🏢 Presencial: En sedes administrativas, en horario laboral\n\n📞 0800 777 4413';
+    const RESP_SERVICIOS = '**Servicios de MutuaLyF:**\n\n🏥 Consultas médicas generales y especialidades\n🦷 Odontología\n👁️ Oftalmología\n❤️ Cardiología\n🧠 Salud mental\n🍎 Nutrición\n👶 Pediatría\n👩‍⚕️ Ginecología\n💊 Cobertura de medicamentos\n🏨 Internaciones\n\nLibre elección dentro del padrón de prestadores. Gestioná todo desde la plataforma MiMutuaLyF.';
+    const RESP_TURNO = '**Atención en MutuaLyF:**\n\nPodés elegir profesional dentro del padrón de prestadores. Las órdenes médicas y recetas son digitales y se gestionan a través de la plataforma MiMutuaLyF o llamando al 0800 777 4413.';
+    const RESP_UBICACION = '**MutuaLyF - Mutual Provincial de Luz y Fuerza de Santa Fe**\n\n📞 Teléfono: 0800 777 4413\n💬 WhatsApp: Canal habilitado para mensajería\n🌐 Cobertura: Provincia de Santa Fe, con red de prestadores en todo el país\n🏢 Atención presencial en sedes administrativas';
 
     const lower = message.toLowerCase();
     let response: string;
