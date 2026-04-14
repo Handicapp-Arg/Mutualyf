@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
+import { MessageCircle } from 'lucide-react';
 
-import { BotFace } from './bot-face';
 import { BotGreeting } from './bot-greeting';
 import { ChatInterface } from './chat-interface';
 
 /**
- * Nexus Bot 2.0 - Asistente Virtual CIOR
- * Bot flotante con inteligencia artificial para gestión de órdenes
+ * Asistente Virtual - Mutual Luz y Fuerza
+ * Bot flotante moderno y minimalista
  */
 
 export function NexusBot() {
@@ -15,12 +14,11 @@ export function NexusBot() {
   const [showGreeting, setShowGreeting] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
 
-  // Mensajes intercalados para el globo
   const greetingMessages = [
-    '¡Hola! Soy Nexus. Carga tu orden aquí para agilizar tu atención y evitar esperas.',
+    '¡Hola! Soy tu asistente virtual. ¿En qué puedo ayudarte?',
     'Estoy aquí para ayudarte, ¿qué necesitas?',
     '¿Tienes alguna consulta? ¡Estoy para ayudarte!',
-    '¿Necesitás ayuda con algo específico?',
+    '¿Necesitas ayuda con algo?',
     'No dudes en preguntarme lo que quieras.',
   ];
 
@@ -29,13 +27,10 @@ export function NexusBot() {
     let hideTimeout: NodeJS.Timeout;
     let cycleTimeout: NodeJS.Timeout;
 
-    // Inicia el ciclo después de 2 segundos
     showTimeout = setTimeout(() => {
       setShowGreeting(true);
-      // Oculta el globo después de 15s
       hideTimeout = setTimeout(() => {
         setShowGreeting(false);
-        // Cambia el mensaje y vuelve a mostrar después de 15s
         cycleTimeout = setTimeout(() => {
           setGreetingIndex((prev) => (prev + 1) % greetingMessages.length);
           setShowGreeting(true);
@@ -57,50 +52,38 @@ export function NexusBot() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4 sm:bottom-12 sm:right-12">
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 sm:bottom-8 sm:right-8">
         {/* Burbuja de Saludo */}
         <BotGreeting
           show={showGreeting && !isBotActive}
           message={greetingMessages[greetingIndex] ?? greetingMessages[0]!}
         />
 
-        {/* Botón Flotante y overlays: solo visible cuando el bot está cerrado */}
+        {/* Boton flotante moderno */}
         {!isBotActive && (
-          <>
-            <div className="group relative">
-              <button
-                onClick={handleToggle}
-                className={cn(
-                  'relative flex h-24 w-24 items-center justify-center rounded-full bg-transparent sm:h-40 sm:w-40',
-                  'transition-all duration-300 hover:scale-105 active:scale-95'
-                )}
-                aria-label={'Abrir Nexus Bot'}
-              >
-                {/* El BotFace solo visible cuando el bot está cerrado */}
-                <div className="absolute -inset-6 transition-transform duration-300 group-hover:-translate-y-1">
-                  <BotFace />
-                </div>
-              </button>
-            </div>
-          </>
+          <button
+            onClick={handleToggle}
+            className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-corporate text-white shadow-lg shadow-corporate/30 transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-corporate/40 active:scale-95"
+            aria-label="Abrir asistente virtual"
+          >
+            <span className="absolute inset-0 animate-ping rounded-full bg-corporate/30" />
+            <MessageCircle size={24} className="relative z-10" />
+          </button>
         )}
       </div>
-      {/* Chat fijo - pantalla completa en móvil, flotante en desktop */}
+
+      {/* Chat */}
       {isBotActive && <FixedChat onClose={handleToggle} />}
     </>
   );
 }
 
-// Componente de chat fijo (pantalla completa en móvil, flotante en desktop)
 function FixedChat({ onClose }: { onClose: () => void }) {
   return (
     <>
-      {/* Overlay en móvil */}
       <div className="fixed inset-0 z-[200] bg-black/50 md:hidden" onClick={onClose} />
-
-      {/* Chat */}
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-0 md:inset-auto md:bottom-4 md:right-4 md:p-0">
-  <div className="flex h-full w-full flex-col overflow-hidden bg-white md:h-[800px] md:w-[800px] md:rounded-3xl md:border md:border-slate-200 md:shadow-2xl">
+        <div className="flex h-full w-full flex-col overflow-hidden bg-white md:h-[800px] md:w-[800px] md:rounded-3xl md:border md:border-slate-200 md:shadow-2xl">
           <ChatInterface onClose={onClose} />
         </div>
       </div>

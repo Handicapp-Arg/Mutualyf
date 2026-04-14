@@ -31,7 +31,7 @@
 
   /* Texto con gradiente corporativo */
   .gradient-text {
-    background: linear-gradient(135deg, #365583 0%, #5b8ab8 50%, #22d3ee 100%);
+    background: linear-gradient(135deg, #9C2A3E 0%, #c44d64 50%, #e87a92 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -48,7 +48,7 @@
     position: absolute;
     inset: -1px;
     border-radius: 1.6rem;
-    background: linear-gradient(135deg, #365583, #22d3ee, #365583);
+    background: linear-gradient(135deg, #9C2A3E, #c44d64, #9C2A3E);
     background-size: 200% 200%;
     animation: gradient-shift 4s ease infinite;
     opacity: 0;
@@ -61,10 +61,10 @@
 
   /* Glow sutil en elementos importantes */
   .glow-corporate {
-    box-shadow: 0 0 30px -5px rgba(54, 85, 131, 0.3);
+    box-shadow: 0 0 30px -5px rgba(156, 42, 62, 0.3);
   }
   .glow-corporate-lg {
-    box-shadow: 0 0 60px -10px rgba(54, 85, 131, 0.4);
+    box-shadow: 0 0 60px -10px rgba(156, 42, 62, 0.4);
   }
 
   /* Shimmer para skeleton / elementos destacados */

@@ -2,7 +2,7 @@ export function TypingIndicator() {
   return (
     <div className="flex justify-start">
       <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-md">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-200/40">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-corporate/10">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -17,12 +17,12 @@ export function TypingIndicator() {
         </div>
         <div className="flex items-center gap-1">
           <span className="text-sm font-medium text-slate-600">
-            Nexus está escribiendo
+            Escribiendo
           </span>
           <span className="flex gap-1">
-            <span className="text-cyan-400">.</span>
-            <span className="text-cyan-400">.</span>
-            <span className="text-cyan-400">.</span>
+            <span className="text-corporate">.</span>
+            <span className="text-corporate">.</span>
+            <span className="text-corporate">.</span>
           </span>
         </div>
       </div>

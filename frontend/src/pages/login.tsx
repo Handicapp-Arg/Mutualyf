@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
 
 export function LoginPage() {
@@ -25,18 +26,39 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950">
-      <div className="w-full max-w-md px-6">
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 shadow-xl">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-white">CIOR</h1>
-            <p className="mt-1 text-sm text-gray-400">Panel de Administración</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white">
+      {/* Fondo decorativo */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-corporate/[0.04] blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-corporate/[0.04] blur-3xl" />
+        <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-corporate/60 via-corporate to-corporate/60" />
+      </div>
+
+      {/* Volver */}
+      <Link
+        to="/"
+        className="absolute left-6 top-6 z-10 flex items-center gap-2 text-sm font-medium text-slate-400 transition-colors hover:text-corporate"
+      >
+        <ArrowLeft size={16} />
+        Volver
+      </Link>
+
+      <div className="relative z-10 w-full max-w-md px-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-10">
+          {/* Header con logo */}
+          <div className="mb-8 flex flex-col items-center text-center">
+            <img
+              src="/images/logo/logo-mutualyf.png"
+              alt="Mutual Luz y Fuerza"
+              className="mb-5 h-16 w-auto"
+            />
+            <h1 className="text-xl font-bold text-slate-800">Panel de Administracion</h1>
+            <p className="mt-1 text-sm text-slate-400">Ingresa tus credenciales para continuar</p>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-4 rounded-lg border border-red-800 bg-red-900/30 px-4 py-3 text-sm text-red-300">
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
               {error}
             </div>
           )}
@@ -44,7 +66,7 @@ export function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-600">
                 Email
               </label>
               <input
@@ -54,14 +76,14 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-white placeholder-gray-500 transition-colors focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                placeholder="admin@cior.com"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 placeholder-slate-400 transition-all focus:border-corporate focus:bg-white focus:outline-none focus:ring-2 focus:ring-corporate/20"
+                placeholder="tu@email.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
-                Contraseña
+              <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-600">
+                Contrasena
               </label>
               <input
                 id="password"
@@ -70,7 +92,7 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-white placeholder-gray-500 transition-colors focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-800 placeholder-slate-400 transition-all focus:border-corporate focus:bg-white focus:outline-none focus:ring-2 focus:ring-corporate/20"
                 placeholder="••••••••"
               />
             </div>
@@ -78,12 +100,17 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-lg bg-cyan-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl bg-corporate px-4 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-lg shadow-corporate/25 transition-all hover:shadow-xl hover:shadow-corporate/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
         </div>
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-xs font-medium text-slate-300">
+          &copy; {new Date().getFullYear()} Mutual Luz y Fuerza
+        </p>
       </div>
     </div>
   );

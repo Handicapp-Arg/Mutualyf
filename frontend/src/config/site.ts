@@ -1,45 +1,44 @@
 /**
- * Site Configuration - CIOR
+ * Site Configuration - Mutual Luz y Fuerza
  */
 
 export const siteConfig = {
-  name: 'CIOR',
-  fullName: 'Centro de Imágenes y Odontología Radiológica',
-  description:
-    'Centro de excelencia en imágenes odontológicas con tecnología de escaneo volumétrico 3D.',
-  url: 'https://www.ciorimagenes.com.ar',
-  github: 'https://github.com/Ciorimagen-ARG/app',
+  name: 'Mutual Luz y Fuerza',
+  fullName: 'Mutual Luz y Fuerza',
+  description: 'Asistente Virtual - Demo',
+  url: '',
+  github: '',
   contact: {
-    phone: '0341 425-8501',
-    phoneSecondary: '0341 421-1408',
-    email: 'contacto@ciorimagenes.com.ar',
-    whatsapp: '+5493413017960',
-    whatsappDisplay: '341 301-7960',
+    phone: '',
+    phoneSecondary: '',
+    email: '',
+    whatsapp: '',
+    whatsappDisplay: '',
   },
   schedule: {
     weekdays: 'Lunes a Viernes',
-    hours: '08:00 - 19:00 h',
+    hours: '08:00 - 18:00 h',
     saturday: 'Cerrado',
     sunday: 'Cerrado',
   },
   locations: [
     {
       id: 1,
-      name: 'CIOR Rosario',
-      address: 'Balcarce 1001',
-      city: 'Rosario',
-      province: 'Santa Fe',
-      postalCode: '2000',
-      fullAddress: 'Balcarce 1001, 2000 Rosario',
-      phone: '0341 425-8501',
-      phoneSecondary: '0341 421-1408',
-      coordinates: { lat: -32.9442, lng: -60.6505 },
+      name: 'Mutual Luz y Fuerza',
+      address: '',
+      city: '',
+      province: '',
+      postalCode: '',
+      fullAddress: '',
+      phone: '',
+      phoneSecondary: '',
+      coordinates: { lat: 0, lng: 0 },
     },
   ],
   socialMedia: {
-    facebook: 'https://facebook.com/cior',
-    instagram: 'https://instagram.com/cior',
-    linkedin: 'https://linkedin.com/company/cior',
+    facebook: '',
+    instagram: '',
+    linkedin: '',
   },
 } as const;
 

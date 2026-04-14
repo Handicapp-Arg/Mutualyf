@@ -32,7 +32,7 @@ export function ChatInput({
           className="hidden"
         />
 
-        <div className="relative flex-1 rounded-[24px] bg-white shadow-xl ring-1 ring-black/5 transition-shadow focus-within:ring-2 focus-within:ring-cyan-400/50">
+        <div className="relative flex-1 rounded-[24px] bg-white shadow-xl ring-1 ring-black/5 transition-shadow focus-within:ring-2 focus-within:ring-corporate/40">
           <textarea
             value={inputText}
             onChange={(e) => {
@@ -46,7 +46,7 @@ export function ChatInput({
                 onSubmit(e as unknown as FormEvent);
               }
             }}
-            placeholder="Escribí tu consulta..."
+            placeholder="Escribi tu consulta..."
             className="flex max-h-[120px] min-h-[50px] w-full resize-none bg-transparent px-5 py-3.5 text-base text-slate-700 placeholder:text-slate-400 focus:outline-none"
             disabled={isLoading}
             rows={1}
@@ -56,7 +56,7 @@ export function ChatInput({
         <button
           type="submit"
           disabled={isLoading || !inputText.trim()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-corporate text-white shadow-lg shadow-corporate/30 transition-all hover:scale-105 hover:bg-corporate/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading ? (
             <Loader2 size={20} className="animate-spin" />

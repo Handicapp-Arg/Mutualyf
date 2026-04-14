@@ -27,7 +27,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
         <div
           className={`px-5 py-3.5 shadow-sm ${
             message.role === 'user'
-              ? 'rounded-[20px] rounded-tr-sm bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
+              ? 'rounded-[20px] rounded-tr-sm bg-gradient-to-br from-corporate to-corporate/80 text-white'
               : 'rounded-[20px] rounded-tl-sm bg-white text-slate-700'
           }`}
         >
@@ -47,9 +47,9 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                 key={option.value}
                 onClick={() => onOptionClick(option.value, option.label)}
                 disabled={isLoading}
-                className="group flex w-full items-center justify-between rounded-2xl border border-cyan-100 bg-white px-5 py-3 text-left shadow-sm transition-all hover:border-cyan-300 hover:bg-cyan-50/50 hover:shadow-md active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex w-full items-center justify-between rounded-2xl border border-corporate/10 bg-white px-5 py-3 text-left shadow-sm transition-all hover:border-corporate/30 hover:bg-corporate/5 hover:shadow-md active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="text-sm font-medium text-slate-600 group-hover:text-cyan-700">
+                <span className="text-sm font-medium text-slate-600 group-hover:text-corporate">
                   {option.label}
                 </span>
               </button>
