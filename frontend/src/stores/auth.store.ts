@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
-const TOKEN_KEY = 'cior_auth_token';
+const TOKEN_KEY = 'mutualyf_auth_token';
 
 interface UserRole {
   id: number;

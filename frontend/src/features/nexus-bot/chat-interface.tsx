@@ -28,7 +28,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     { label: 'Servicios', value: 'servicios', icon: '🔬' },
     { label: 'Ubicación y horarios', value: 'ubicacion_horarios', icon: '📍' },
     { label: 'Contacto', value: 'contacto', icon: '📞' },
-    { label: 'Sobre CIOR', value: 'sobre_cior', icon: 'ℹ️' },
+    { label: 'Sobre nosotros', value: 'sobre_nosotros', icon: 'ℹ️' },
   ];
   // ...existing code...
   // Estado para autocompletar el estudio en la orden médica
@@ -141,7 +141,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
         // Mensaje de bienvenida actualizado
         const welcomeMessage =
-  '👋 ¡Bienvenido a CIOR Imágenes! Soy Nexus, tu asistente virtual.\n\nEstoy acá para acompañarte y darte información clara y rápida sobre nuestros servicios, estudios, horarios y ubicación. Usá los botones para navegar o escribime tu consulta: estoy listo para ayudarte y hacer tu experiencia simple y confiable.\n\nTu salud y tu tiempo son importantes. Contá conmigo para acercarte a la atención que necesitás.';
+  '👋 ¡Bienvenido a Mutual Luz y Fuerza! Soy tu asistente virtual.\n\nEstoy acá para acompañarte y darte información clara y rápida. Usá los botones para navegar o escribime tu consulta.';
 
     // Agregar el mensaje con opciones simplificadas
     setMessages([
@@ -154,7 +154,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
           { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
           { label: '📞 Información de contacto', value: 'contacto' },
-          { label: 'ℹ️ Conocé sobre CIOR', value: 'sobre_cior' },
+          { label: 'ℹ️ Sobre nosotros', value: 'sobre_nosotros' },
         ],
       },
     ]);
@@ -286,7 +286,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     // Si selecciona inicio, mostrar menú principal
     if (optionValue === 'inicio') {
       const welcomeMessage =
-        '👋 ¡Hola de nuevo! Soy Nexus, tu asistente virtual.\n\n¿En qué puedo ayudarte?';
+        '👋 ¡Hola de nuevo! Soy tu asistente virtual.\n\n¿En qué puedo ayudarte?';
 
       setMessages((prev) => [
         ...prev,
@@ -442,7 +442,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `${greeting} Soy Nexus, tu asistente virtual de CIOR Imágenes 👋\n\n¿En qué puedo ayudarte hoy? Seleccioná una opción para comenzar:`,
+          content: `${greeting} Soy tu asistente virtual de Mutual Luz y Fuerza 👋\n\n¿En qué puedo ayudarte hoy? Seleccioná una opción para comenzar:`,
           timestamp: new Date(),
           options: [
             { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
@@ -702,7 +702,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           {
             id: Date.now().toString(),
             role: 'assistant',
-            content: `✅ ¡Orden médica validada exitosamente! \n\nNúmero de orden: #${result.orderId}\n\nHemos registrado tu solicitud para: ${orderData.requestedStudies.join(', ')}.\n\n🏥 Podés acercarte directamente a CIOR en nuestro horario de atención. Ya tenemos tu orden cargada, lo que agilizará tu atención en mesa de entrada.\n\n📍 Balcarce 1001, Rosario\n⏰ Lunes a Viernes: 8:00 a 19:00\n\n¿Necesitas algo más?`,
+            content: `✅ ¡Orden validada exitosamente! \n\nNúmero de orden: #${result.orderId}\n\nHemos registrado tu solicitud para: ${orderData.requestedStudies.join(', ')}.\n\n¿Necesitas algo más?`,
             timestamp: new Date(),
           },
         ]);

@@ -57,7 +57,7 @@ export function PortalLayout({ children, liveSessions = 0 }: PortalLayoutProps) 
         {/* Logo */}
         <div className="px-5 py-5">
           <Link to="/" className="text-xl font-black tracking-wide text-white transition-opacity hover:opacity-80">
-            CIOR
+            MLyF
           </Link>
           <p className="mt-0.5 text-[10px] font-medium text-white/40">Panel de gestion</p>
         </div>

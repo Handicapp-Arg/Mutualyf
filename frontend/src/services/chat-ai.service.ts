@@ -127,10 +127,10 @@ export class ChatAIService {
    * Respuesta de fallback cuando no hay API
    */
   private async *fallbackResponse(message: string): AsyncGenerator<string> {
-    const RESP_HORARIO = '**Nuestros horarios de atención son:**\n\nLunes a Viernes: 8:00 a 19:00hs\n\nTrabajamos por orden de llegada, no es necesario sacar turno previo. Para agilizar tu atención, te recomendamos subir tu orden médica desde este chat antes de venir.';
-    const RESP_SERVICIOS = '**Servicios de CIOR:**\n\n- Tomografía CBCT 3D\n- Radiografías panorámicas\n- Telerradiografías\n- Escaneo intraoral digital\n- Modelos 3D\n- Planificación de implantes\n\nAtención por orden de llegada. Agilizá tu atención cargando tu orden médica desde este chat.';
-    const RESP_TURNO = '**Atención por orden de llegada:**\n\nEn CIOR trabajamos sin sistema de turnos. Podés acercarte directamente en nuestro horario de atención:\n\nLunes a Viernes: 8:00 a 19:00hs\nDirección: Balcarce 1001, Rosario\n\nPara agilizar tu atención, te recomendamos cargar tu orden médica desde este chat antes de venir.\n\nConsultas: (0341) 425-8501 / 421-1408 | WhatsApp: 3413017960';
-    const RESP_UBICACION = '**Ubicación de CIOR:**\n\nDirección: Balcarce 1001, Rosario, Santa Fe\nTeléfono: (0341) 425-8501 / 421-1408\nWhatsApp: 3413017960\nHorario: Lunes a Viernes de 8:00 a 19:00\n\nAtención por orden de llegada (sin turnos).';
+    const RESP_HORARIO = '**Nuestros horarios de atención son:**\n\nLunes a Viernes: 8:00 a 18:00hs\n\nPara más información, contactanos directamente.';
+    const RESP_SERVICIOS = '**Nuestros servicios:**\n\nContamos con diversos servicios para nuestros asociados. Contactanos para más información.';
+    const RESP_TURNO = '**Atención:**\n\nPodés acercarte directamente en nuestro horario de atención o contactarnos para más información.';
+    const RESP_UBICACION = '**Mutual Luz y Fuerza**\n\nContactanos para conocer nuestra ubicación y horarios de atención.';
 
     const lower = message.toLowerCase();
     let response: string;
