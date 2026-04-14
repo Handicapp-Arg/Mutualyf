@@ -1,11 +1,13 @@
 // Mapeo de valores de servicio a nombres legibles
 const SERVICIO_LABELS: Record<string, string> = {
-  cbct: 'CBCT (Tomografía Dental)',
-  radiografias: 'Radiografías Dentales',
-  panoramicas: 'Panorámicas',
-  telerradiografias: 'Telerradiografías',
-  atm: 'ATM (Articulación Temporomandibular)',
-  cefalometrias: 'Cefalometrías',
+  clinica: 'Clinica medica',
+  pediatria: 'Pediatria',
+  ginecologia: 'Ginecologia',
+  cardiologia: 'Cardiologia',
+  salud_mental: 'Salud mental',
+  nutricion: 'Nutricion',
+  odontologia: 'Odontologia',
+  oftalmologia: 'Oftalmologia',
 };
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatAIService } from '@/services/chat-ai.service';
@@ -25,15 +27,14 @@ interface ChatInterfaceProps {
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
   // Opciones principales siempre visibles arriba del chat
   const mainOptions = [
-    { label: 'Servicios', value: 'servicios', icon: '🔬' },
-    { label: 'Ubicación y horarios', value: 'ubicacion_horarios', icon: '📍' },
-    { label: 'Contacto', value: 'contacto', icon: '📞' },
-    { label: 'Sobre nosotros', value: 'sobre_nosotros', icon: 'ℹ️' },
+    { label: 'Servicios', value: 'servicios', icon: '🏥' },
+    { label: 'Horarios y contacto', value: 'horarios_contacto', icon: '📍' },
+    { label: 'Plataforma digital', value: 'plataforma', icon: '📲' },
+    { label: 'Sobre MutuaLyF', value: 'sobre_nosotros', icon: 'ℹ️' },
   ];
-  // ...existing code...
-  // Estado para autocompletar el estudio en la orden médica
+
+  // Estado para autocompletar el estudio en la orden medica
   const [selectedEstudio, setSelectedEstudio] = useState<string>('');
-  // Declaración única de todos los hooks y refs
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +59,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     userName,
   });
 
-  // Integrar mensajes del admin en el chat
   useEffect(() => {
     if (adminMessages.length > 0) {
       setMessages((prev) => [...prev, ...adminMessages]);
@@ -66,7 +66,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
   }, [adminMessages, clearAdminMessages]);
 
-  // Mantener refs actualizados
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -75,23 +74,14 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     userNameRef.current = userName;
   }, [userName]);
 
-  // Inicializar solo una vez
   useEffect(() => {
     if (isInitialized.current) return;
     isInitialized.current = true;
-
-    // Cargar historial del backend
     loadConversationHistory();
-
-    // NO guardar en el cleanup del useEffect, solo al cerrar explícitamente
   }, []);
 
-  // Auto-guardado en vivo: cada vez que cambia el array de mensajes,
-  // se reprograma un save 800ms después. El debounce evita guardar en cada
-  // chunk durante el streaming — solo guarda cuando el estado se asienta.
   useEffect(() => {
     if (messages.length === 0) return;
-
     const timeoutId = setTimeout(() => {
       const messagesToSave = messages.map(({ role, content, timestamp }) => ({
         role,
@@ -99,12 +89,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         timestamp,
       }));
       backendService.current
-        .saveConversation(messagesToSave, userNameRef.current || 'Anónimo')
+        .saveConversation(messagesToSave, userNameRef.current || 'Anonimo')
         .catch((err) => {
-          console.warn('⚠️ Error en auto-save:', err);
+          console.warn('Error en auto-save:', err);
         });
     }, 800);
-
     return () => clearTimeout(timeoutId);
   }, [messages]);
 
@@ -121,29 +110,21 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           }))
         );
       } else {
-        // Mostrar efecto de "escribiendo" antes del saludo inicial
         showTypingEffect();
       }
     } catch (error) {
-      // Si falla la carga, mostrar saludo inicial con efecto
       showTypingEffect();
     }
   };
 
   const showTypingEffect = async () => {
-    // Activar indicador de carga
     setIsLoading(true);
-
-    // Simular tiempo de "pensamiento" del bot (800ms)
     await new Promise((resolve) => setTimeout(resolve, 800));
-
     setIsLoading(false);
 
-        // Mensaje de bienvenida actualizado
-        const welcomeMessage =
-  '👋 ¡Bienvenido a Mutual Luz y Fuerza! Soy tu asistente virtual.\n\nEstoy acá para acompañarte y darte información clara y rápida. Usá los botones para navegar o escribime tu consulta.';
+    const welcomeMessage =
+      '👋 ¡Bienvenido a MutuaLyF! Soy tu asistente virtual.\n\nEstoy aca para ayudarte con informacion sobre servicios, horarios, tramites y mas. Usa los botones o escribime tu consulta.';
 
-    // Agregar el mensaje con opciones simplificadas
     setMessages([
       {
         id: '1',
@@ -151,10 +132,10 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         content: welcomeMessage,
         timestamp: new Date(),
         options: [
-          { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
-          { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
-          { label: '📞 Información de contacto', value: 'contacto' },
-          { label: 'ℹ️ Sobre nosotros', value: 'sobre_nosotros' },
+          { label: '🏥 Nuestros servicios', value: 'servicios' },
+          { label: '📍 Horarios y contacto', value: 'horarios_contacto' },
+          { label: '📲 Plataforma MiMutuaLyF', value: 'plataforma' },
+          { label: 'ℹ️ Sobre MutuaLyF', value: 'sobre_nosotros' },
         ],
       },
     ]);
@@ -171,13 +152,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   }, []);
 
   const handleOptionClick = (optionValue: string, optionLabel: string) => {
-    // Si el valor es subir_orden|servicio, extraer el nombre del estudio
     let estudio = '';
     if (optionValue.startsWith('subir_orden|')) {
       estudio = optionValue.split('|')[1] || '';
       optionValue = 'subir_orden';
     }
-    // Agregar mensaje del usuario con la opción seleccionada
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -187,7 +167,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     setMessages((prev) => [...prev, userMessage]);
 
-    // Si selecciona "Conocer servicios", mostrar loader 5s y luego los botones de servicios
+    // SERVICIOS
     if (optionValue === 'servicios') {
       setIsLoading(true);
       setTimeout(() => {
@@ -198,24 +178,26 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
             content:
-              '🔬 Estos son nuestros servicios de diagnóstico por imágenes:\n\nSeleccioná el que te interese para más información:',
+              '🏥 Estos son los servicios de salud de MutuaLyF:\n\nSelecciona el que te interese para mas informacion:',
             timestamp: new Date(),
             options: [
-              { label: '🦷 CBCT (Tomografía Dental)', value: 'cbct' },
-              { label: '📷 Radiografías Dentales', value: 'radiografias' },
-              { label: '🔍 Panorámicas', value: 'panoramicas' },
-              { label: '📸 Telerradiografías', value: 'telerradiografias' },
-              { label: '💀 Estudios ATM', value: 'atm' },
-              { label: '🎯 Cefalometrías', value: 'cefalometrias' },
+              { label: '🩺 Clinica medica', value: 'clinica' },
+              { label: '👶 Pediatria', value: 'pediatria' },
+              { label: '👩‍⚕️ Ginecologia', value: 'ginecologia' },
+              { label: '❤️ Cardiologia', value: 'cardiologia' },
+              { label: '🧠 Salud mental', value: 'salud_mental' },
+              { label: '🍎 Nutricion', value: 'nutricion' },
+              { label: '🦷 Odontologia', value: 'odontologia' },
+              { label: '👁️ Oftalmologia', value: 'oftalmologia' },
             ],
           },
         ]);
-      }, 5000);
+      }, 2000);
       return;
     }
 
-    // Si selecciona "Ubicación y horarios", mostrar loader 5s y luego la respuesta correcta
-    if (optionValue === 'ubicacion_horarios') {
+    // HORARIOS Y CONTACTO
+    if (optionValue === 'horarios_contacto') {
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
@@ -225,25 +207,99 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
             content:
-              'Nuestra ubicación es:\n📍 Balcarce 1001, Rosario, Santa Fe, Argentina\n\nNuestros horarios de atención son:\n⏰ Lunes a Viernes de 8:00 a 19:00hs\n\nNo trabajamos con turnos, la atención es por orden de llegada. Podés acercarte directamente en ese horario. ',
+              '📍 Horarios y contacto de MutuaLyF:\n\n📞 Telefono: 0800 777 4413\n💬 WhatsApp: Canal habilitado para mensajeria\n\n⏰ Atencion telefonica:\nLunes a viernes de 07:30 a 19:30 hs\n\n💻 Atencion online:\nDisponible las 24 horas en la plataforma MiMutuaLyF\n\n🏢 Atencion presencial:\nEn sedes administrativas, en horario laboral',
             timestamp: new Date(),
+            options: [
+              { label: '📲 Conocer la plataforma MiMutuaLyF', value: 'plataforma' },
+              { label: '🏠 Volver al inicio', value: 'inicio' },
+            ],
           },
         ]);
-      }, 5000);
+      }, 2000);
       return;
     }
 
-    // Si selecciona un servicio, mostrar solo la versión breve y el mensaje para subir orden
+    // PLATAFORMA DIGITAL
+    if (optionValue === 'plataforma') {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              '📲 Plataforma digital MiMutuaLyF:\n\nSistema de autogestion para afiliados accesible desde la web.\n\n✅ Solicitud de ordenes medicas\n✅ Gestion de autorizaciones\n✅ Seguimiento de tramites\n✅ Consulta de estado de solicitudes\n✅ Pago de coseguros\n✅ Acceso a informacion personal\n\n💡 Recorda que las recetas y ordenes medicas son exclusivamente digitales y se gestionan a traves de la plataforma.',
+            timestamp: new Date(),
+            options: [
+              { label: '💳 Medios de pago', value: 'pagos' },
+              { label: '🏠 Volver al inicio', value: 'inicio' },
+            ],
+          },
+        ]);
+      }, 2000);
+      return;
+    }
+
+    // SOBRE NOSOTROS
+    if (optionValue === 'sobre_nosotros') {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              'ℹ️ Sobre MutuaLyF:\n\nMutual Provincial de Luz y Fuerza de Santa Fe, creada en 1999.\n\nSomos una entidad solidaria orientada a brindar servicios de salud a afiliados del sindicato de Luz y Fuerza y sus grupos familiares.\n\n🏥 Cobertura medica integral\n👨‍👩‍👧‍👦 Para afiliados y grupo familiar\n📍 Cobertura en toda la provincia de Santa Fe\n🌐 Red de prestadores en todo el pais mediante derivaciones\n💊 Cobertura de medicamentos segun plan\n🏨 Internaciones medicas y quirurgicas',
+            timestamp: new Date(),
+            options: [
+              { label: '🏥 Ver servicios', value: 'servicios' },
+              { label: '🏠 Volver al inicio', value: 'inicio' },
+            ],
+          },
+        ]);
+      }, 2000);
+      return;
+    }
+
+    // PAGOS
+    if (optionValue === 'pagos') {
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              '💳 Medios de pago disponibles:\n\n💳 Tarjetas de credito y debito\n📱 Mercado Pago\n🏦 Santa Fe Servicios\n🔗 Bono Link\n🏢 Pago presencial\n\nEl coseguro depende del tipo de prestacion. Algunos servicios requieren pago previo.\n\nPodes gestionar tus pagos desde la plataforma MiMutuaLyF.',
+            timestamp: new Date(),
+            options: [
+              { label: '🏠 Volver al inicio', value: 'inicio' },
+            ],
+          },
+        ]);
+      }, 2000);
+      return;
+    }
+
+    // DETALLE DE ESPECIALIDADES
     const servicioDescripciones: Record<string, string> = {
-      cbct: 'La tomografía CBCT es un estudio de imágenes 3D de la zona dental y maxilofacial, útil para diagnósticos precisos en odontología.',
-      radiografias: 'Las radiografías dentales permiten ver los dientes y estructuras cercanas para detectar caries, infecciones o problemas óseos.',
-      panoramicas: 'La panorámica es una radiografía que muestra toda la boca en una sola imagen, útil para evaluaciones generales.',
-      telerradiografias: 'La telerradiografía es una radiografía lateral del cráneo, utilizada principalmente en ortodoncia.',
-      atm: 'El estudio ATM evalúa la articulación de la mandíbula para detectar alteraciones funcionales o estructurales.',
-      cefalometrias: 'La cefalometría es una radiografía del cráneo usada para análisis ortodóncicos y planificación de tratamientos.',
+      clinica: 'La clinica medica abarca la atencion integral del adulto, prevencion y seguimiento de enfermedades generales.',
+      pediatria: 'Pediatria: atencion medica especializada para bebes, ninos y adolescentes.',
+      ginecologia: 'Ginecologia: atencion de salud reproductiva y controles periodicos para la mujer.',
+      cardiologia: 'Cardiologia: diagnostico y tratamiento de enfermedades del corazon y sistema cardiovascular.',
+      salud_mental: 'Salud mental: atencion psicologica y psiquiatrica para el bienestar emocional.',
+      nutricion: 'Nutricion: planes alimentarios personalizados y seguimiento nutricional.',
+      odontologia: 'Odontologia: atencion dental integral, prevencion y tratamientos.',
+      oftalmologia: 'Oftalmologia: cuidado de la vision, diagnostico y tratamiento de enfermedades oculares.',
     };
     const mensajeFinal =
-      '\n\n💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!';
+      '\n\n💡 Podes gestionar tus ordenes medicas y autorizaciones desde la plataforma MiMutuaLyF o llamando al 0800 777 4413.\n\nLa atencion es con libre eleccion dentro del padron de prestadores.';
     if (Object.keys(servicioDescripciones).includes(optionValue)) {
       setIsLoading(true);
       setTimeout(() => {
@@ -256,19 +312,19 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             content: servicioDescripciones[optionValue] + mensajeFinal,
             timestamp: new Date(),
             options: [
-              { label: '📋 Sí, cargar orden ahora', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
+              { label: '📋 Cargar orden medica', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
+              { label: '🏥 Ver otros servicios', value: 'servicios' },
               { label: '🏠 Volver al inicio', value: 'inicio' },
             ],
           },
         ]);
-      }, 5000);
+      }, 2000);
       return;
     }
 
-    // Si selecciona subir orden, abrir selector de archivos
+    // SUBIR ORDEN
     if (optionValue === 'subir_orden') {
       fileInputRef.current?.click();
-      // Guardar el estudio seleccionado para autocompletar en el formulario
       setSelectedEstudio(estudio);
       setMessages((prev) => [
         ...prev,
@@ -276,43 +332,40 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content:
-            'Perfecto. Seleccioná el archivo de tu orden médica (imagen o PDF) para que pueda analizarla.',
+            'Perfecto. Selecciona el archivo de tu orden medica (imagen o PDF) para que pueda analizarla.',
           timestamp: new Date(),
         },
       ]);
       return;
     }
 
-    // Si selecciona inicio, mostrar menú principal
+    // VOLVER AL INICIO
     if (optionValue === 'inicio') {
-      const welcomeMessage =
-        '👋 ¡Hola de nuevo! Soy tu asistente virtual.\n\n¿En qué puedo ayudarte?';
-
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: welcomeMessage,
+          content: '👋 ¿En que mas puedo ayudarte?',
           timestamp: new Date(),
           options: [
-            { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
-            { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
-            { label: '📞 Información de contacto', value: 'contacto' },
+            { label: '🏥 Nuestros servicios', value: 'servicios' },
+            { label: '📍 Horarios y contacto', value: 'horarios_contacto' },
+            { label: '📲 Plataforma MiMutuaLyF', value: 'plataforma' },
+            { label: '💳 Medios de pago', value: 'pagos' },
           ],
         },
       ]);
       return;
     }
 
-    // Si el admin está controlando, no llamar a la IA
+    // Si el admin esta controlando, no llamar a la IA
     if (adminActiveRef.current) {
       return;
     }
 
     setIsLoading(true);
 
-    // Simular procesamiento y enviar a la IA
     setTimeout(async () => {
       try {
         let assistantContent = '';
@@ -345,36 +398,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             }
           });
         }
-
-        // Si fue una consulta de servicio, ofrecer cargar orden
-        if (Object.keys(SERVICIO_LABELS).includes(optionValue)) {
-          const servicioDescripciones: Record<string, string> = {
-            cbct: 'La tomografía CBCT es un estudio de imágenes 3D de la zona dental y maxilofacial, útil para diagnósticos precisos en odontología.',
-            radiografias: 'Las radiografías dentales permiten ver los dientes y estructuras cercanas para detectar caries, infecciones o problemas óseos.',
-            panoramicas: 'La panorámica es una radiografía que muestra toda la boca en una sola imagen, útil para evaluaciones generales.',
-            telerradiografias: 'La telerradiografía es una radiografía lateral del cráneo, utilizada principalmente en ortodoncia.',
-            atm: 'El estudio ATM evalúa la articulación de la mandíbula para detectar alteraciones funcionales o estructurales.',
-            cefalometrias: 'La cefalometría es una radiografía del cráneo usada para análisis ortodóncicos y planificación de tratamientos.',
-          };
-          const mensajeFinal =
-            '\n\n💡 Para brindarte una atención más rápida y eficiente, lo ideal es que subas tu orden médica directamente por este chat. Así podremos prepararnos antes de tu visita y evitar demoras.\n\n¿Querés cargar tu orden ahora o tenés alguna pregunta sobre el procedimiento? ¡Estoy acá para ayudarte!';
-          setTimeout(() => {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: (Date.now() + 2).toString(),
-                role: 'assistant',
-                content:
-                  servicioDescripciones[optionValue] + mensajeFinal,
-                timestamp: new Date(),
-                options: [
-                  { label: '📋 Sí, cargar orden ahora', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
-                  { label: '🏠 Volver al inicio', value: 'inicio' },
-                ],
-              },
-            ]);
-          }, 500);
-        }
       } catch (error) {
         setMessages((prev) => [
           ...prev,
@@ -395,7 +418,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
 
-    // Si admin está activo, solo enviar el mensaje del usuario (sin respuesta del bot)
     if (adminActiveRef.current) {
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -408,16 +430,15 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    // Si el usuario solo dice "hola" o variantes, mostrar saludo conversacional
     const normalized = inputText.trim().toLowerCase();
     if (
       [
         'hola',
         'buenas',
-        'buenos días',
+        'buenos dias',
         'buenas tardes',
         'buenas noches',
-        'buen día',
+        'buen dia',
       ].includes(normalized)
     ) {
       const userMessage: ChatMessage = {
@@ -428,8 +449,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       };
 
       const greeting =
-        normalized.includes('día') || normalized.includes('días')
-          ? '¡Buenos días!'
+        normalized.includes('dia') || normalized.includes('dias')
+          ? '¡Buenos dias!'
           : normalized.includes('tarde')
             ? '¡Buenas tardes!'
             : normalized.includes('noche')
@@ -442,12 +463,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `${greeting} Soy tu asistente virtual de Mutual Luz y Fuerza 👋\n\n¿En qué puedo ayudarte hoy? Seleccioná una opción para comenzar:`,
+          content: `${greeting} Soy tu asistente virtual de MutuaLyF 👋\n\n¿En que puedo ayudarte hoy?`,
           timestamp: new Date(),
           options: [
-            { label: '🔬 Conocer nuestros servicios', value: 'servicios' },
-            { label: '📍 Ubicación y horarios', value: 'ubicacion_horarios' },
-            { label: '📞 Información de contacto', value: 'contacto' },
+            { label: '🏥 Nuestros servicios', value: 'servicios' },
+            { label: '📍 Horarios y contacto', value: 'horarios_contacto' },
+            { label: '📲 Plataforma MiMutuaLyF', value: 'plataforma' },
           ],
         },
       ]);
@@ -455,8 +476,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    // Si pregunta por servicios específicamente, mostrar lista con botones
-    if (normalized.includes('servicio') || normalized.includes('🔬 conocer servicios')) {
+    if (normalized.includes('servicio')) {
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
@@ -471,15 +491,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content:
-            '🔬 Estos son nuestros servicios de diagnóstico por imágenes:\n\nSeleccioná el que te interese para más información:',
+            '🏥 Estos son los servicios de salud de MutuaLyF:\n\nSelecciona el que te interese:',
           timestamp: new Date(),
           options: [
-            { label: '🦷 CBCT (Tomografía Dental)', value: 'cbct' },
-            { label: '📷 Radiografías Dentales', value: 'radiografias' },
-            { label: '🔍 Panorámicas', value: 'panoramicas' },
-            { label: '📸 Telerradiografías', value: 'telerradiografias' },
-            { label: '💀 Estudios ATM', value: 'atm' },
-            { label: '🎯 Cefalometrías', value: 'cefalometrias' },
+            { label: '🩺 Clinica medica', value: 'clinica' },
+            { label: '👶 Pediatria', value: 'pediatria' },
+            { label: '👩‍⚕️ Ginecologia', value: 'ginecologia' },
+            { label: '❤️ Cardiologia', value: 'cardiologia' },
+            { label: '🧠 Salud mental', value: 'salud_mental' },
+            { label: '🍎 Nutricion', value: 'nutricion' },
+            { label: '🦷 Odontologia', value: 'odontologia' },
+            { label: '👁️ Oftalmologia', value: 'oftalmologia' },
           ],
         },
       ]);
@@ -501,9 +523,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     try {
       let assistantContent = '';
       let isFirstChunk = true;
-      // Obtener respuesta de la IA (streaming o fallback)
       for await (const chunk of chatService.current.sendMessage(inputText)) {
-        // Ocultar indicador de "escribiendo" en el primer chunk
         if (isFirstChunk) {
           setIsLoading(false);
           isFirstChunk = false;
@@ -550,7 +570,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de archivo
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
       setMessages((prev) => [
@@ -559,7 +578,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           id: Date.now().toString(),
           role: 'assistant',
           content:
-            '❌ Formato de archivo no válido. Solo se permiten archivos PDF, JPG y PNG.',
+            '❌ Formato de archivo no valido. Solo se permiten archivos PDF, JPG y PNG.',
           timestamp: new Date(),
         },
       ]);
@@ -567,7 +586,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    // Validar tamaño (5MB máximo)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       setMessages((prev) => [
@@ -576,7 +594,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           id: Date.now().toString(),
           role: 'assistant',
           content:
-            '❌ El archivo es demasiado grande. El tamaño máximo permitido es 5MB.',
+            '❌ El archivo es demasiado grande. El tamano maximo permitido es 5MB.',
           timestamp: new Date(),
         },
       ]);
@@ -584,13 +602,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       return;
     }
 
-    // Mostrar mensaje de procesamiento con efectos visuales
     setMessages((prev) => [
       ...prev,
       {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `__ANALYZING_ORDER__:${file.name}`, // Marcador especial para renderizado customizado
+        content: `__ANALYZING_ORDER__:${file.name}`,
         timestamp: new Date(),
       },
     ]);
@@ -598,7 +615,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Animar progreso de 0 a 90% durante la carga
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
         if (prev >= 90) {
@@ -610,10 +626,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }, 200);
 
     try {
-      // Paso 1: Analizar con OCR
       const result = await backendService.current.analyzeMedicalOrder(file);
 
-      // Completar al 100%
       clearInterval(progressInterval);
       setUploadProgress(100);
 
@@ -623,7 +637,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         setShowOrderForm(true);
 
         const detectionRate = result.data.detectionRate || 0;
-        // Reemplazar el mensaje de "analizando" con el resultado
         setMessages((prev) => {
           const filtered = prev.filter(
             (m) => !m.content.startsWith('__ANALYZING_ORDER__')
@@ -633,7 +646,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             {
               id: Date.now().toString(),
               role: 'assistant',
-              content: `✅ Análisis completado! Detecté ${detectionRate}% de los campos automáticamente. \n\nPor favor, verifica y corrige los datos si es necesario.`,
+              content: `✅ Analisis completado! Detecte ${detectionRate}% de los campos automaticamente. \n\nPor favor, verifica y corrige los datos si es necesario.`,
               timestamp: new Date(),
             },
           ];
@@ -648,7 +661,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             {
               id: Date.now().toString(),
               role: 'assistant',
-              content: `❌ ${result.message || 'No pude analizar el archivo correctamente'}. Por favor, intenta con otra imagen o PDF más claro.`,
+              content: `❌ ${result.message || 'No pude analizar el archivo correctamente'}. Por favor, intenta con otra imagen o PDF mas claro.`,
               timestamp: new Date(),
             },
           ];
@@ -684,7 +697,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     setIsUploading(true);
     setShowOrderForm(false);
 
-    // Guardar nombre y apellido del paciente de la orden médica
     if (orderData.patientName) {
       const fullName = orderData.patientName.trim();
       setUserName(fullName);
@@ -702,8 +714,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           {
             id: Date.now().toString(),
             role: 'assistant',
-            content: `✅ ¡Orden validada exitosamente! \n\nNúmero de orden: #${result.orderId}\n\nHemos registrado tu solicitud para: ${orderData.requestedStudies.join(', ')}.\n\n¿Necesitas algo más?`,
+            content: `✅ ¡Orden registrada exitosamente!\n\nNumero de orden: #${result.orderId}\nSolicitud para: ${orderData.requestedStudies.join(', ')}\n\nPodes hacer seguimiento desde la plataforma MiMutuaLyF o llamando al 0800 777 4413.\n\n¿Necesitas algo mas?`,
             timestamp: new Date(),
+            options: [
+              { label: '🏠 Volver al inicio', value: 'inicio' },
+            ],
           },
         ]);
       } else {
@@ -712,7 +727,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           {
             id: Date.now().toString(),
             role: 'assistant',
-            content: `❌ ${result.message || 'Hubo un error al procesar tu orden médica'}. Por favor, verifica los datos e intenta nuevamente.`,
+            content: `❌ ${result.message || 'Hubo un error al procesar tu orden'}. Por favor, verifica los datos e intenta nuevamente.`,
             timestamp: new Date(),
           },
         ]);
@@ -748,7 +763,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       {
         id: Date.now().toString(),
         role: 'assistant',
-        content: 'Carga de orden médica cancelada. ¿En qué más puedo ayudarte?',
+        content: 'Carga de orden cancelada. ¿En que mas puedo ayudarte?',
         timestamp: new Date(),
       },
     ]);
@@ -762,35 +777,21 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     isSaving.current = true;
     const currentMessages = messagesRef.current;
-    const currentUserName = userNameRef.current || 'Anónimo';
+    const currentUserName = userNameRef.current || 'Anonimo';
 
-    console.log('💾 Guardando conversación:', {
-      totalMensajes: currentMessages.length,
-      userName: currentUserName,
-      mensajes: currentMessages.map((m) => ({
-        role: m.role,
-        content: m.content.substring(0, 30),
-      })),
-    });
-
-    // Guardar conversación antes de cerrar
     if (currentMessages.length > 0) {
       try {
-        // Filtrar solo las propiedades necesarias (sin options)
         const messagesToSave = currentMessages.map(({ role, content, timestamp }) => ({
           role,
           content,
           timestamp,
         }));
         await backendService.current.saveConversation(messagesToSave, currentUserName);
-        console.log('✅ Conversación guardada exitosamente');
       } catch (err) {
-        console.error('❌ Error guardando conversación:', err);
+        console.error('Error guardando conversacion:', err);
       }
     }
 
-    // Marcar la sesión como inactiva en el backend para que desaparezca
-    // de "en vivo" inmediatamente (sin esperar el timeout de 60s)
     try {
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
       await fetch(`${BACKEND_URL}/sessions/end`, {
@@ -799,7 +800,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         body: JSON.stringify({ sessionId: backendService.current['sessionId'] }),
       });
     } catch (err) {
-      console.warn('⚠️ No se pudo marcar la sesión como cerrada:', err);
+      // silencioso
     }
 
     isSaving.current = false;
@@ -810,7 +811,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     <div className="relative flex h-full w-full flex-col overflow-hidden md:rounded-3xl">
       <ChatHeader adminActive={adminActive} onClose={handleClose} />
 
-      {/* Accesos rápidos */}
+      {/* Accesos rapidos */}
       <div className="z-20 flex w-full gap-2 overflow-x-auto border-b border-slate-100 bg-white/90 px-3 py-2.5 backdrop-blur-sm scrollbar-hide">
         {mainOptions.map((option) => (
           <button
