@@ -8,17 +8,14 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { AppController } from './app.controller';
 import { UploadsModule } from './modules/uploads/uploads.module';
-import { AiController } from './ai/ai.controller';
-import { GeminiService } from './ai/gemini.service';
-import { OllamaService } from './ai/ollama.service';
-import { GroqService } from './ai/groq.service';
 import { EventsModule } from './events/events.module';
 import { validateEnv } from './config/validation';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { RolesModule } from './roles/roles.module';
-import { AiConfigModule } from './ai-config/ai-config.module';
+import { AiModule } from './ai/ai.module';
+import { QuickReplyModule } from './quick-reply/quick-reply.module';
 
 @Module({
   imports: [
@@ -40,8 +37,9 @@ import { AiConfigModule } from './ai-config/ai-config.module';
     AdminUsersModule,
     RolesModule,
 
-    // Configuración de IA
-    AiConfigModule,
+    // IA (incluye AiConfig + QuickReplies)
+    AiModule,
+    QuickReplyModule,
 
     // Módulos de funcionalidad
     EventsModule,
@@ -51,11 +49,8 @@ import { AiConfigModule } from './ai-config/ai-config.module';
     SessionsModule,
     UploadsModule,
   ],
-  controllers: [AppController, AiController],
+  controllers: [AppController],
   providers: [
-    GeminiService,
-    OllamaService,
-    GroqService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

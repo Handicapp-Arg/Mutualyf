@@ -100,36 +100,19 @@ export class UploadsController {
   @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders/file/:id')
   async downloadOrderFile(@Param('id') id: string, @Res() res: Response) {
-    console.log('🔍 Solicitando archivo de orden ID:', id);
-
     const order = await this.uploadsService.getOrderById(parseInt(id));
 
-    console.log('📋 Orden encontrada:', order ? 'SÍ' : 'NO');
-
     if (!order || !order.filePath) {
-      console.error('❌ Orden o archivo no encontrado');
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    console.log('📁 FilePath de BD:', order.filePath);
-
-    // Construir path absoluto
     const absolutePath = join(process.cwd(), order.filePath);
 
-    console.log('📂 Path absoluto:', absolutePath);
-    console.log('✅ Archivo existe:', existsSync(absolutePath));
-
-    // Verificar que el archivo existe
     if (!existsSync(absolutePath)) {
-      console.error('❌ Archivo no existe en el sistema de archivos');
       throw new NotFoundException('Archivo no encontrado en el sistema');
     }
 
-    // Determinar el tipo de contenido basado en la extensión
     const contentType = order.fileType || 'application/octet-stream';
-
-    console.log('📄 Content-Type:', contentType);
-    console.log('📎 Nombre archivo:', order.fileName);
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `inline; filename="${order.fileName}"`);

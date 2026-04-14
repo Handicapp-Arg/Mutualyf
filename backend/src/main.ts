@@ -1,17 +1,31 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, ConsoleLogger, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import helmet from 'helmet';
 
+/**
+ * Logger que solo deja pasar:
+ *   - logs del contexto 'HTTP' (request/response)
+ *   - errores de cualquier contexto
+ * Silencia el resto para reducir ruido.
+ */
+class RequestOnlyLogger extends ConsoleLogger {
+  log(message: any, context?: string) {
+    if (context === 'HTTP') super.log(message, context);
+  }
+  debug() {}
+  verbose() {}
+}
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   try {
     const app = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      logger: new RequestOnlyLogger(),
     });
 
     // Seguridad: Helmet para headers HTTP seguros

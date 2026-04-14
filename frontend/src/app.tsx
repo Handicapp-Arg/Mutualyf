@@ -1,13 +1,34 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { HomePage } from '@/pages';
 import { LoginPage } from '@/pages/login';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { PortalDashboard } from '@/pages/portal/dashboard';
-import { UserManagement } from '@/pages/portal/user-management';
-import { PermissionMatrix } from '@/pages/portal/permission-matrix';
-import { AiConfig } from '@/pages/portal/ai-config';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { useAuthStore } from '@/stores/auth.store';
+
+const PortalDashboard = lazy(() =>
+  import('@/pages/portal/dashboard').then((m) => ({ default: m.PortalDashboard })),
+);
+const UserManagement = lazy(() =>
+  import('@/pages/portal/user-management').then((m) => ({ default: m.UserManagement })),
+);
+const PermissionMatrix = lazy(() =>
+  import('@/pages/portal/permission-matrix').then((m) => ({ default: m.PermissionMatrix })),
+);
+const AiConfig = lazy(() =>
+  import('@/pages/portal/ai-config').then((m) => ({ default: m.AiConfig })),
+);
+const QuickReplies = lazy(() =>
+  import('@/pages/portal/quick-replies').then((m) => ({ default: m.QuickReplies })),
+);
+
+function PortalFallback() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-corporate" />
+    </div>
+  );
+}
 
 export function App() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
@@ -17,24 +38,62 @@ export function App() {
   }, [checkAuth]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Rutas públicas */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          {/* Rutas públicas */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Redirect legacy /admin */}
-        <Route path="/admin" element={<Navigate to="/portal/dashboard" replace />} />
+          {/* Redirect legacy /admin */}
+          <Route path="/admin" element={<Navigate to="/portal/dashboard" replace />} />
 
-        {/* Rutas protegidas del portal */}
-        <Route path="/portal" element={<ProtectedRoute />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<PortalDashboard />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="roles" element={<PermissionMatrix />} />
-          <Route path="ai-config" element={<AiConfig />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          {/* Rutas protegidas del portal */}
+          <Route path="/portal" element={<ProtectedRoute />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route
+              path="dashboard"
+              element={
+                <Suspense fallback={<PortalFallback />}>
+                  <PortalDashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <Suspense fallback={<PortalFallback />}>
+                  <UserManagement />
+                </Suspense>
+              }
+            />
+            <Route
+              path="roles"
+              element={
+                <Suspense fallback={<PortalFallback />}>
+                  <PermissionMatrix />
+                </Suspense>
+              }
+            />
+            <Route
+              path="ai-config"
+              element={
+                <Suspense fallback={<PortalFallback />}>
+                  <AiConfig />
+                </Suspense>
+              }
+            />
+            <Route
+              path="quick-replies"
+              element={
+                <Suspense fallback={<PortalFallback />}>
+                  <QuickReplies />
+                </Suspense>
+              }
+            />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

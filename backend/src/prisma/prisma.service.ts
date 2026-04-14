@@ -7,23 +7,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     super({
-      log: process.env.NODE_ENV === 'development' 
-        ? ['query', 'info', 'warn', 'error']
-        : ['warn', 'error'],
+      log: ['error'],
     });
   }
 
   async onModuleInit() {
     try {
       await this.$connect();
-      this.logger.log('Conexión a base de datos establecida');
-
-      // Logging de queries en desarrollo para Prisma 7
-      if (process.env.NODE_ENV === 'development') {
-        (this as any).$on('query', (e: any) => {
-          this.logger.debug(`Query: ${e.query} | Duration: ${e.duration}ms`);
-        });
-      }
     } catch (error) {
       this.logger.error('Error al conectar con la base de datos:', error);
       throw error;

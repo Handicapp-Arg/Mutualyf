@@ -111,7 +111,10 @@ export function AiConfig() {
     if (newIndex < 0 || newIndex >= buttons.length) return;
     setButtons((prev) => {
       const copy = [...prev];
-      [copy[index], copy[newIndex]] = [copy[newIndex], copy[index]];
+      const a = copy[index]!;
+      const b = copy[newIndex]!;
+      copy[index] = b;
+      copy[newIndex] = a;
       return copy;
     });
   };

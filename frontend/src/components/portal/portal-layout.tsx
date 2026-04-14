@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { MessageSquare, FileText, TrendingUp, Users, Shield, Power, Bot } from 'lucide-react';
+import { MessageSquare, FileText, TrendingUp, Users, Shield, Power, Bot, Zap } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface PortalLayoutProps {
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/portal/users', label: 'Usuarios', icon: Users, permission: 'users:read' },
   { path: '/portal/roles', label: 'Roles', icon: Shield, permission: 'roles:read' },
   { path: '/portal/ai-config', label: 'Config IA', icon: Bot, permission: 'ai_config:manage' },
+  { path: '/portal/quick-replies', label: 'Respuestas', icon: Zap, permission: 'ai_config:manage' },
 ];
 
 export function PortalLayout({ children, liveSessions = 0 }: PortalLayoutProps) {

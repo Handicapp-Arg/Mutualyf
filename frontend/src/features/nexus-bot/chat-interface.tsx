@@ -8,6 +8,7 @@ import { ChatMessageBubble } from './components/chat-message-bubble';
 import { TypingIndicator } from './components/typing-indicator';
 import { ChatInput } from './components/chat-input';
 import type { ChatMessage } from '@/types';
+import { BACKEND_URL } from '@/lib/constants';
 
 interface QuickButton {
   icon: string;
@@ -18,8 +19,6 @@ interface QuickButton {
 interface ChatInterfaceProps {
   onClose: () => void;
 }
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const [quickButtons, setQuickButtons] = useState<QuickButton[]>([]);
