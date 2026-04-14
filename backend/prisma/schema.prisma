@@ -143,6 +143,7 @@ model AiConfig {
   systemPrompt  String   @map("system_prompt")
   temperature   Float    @default(0.7)
   maxTokens     Int      @default(800) @map("max_tokens")
+  quickButtons  String   @default("[]") @map("quick_buttons") // JSON array de {icon, label, prompt}
   updatedAt     DateTime @updatedAt @map("updated_at")
   updatedBy     String?  @map("updated_by")
 

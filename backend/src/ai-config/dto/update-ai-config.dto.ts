@@ -16,4 +16,8 @@ export class UpdateAiConfigDto {
   @Min(100)
   @Max(4096)
   maxTokens?: number;
+
+  @IsOptional()
+  @IsString()
+  quickButtons?: string; // JSON string de [{icon, label, prompt}]
 }

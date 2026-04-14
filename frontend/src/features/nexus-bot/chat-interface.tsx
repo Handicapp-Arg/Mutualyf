@@ -1,14 +1,3 @@
-// Mapeo de valores de servicio a nombres legibles
-const SERVICIO_LABELS: Record<string, string> = {
-  clinica: 'Clinica medica',
-  pediatria: 'Pediatria',
-  ginecologia: 'Ginecologia',
-  cardiologia: 'Cardiologia',
-  salud_mental: 'Salud mental',
-  nutricion: 'Nutricion',
-  odontologia: 'Odontologia',
-  oftalmologia: 'Oftalmologia',
-};
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
@@ -20,20 +9,20 @@ import { TypingIndicator } from './components/typing-indicator';
 import { ChatInput } from './components/chat-input';
 import type { ChatMessage } from '@/types';
 
+interface QuickButton {
+  icon: string;
+  label: string;
+  prompt: string;
+}
+
 interface ChatInterfaceProps {
   onClose: () => void;
 }
 
-export function ChatInterface({ onClose }: ChatInterfaceProps) {
-  // Opciones principales siempre visibles arriba del chat
-  const mainOptions = [
-    { label: 'Servicios', value: 'servicios', icon: '🏥' },
-    { label: 'Horarios y contacto', value: 'horarios_contacto', icon: '📍' },
-    { label: 'Plataforma digital', value: 'plataforma', icon: '📲' },
-    { label: 'Sobre MutuaLyF', value: 'sobre_nosotros', icon: 'ℹ️' },
-  ];
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
-  // Estado para autocompletar el estudio en la orden medica
+export function ChatInterface({ onClose }: ChatInterfaceProps) {
+  const [quickButtons, setQuickButtons] = useState<QuickButton[]>([]);
   const [selectedEstudio, setSelectedEstudio] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -73,6 +62,20 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   useEffect(() => {
     userNameRef.current = userName;
   }, [userName]);
+
+  // Cargar quick buttons desde el backend
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/ai-config/public/quick-buttons`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setQuickButtons(data);
+        }
+      })
+      .catch(() => {
+        // silencioso - los botones no se muestran si falla
+      });
+  }, []);
 
   useEffect(() => {
     if (isInitialized.current) return;
@@ -122,21 +125,13 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     await new Promise((resolve) => setTimeout(resolve, 800));
     setIsLoading(false);
 
-    const welcomeMessage =
-      '👋 ¡Bienvenido a MutuaLyF! Soy tu asistente virtual.\n\nEstoy aca para ayudarte con informacion sobre servicios, horarios, tramites y mas. Usa los botones o escribime tu consulta.';
-
     setMessages([
       {
         id: '1',
         role: 'assistant',
-        content: welcomeMessage,
+        content:
+          '👋 ¡Bienvenido a MutuaLyF! Soy tu asistente virtual.\n\nEstoy aca para ayudarte con informacion sobre servicios, horarios, tramites y mas. Usa los botones o escribime tu consulta.',
         timestamp: new Date(),
-        options: [
-          { label: '🏥 Nuestros servicios', value: 'servicios' },
-          { label: '📍 Horarios y contacto', value: 'horarios_contacto' },
-          { label: '📲 Plataforma MiMutuaLyF', value: 'plataforma' },
-          { label: 'ℹ️ Sobre MutuaLyF', value: 'sobre_nosotros' },
-        ],
       },
     ]);
   };
@@ -146,384 +141,25 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   }, [messages]);
 
   const cleanMarkdown = useCallback((text: string): string => {
-    return text
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/\*(.+?)\*/g, '$1');
+    return text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1');
   }, []);
 
-  const handleOptionClick = (optionValue: string, optionLabel: string) => {
-    let estudio = '';
-    if (optionValue.startsWith('subir_orden|')) {
-      estudio = optionValue.split('|')[1] || '';
-      optionValue = 'subir_orden';
-    }
-
+  /** Envía un texto a la IA via streaming y muestra la respuesta */
+  const sendToAI = async (displayText: string, promptText: string) => {
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: optionLabel,
+      content: displayText,
       timestamp: new Date(),
     };
-
     setMessages((prev) => [...prev, userMessage]);
-
-    // SERVICIOS
-    if (optionValue === 'servicios') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              '🏥 Estos son los servicios de salud de MutuaLyF:\n\nSelecciona el que te interese para mas informacion:',
-            timestamp: new Date(),
-            options: [
-              { label: '🩺 Clinica medica', value: 'clinica' },
-              { label: '👶 Pediatria', value: 'pediatria' },
-              { label: '👩‍⚕️ Ginecologia', value: 'ginecologia' },
-              { label: '❤️ Cardiologia', value: 'cardiologia' },
-              { label: '🧠 Salud mental', value: 'salud_mental' },
-              { label: '🍎 Nutricion', value: 'nutricion' },
-              { label: '🦷 Odontologia', value: 'odontologia' },
-              { label: '👁️ Oftalmologia', value: 'oftalmologia' },
-            ],
-          },
-        ]);
-      }, 2000);
-      return;
-    }
-
-    // HORARIOS Y CONTACTO
-    if (optionValue === 'horarios_contacto') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              '📍 Horarios y contacto de MutuaLyF:\n\n📞 Telefono: 0800 777 4413\n💬 WhatsApp: Canal habilitado para mensajeria\n\n⏰ Atencion telefonica:\nLunes a viernes de 07:30 a 19:30 hs\n\n💻 Atencion online:\nDisponible las 24 horas en la plataforma MiMutuaLyF\n\n🏢 Atencion presencial:\nEn sedes administrativas, en horario laboral',
-            timestamp: new Date(),
-            options: [
-              { label: '📲 Conocer la plataforma MiMutuaLyF', value: 'plataforma' },
-              { label: '🏠 Volver al inicio', value: 'inicio' },
-            ],
-          },
-        ]);
-      }, 2000);
-      return;
-    }
-
-    // PLATAFORMA DIGITAL
-    if (optionValue === 'plataforma') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              '📲 Plataforma digital MiMutuaLyF:\n\nSistema de autogestion para afiliados accesible desde la web.\n\n✅ Solicitud de ordenes medicas\n✅ Gestion de autorizaciones\n✅ Seguimiento de tramites\n✅ Consulta de estado de solicitudes\n✅ Pago de coseguros\n✅ Acceso a informacion personal\n\n💡 Recorda que las recetas y ordenes medicas son exclusivamente digitales y se gestionan a traves de la plataforma.',
-            timestamp: new Date(),
-            options: [
-              { label: '💳 Medios de pago', value: 'pagos' },
-              { label: '🏠 Volver al inicio', value: 'inicio' },
-            ],
-          },
-        ]);
-      }, 2000);
-      return;
-    }
-
-    // SOBRE NOSOTROS
-    if (optionValue === 'sobre_nosotros') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              'ℹ️ Sobre MutuaLyF:\n\nMutual Provincial de Luz y Fuerza de Santa Fe, creada en 1999.\n\nSomos una entidad solidaria orientada a brindar servicios de salud a afiliados del sindicato de Luz y Fuerza y sus grupos familiares.\n\n🏥 Cobertura medica integral\n👨‍👩‍👧‍👦 Para afiliados y grupo familiar\n📍 Cobertura en toda la provincia de Santa Fe\n🌐 Red de prestadores en todo el pais mediante derivaciones\n💊 Cobertura de medicamentos segun plan\n🏨 Internaciones medicas y quirurgicas',
-            timestamp: new Date(),
-            options: [
-              { label: '🏥 Ver servicios', value: 'servicios' },
-              { label: '🏠 Volver al inicio', value: 'inicio' },
-            ],
-          },
-        ]);
-      }, 2000);
-      return;
-    }
-
-    // PAGOS
-    if (optionValue === 'pagos') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              '💳 Medios de pago disponibles:\n\n💳 Tarjetas de credito y debito\n📱 Mercado Pago\n🏦 Santa Fe Servicios\n🔗 Bono Link\n🏢 Pago presencial\n\nEl coseguro depende del tipo de prestacion. Algunos servicios requieren pago previo.\n\nPodes gestionar tus pagos desde la plataforma MiMutuaLyF.',
-            timestamp: new Date(),
-            options: [
-              { label: '🏠 Volver al inicio', value: 'inicio' },
-            ],
-          },
-        ]);
-      }, 2000);
-      return;
-    }
-
-    // DETALLE DE ESPECIALIDADES
-    const servicioDescripciones: Record<string, string> = {
-      clinica: 'La clinica medica abarca la atencion integral del adulto, prevencion y seguimiento de enfermedades generales.',
-      pediatria: 'Pediatria: atencion medica especializada para bebes, ninos y adolescentes.',
-      ginecologia: 'Ginecologia: atencion de salud reproductiva y controles periodicos para la mujer.',
-      cardiologia: 'Cardiologia: diagnostico y tratamiento de enfermedades del corazon y sistema cardiovascular.',
-      salud_mental: 'Salud mental: atencion psicologica y psiquiatrica para el bienestar emocional.',
-      nutricion: 'Nutricion: planes alimentarios personalizados y seguimiento nutricional.',
-      odontologia: 'Odontologia: atencion dental integral, prevencion y tratamientos.',
-      oftalmologia: 'Oftalmologia: cuidado de la vision, diagnostico y tratamiento de enfermedades oculares.',
-    };
-    const mensajeFinal =
-      '\n\n💡 Podes gestionar tus ordenes medicas y autorizaciones desde la plataforma MiMutuaLyF o llamando al 0800 777 4413.\n\nLa atencion es con libre eleccion dentro del padron de prestadores.';
-    if (Object.keys(servicioDescripciones).includes(optionValue)) {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 2).toString(),
-            role: 'assistant',
-            content: servicioDescripciones[optionValue] + mensajeFinal,
-            timestamp: new Date(),
-            options: [
-              { label: '📋 Cargar orden medica', value: `subir_orden|${SERVICIO_LABELS[optionValue]}` },
-              { label: '🏥 Ver otros servicios', value: 'servicios' },
-              { label: '🏠 Volver al inicio', value: 'inicio' },
-            ],
-          },
-        ]);
-      }, 2000);
-      return;
-    }
-
-    // SUBIR ORDEN
-    if (optionValue === 'subir_orden') {
-      fileInputRef.current?.click();
-      setSelectedEstudio(estudio);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content:
-            'Perfecto. Selecciona el archivo de tu orden medica (imagen o PDF) para que pueda analizarla.',
-          timestamp: new Date(),
-        },
-      ]);
-      return;
-    }
-
-    // VOLVER AL INICIO
-    if (optionValue === 'inicio') {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: '👋 ¿En que mas puedo ayudarte?',
-          timestamp: new Date(),
-          options: [
-            { label: '🏥 Nuestros servicios', value: 'servicios' },
-            { label: '📍 Horarios y contacto', value: 'horarios_contacto' },
-            { label: '📲 Plataforma MiMutuaLyF', value: 'plataforma' },
-            { label: '💳 Medios de pago', value: 'pagos' },
-          ],
-        },
-      ]);
-      return;
-    }
-
-    // Si el admin esta controlando, no llamar a la IA
-    if (adminActiveRef.current) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    setTimeout(async () => {
-      try {
-        let assistantContent = '';
-        let isFirstChunk = true;
-
-        for await (const chunk of chatService.current.sendMessage(optionLabel)) {
-          if (isFirstChunk) {
-            setIsLoading(false);
-            isFirstChunk = false;
-          }
-
-          assistantContent += chunk;
-          setMessages((prev) => {
-            const lastIdx = prev.length - 1;
-            if (prev[lastIdx]?.role === 'assistant') {
-              return [
-                ...prev.slice(0, lastIdx),
-                { ...prev[lastIdx], content: assistantContent },
-              ];
-            } else {
-              return [
-                ...prev,
-                {
-                  id: (Date.now() + 1).toString(),
-                  role: 'assistant' as const,
-                  content: assistantContent,
-                  timestamp: new Date(),
-                },
-              ];
-            }
-          });
-        }
-      } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content:
-              '❌ Hubo un error procesando tu consulta. Por favor, intenta nuevamente.',
-            timestamp: new Date(),
-          },
-        ]);
-        setIsLoading(false);
-      }
-    }, 100);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
-
-    if (adminActiveRef.current) {
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: inputText,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, userMessage]);
-      setInputText('');
-      return;
-    }
-
-    const normalized = inputText.trim().toLowerCase();
-    if (
-      [
-        'hola',
-        'buenas',
-        'buenos dias',
-        'buenas tardes',
-        'buenas noches',
-        'buen dia',
-      ].includes(normalized)
-    ) {
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: inputText,
-        timestamp: new Date(),
-      };
-
-      const greeting =
-        normalized.includes('dia') || normalized.includes('dias')
-          ? '¡Buenos dias!'
-          : normalized.includes('tarde')
-            ? '¡Buenas tardes!'
-            : normalized.includes('noche')
-              ? '¡Buenas noches!'
-              : '¡Hola!';
-
-      setMessages((prev) => [
-        ...prev,
-        userMessage,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `${greeting} Soy tu asistente virtual de MutuaLyF 👋\n\n¿En que puedo ayudarte hoy?`,
-          timestamp: new Date(),
-          options: [
-            { label: '🏥 Nuestros servicios', value: 'servicios' },
-            { label: '📍 Horarios y contacto', value: 'horarios_contacto' },
-            { label: '📲 Plataforma MiMutuaLyF', value: 'plataforma' },
-          ],
-        },
-      ]);
-      setInputText('');
-      return;
-    }
-
-    if (normalized.includes('servicio')) {
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: inputText,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [
-        ...prev,
-        userMessage,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content:
-            '🏥 Estos son los servicios de salud de MutuaLyF:\n\nSelecciona el que te interese:',
-          timestamp: new Date(),
-          options: [
-            { label: '🩺 Clinica medica', value: 'clinica' },
-            { label: '👶 Pediatria', value: 'pediatria' },
-            { label: '👩‍⚕️ Ginecologia', value: 'ginecologia' },
-            { label: '❤️ Cardiologia', value: 'cardiologia' },
-            { label: '🧠 Salud mental', value: 'salud_mental' },
-            { label: '🍎 Nutricion', value: 'nutricion' },
-            { label: '🦷 Odontologia', value: 'odontologia' },
-            { label: '👁️ Oftalmologia', value: 'oftalmologia' },
-          ],
-        },
-      ]);
-      setInputText('');
-      return;
-    }
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputText,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInputText('');
     setIsLoading(true);
 
     try {
       let assistantContent = '';
       let isFirstChunk = true;
-      for await (const chunk of chatService.current.sendMessage(inputText)) {
+
+      for await (const chunk of chatService.current.sendMessage(promptText)) {
         if (isFirstChunk) {
           setIsLoading(false);
           isFirstChunk = false;
@@ -532,7 +168,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         assistantContent += chunk;
         setMessages((prev) => {
           const lastIdx = prev.length - 1;
-          if (prev[lastIdx]?.role === 'assistant') {
+          if (prev[lastIdx]?.role === 'assistant' && !isFirstChunk) {
             return [
               ...prev.slice(0, lastIdx),
               { ...prev[lastIdx], content: assistantContent },
@@ -564,6 +200,85 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOptionClick = (optionValue: string, optionLabel: string) => {
+    if (isLoading) return;
+
+    // Subir orden médica - caso especial local
+    let estudio = '';
+    if (optionValue.startsWith('subir_orden|')) {
+      estudio = optionValue.split('|')[1] || '';
+      optionValue = 'subir_orden';
+    }
+
+    if (optionValue === 'subir_orden') {
+      fileInputRef.current?.click();
+      setSelectedEstudio(estudio);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: 'user',
+          content: optionLabel,
+          timestamp: new Date(),
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content:
+            'Perfecto. Selecciona el archivo de tu orden medica (imagen o PDF) para que pueda analizarla.',
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
+    // Si el admin esta controlando, no llamar a la IA
+    if (adminActiveRef.current) {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: optionLabel,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      return;
+    }
+
+    // Buscar si es un quick button configurado
+    const matchedButton = quickButtons.find(
+      (btn) => btn.label === optionValue || `${btn.icon} ${btn.label}` === optionLabel
+    );
+
+    if (matchedButton) {
+      sendToAI(`${matchedButton.icon} ${matchedButton.label}`, matchedButton.prompt);
+      return;
+    }
+
+    // Cualquier otro botón: enviar el label como prompt a la IA
+    sendToAI(optionLabel, optionLabel);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || isLoading) return;
+
+    if (adminActiveRef.current) {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: inputText,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInputText('');
+      return;
+    }
+
+    const text = inputText.trim();
+    setInputText('');
+    await sendToAI(text, text);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -716,9 +431,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
             role: 'assistant',
             content: `✅ ¡Orden registrada exitosamente!\n\nNumero de orden: #${result.orderId}\nSolicitud para: ${orderData.requestedStudies.join(', ')}\n\nPodes hacer seguimiento desde la plataforma MiMutuaLyF o llamando al 0800 777 4413.\n\n¿Necesitas algo mas?`,
             timestamp: new Date(),
-            options: [
-              { label: '🏠 Volver al inicio', value: 'inicio' },
-            ],
           },
         ]);
       } else {
@@ -793,7 +505,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
 
     try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
       await fetch(`${BACKEND_URL}/sessions/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -811,20 +522,24 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     <div className="relative flex h-full w-full flex-col overflow-hidden md:rounded-3xl">
       <ChatHeader adminActive={adminActive} onClose={handleClose} />
 
-      {/* Accesos rapidos */}
-      <div className="z-20 flex w-full gap-2 overflow-x-auto border-b border-slate-100 bg-white/90 px-3 py-2.5 backdrop-blur-sm scrollbar-hide">
-        {mainOptions.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => handleOptionClick(option.value, `${option.icon} ${option.label}`)}
-            disabled={isLoading}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 transition-all hover:border-corporate/30 hover:bg-corporate/5 hover:text-corporate active:scale-[0.97] disabled:opacity-40"
-          >
-            <span className="text-sm">{option.icon}</span>
-            <span>{option.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* Accesos rapidos desde backend */}
+      {quickButtons.length > 0 && (
+        <div className="z-20 flex w-full gap-2 overflow-x-auto border-b border-slate-100 bg-white/90 px-3 py-2.5 backdrop-blur-sm scrollbar-hide">
+          {quickButtons.map((btn, idx) => (
+            <button
+              key={idx}
+              onClick={() =>
+                handleOptionClick(btn.label, `${btn.icon} ${btn.label}`)
+              }
+              disabled={isLoading}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 transition-all hover:border-corporate/30 hover:bg-corporate/5 hover:text-corporate active:scale-[0.97] disabled:opacity-40"
+            >
+              <span className="text-sm">{btn.icon}</span>
+              <span>{btn.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Mensajes */}
       <div className="scrollbar-hide relative z-10 flex h-full max-h-full min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4">

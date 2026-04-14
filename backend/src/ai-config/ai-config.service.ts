@@ -1,12 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateAiConfigDto } from './dto/update-ai-config.dto';
-import { DEFAULT_SYSTEM_PROMPT } from '../ai/ai.constants';
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_QUICK_BUTTONS } from '../ai/ai.constants';
 
 export interface AiConfigData {
   systemPrompt: string;
   temperature: number;
   maxTokens: number;
+  quickButtons: string;
   updatedAt: Date;
   updatedBy: string | null;
 }
@@ -34,6 +35,7 @@ export class AiConfigService implements OnModuleInit {
         ...(dto.systemPrompt !== undefined && { systemPrompt: dto.systemPrompt }),
         ...(dto.temperature !== undefined && { temperature: dto.temperature }),
         ...(dto.maxTokens !== undefined && { maxTokens: dto.maxTokens }),
+        ...(dto.quickButtons !== undefined && { quickButtons: dto.quickButtons }),
         updatedBy,
       },
     });
@@ -42,6 +44,7 @@ export class AiConfigService implements OnModuleInit {
       systemPrompt: updated.systemPrompt,
       temperature: updated.temperature,
       maxTokens: updated.maxTokens,
+      quickButtons: updated.quickButtons,
       updatedAt: updated.updatedAt,
       updatedBy: updated.updatedBy,
     };
@@ -60,6 +63,7 @@ export class AiConfigService implements OnModuleInit {
           systemPrompt: DEFAULT_SYSTEM_PROMPT,
           temperature: 0.7,
           maxTokens: 800,
+          quickButtons: JSON.stringify(DEFAULT_QUICK_BUTTONS),
         },
       });
     }
@@ -68,6 +72,7 @@ export class AiConfigService implements OnModuleInit {
       systemPrompt: row.systemPrompt,
       temperature: row.temperature,
       maxTokens: row.maxTokens,
+      quickButtons: row.quickButtons,
       updatedAt: row.updatedAt,
       updatedBy: row.updatedBy,
     };

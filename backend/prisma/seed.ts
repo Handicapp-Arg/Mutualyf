@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { DEFAULT_SYSTEM_PROMPT } from '../src/ai/ai.constants';
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_QUICK_BUTTONS } from '../src/ai/ai.constants';
 
 const prisma = new PrismaClient();
 
@@ -113,12 +113,15 @@ async function main() {
   // Seed AI Config default
   await prisma.aiConfig.upsert({
     where: { key: 'default' },
-    update: {},
+    update: {
+      quickButtons: JSON.stringify(DEFAULT_QUICK_BUTTONS),
+    },
     create: {
       key: 'default',
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
       temperature: 0.7,
       maxTokens: 800,
+      quickButtons: JSON.stringify(DEFAULT_QUICK_BUTTONS),
     },
   });
 

@@ -75,6 +75,43 @@ REGLAS IMPORTANTES:
  * Prompt compartido para análisis de órdenes médicas por OCR.
  * Usado por GeminiService y OllamaService.
  */
+/**
+ * Botones rápidos por defecto para el chat.
+ * Cada botón tiene icon, label y prompt (lo que se envía a la IA).
+ */
+export const DEFAULT_QUICK_BUTTONS = [
+  {
+    icon: '🏥',
+    label: 'Servicios de salud',
+    prompt: 'Contame cuáles son todos los servicios de salud y especialidades que ofrece MutuaLyF',
+  },
+  {
+    icon: '📍',
+    label: 'Horarios y contacto',
+    prompt: 'Cuáles son los horarios de atención y datos de contacto de MutuaLyF?',
+  },
+  {
+    icon: '📲',
+    label: 'Plataforma MiMutuaLyF',
+    prompt: 'Explicame qué puedo hacer en la plataforma digital MiMutuaLyF',
+  },
+  {
+    icon: 'ℹ️',
+    label: 'Sobre MutuaLyF',
+    prompt: 'Contame sobre MutuaLyF, qué es, cuándo se creó y qué cobertura ofrece',
+  },
+  {
+    icon: '💳',
+    label: 'Medios de pago',
+    prompt: 'Cuáles son los medios de pago disponibles y cómo funcionan los coseguros?',
+  },
+  {
+    icon: '💊',
+    label: 'Medicamentos',
+    prompt: 'Cómo funciona la cobertura de medicamentos en MutuaLyF? Qué necesito?',
+  },
+];
+
 export function buildMedicalOrderPrompt(ocrText: string): string {
   return `Eres un experto en análisis de órdenes médicas argentinas. Analiza el siguiente texto extraído por OCR de una orden médica y extrae ÚNICAMENTE los siguientes datos en formato JSON estricto.
 

@@ -5,17 +5,29 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { PermissionCode } from '../auth/constants/permissions.enum';
 
-@UseGuards(PermissionsGuard)
 @Controller('ai-config')
 export class AiConfigController {
   constructor(private readonly aiConfigService: AiConfigService) {}
 
+  /** Endpoint público: devuelve solo los quick buttons para el chat */
+  @Get('public/quick-buttons')
+  async getQuickButtons() {
+    const config = this.aiConfigService.getConfig();
+    try {
+      return JSON.parse(config.quickButtons);
+    } catch {
+      return [];
+    }
+  }
+
+  @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.AI_CONFIG_MANAGE)
   @Get()
   async getConfig() {
     return this.aiConfigService.getConfig();
   }
 
+  @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.AI_CONFIG_MANAGE)
   @Put()
   async updateConfig(@Body() dto: UpdateAiConfigDto, @Request() req: any) {
