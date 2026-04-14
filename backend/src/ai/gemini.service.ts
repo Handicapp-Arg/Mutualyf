@@ -23,7 +23,7 @@ export class GeminiService {
     }
 
     const contents = [
-      ...(systemPrompt ? [{ role: 'user', parts: [{ text: systemPrompt }] }, { role: 'model', parts: [{ text: 'Entendido. Soy Nexus, el asistente de CIOR Imágenes. ¿En qué puedo ayudarte?' }] }] : []),
+      ...(systemPrompt ? [{ role: 'user', parts: [{ text: systemPrompt }] }, { role: 'model', parts: [{ text: 'Entendido. Soy el asistente virtual de Mutual Luz y Fuerza. ¿En qué puedo ayudarte?' }] }] : []),
       ...history.map((msg) => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }],

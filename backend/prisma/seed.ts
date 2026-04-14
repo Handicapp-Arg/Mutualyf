@@ -92,8 +92,8 @@ async function main() {
   console.log('Permisos asignados a roles');
 
   // Crear usuario admin por defecto
-  const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@cior.com';
-  const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changeme123';
+  const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@mutualyf.com';
+  const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || '123456';
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   await prisma.adminUser.upsert({
