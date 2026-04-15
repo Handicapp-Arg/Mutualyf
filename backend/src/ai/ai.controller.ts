@@ -35,6 +35,22 @@ export class AiController implements OnModuleInit {
   }
 
   /**
+   * Construye el system prompt inyectando la instrucción de longitud.
+   * El maxTokens configurado se traduce a una guía para la IA,
+   * y el límite real de la API se aumenta para dar margen a terminar oraciones.
+   */
+  private buildPromptWithLength(basePrompt: string, maxTokens: number): {
+    prompt: string;
+    apiMaxTokens: number;
+  } {
+    const lengthHint = `\n\nIMPORTANTE SOBRE LA EXTENSIÓN DE TUS RESPUESTAS: Mantené tus respuestas en aproximadamente ${maxTokens} tokens (unas ${Math.round(maxTokens * 0.75)} palabras). Sé conciso y directo. Si necesitás resumir, priorizá la información más relevante. NUNCA dejes una oración incompleta: si estás llegando al límite, cerrá la idea con una oración final coherente.`;
+    return {
+      prompt: basePrompt + lengthHint,
+      apiMaxTokens: Math.min(maxTokens + 150, 4096),
+    };
+  }
+
+  /**
    * Detecta si un mensaje es claramente off-topic (no relacionado con MutuaLyF).
    * Mensajes cortos (<=3 palabras) se dejan pasar a Ollama por ambigüedad.
    * Mensajes largos sin ninguna keyword se rechazan inmediatamente.
@@ -82,15 +98,16 @@ export class AiController implements OnModuleInit {
       }
 
       // 3. Ollama (self-hosted) — streaming real con early-stop
+      const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
       try {
         let hasContent = false;
         let accumulated = '';
         for await (const chunk of this.ollamaService.generateResponseStream(
           history,
           body.newMessage,
-          config.systemPrompt,
+          prompt,
           config.temperature,
-          config.maxTokens,
+          apiMaxTokens,
         )) {
           hasContent = true;
           accumulated += chunk;
@@ -119,9 +136,9 @@ export class AiController implements OnModuleInit {
         const response = await this.ollamaService.generateResponse(
           history,
           body.newMessage,
-          config.systemPrompt,
+          prompt,
           config.temperature,
-          config.maxTokens,
+          apiMaxTokens,
         );
         if (response && response !== 'Sin respuesta de Ollama.') {
           writeSSEChunked(res, response);
@@ -141,9 +158,9 @@ export class AiController implements OnModuleInit {
         const response = await this.groqService.generateResponse(
           history,
           body.newMessage,
-          config.systemPrompt,
+          prompt,
           config.temperature,
-          config.maxTokens,
+          apiMaxTokens,
         );
         if (response) {
           writeSSEChunked(res, response);
@@ -176,15 +193,16 @@ export class AiController implements OnModuleInit {
   @Post('ollama')
   async ollama(@Body() body: ChatRequestDto, @Res() res: Response) {
     const config = this.aiConfigService.getConfig();
+    const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
     setupSSE(res);
 
     try {
       for await (const chunk of this.ollamaService.generateResponseStream(
         (body.history || []).slice(-MAX_HISTORY_MESSAGES),
         body.newMessage,
-        config.systemPrompt,
+        prompt,
         config.temperature,
-        config.maxTokens,
+        apiMaxTokens,
       )) {
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       }
@@ -198,12 +216,13 @@ export class AiController implements OnModuleInit {
   @Post('grok')
   async grok(@Body() body: ChatRequestDto) {
     const config = this.aiConfigService.getConfig();
+    const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
     const response = await this.groqService.generateResponse(
       (body.history || []).slice(-MAX_HISTORY_MESSAGES),
       body.newMessage,
-      config.systemPrompt,
+      prompt,
       config.temperature,
-      config.maxTokens,
+      apiMaxTokens,
     );
     return { response };
   }
@@ -211,12 +230,13 @@ export class AiController implements OnModuleInit {
   @Post('gemini')
   async gemini(@Body() body: ChatRequestDto) {
     const config = this.aiConfigService.getConfig();
+    const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
     const response = await this.geminiService.generateResponse(
       (body.history || []).slice(-MAX_HISTORY_MESSAGES),
       body.newMessage,
-      config.systemPrompt,
+      prompt,
       config.temperature,
-      config.maxTokens,
+      apiMaxTokens,
     );
     return { response };
   }
