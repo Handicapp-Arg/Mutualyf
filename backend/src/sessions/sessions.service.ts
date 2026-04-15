@@ -51,6 +51,22 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Asegura que exista un registro UserSession en la DB para este sessionId.
+   * Se llama una sola vez al conectar (handleConnection), no en cada ping.
+   */
+  async ensureSessionExists(sessionId: string) {
+    try {
+      await this.prisma.userSession.upsert({
+        where: { sessionId },
+        create: { sessionId, lastSeen: new Date() },
+        update: {},
+      });
+    } catch (error) {
+      this.logger.warn(`ensureSessionExists error: ${error.message}`);
+    }
+  }
+
+  /**
    * Actualiza presencia en memoria (fast path, sin DB).
    * Usado por el heartbeat WebSocket y el endpoint HTTP legacy.
    */

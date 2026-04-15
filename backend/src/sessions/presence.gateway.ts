@@ -38,10 +38,11 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
     );
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const sessionId = this.sessionIdOf(client);
     if (!sessionId) return;
     client.data.sessionId = sessionId;
+    await this.sessions.ensureSessionExists(sessionId);
     this.sessions.markPresence(sessionId);
   }
 

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
+import { useAuthStore } from '@/stores/auth.store';
 import type { ChatMessage } from '@/types';
 
 interface Conversation {
@@ -78,6 +79,19 @@ export function AdminPortal() {
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
+  /** fetch con token JWT automático */
+  const authFetch = (url: string, opts?: RequestInit) => {
+    const token = useAuthStore.getState().token;
+    return fetch(url, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...opts?.headers,
+      },
+    });
+  };
+
   // Set de sessionIds en vivo (para lookup O(1) al renderizar la lista)
   const liveSessionIds = new Set(liveSessions.map((s) => s.sessionId));
 
@@ -89,7 +103,7 @@ export function AdminPortal() {
   useEffect(() => {
     const fetchLive = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/sessions/live/list`);
+        const res = await authFetch(`${BACKEND_URL}/sessions/live/list`);
         if (!res.ok) return;
         const json = await res.json();
         const data = (json.data || []) as LiveSession[];
@@ -141,7 +155,7 @@ export function AdminPortal() {
   // Entrar a una conversación en vivo como admin
   const handleJoinChat = async (sessionId: string) => {
     try {
-      await fetch(`${BACKEND_URL}/conversations/admin-takeover`, {
+      await authFetch(`${BACKEND_URL}/conversations/admin-takeover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, active: true }),
@@ -159,7 +173,7 @@ export function AdminPortal() {
   const handleLeaveChat = async () => {
     if (!adminChatSessionId) return;
     try {
-      await fetch(`${BACKEND_URL}/conversations/admin-takeover`, {
+      await authFetch(`${BACKEND_URL}/conversations/admin-takeover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: adminChatSessionId, active: false }),
@@ -175,7 +189,7 @@ export function AdminPortal() {
     if (!adminChatSessionId || !adminMessage.trim() || isSendingAdmin) return;
     setIsSendingAdmin(true);
     try {
-      await fetch(`${BACKEND_URL}/conversations/admin-message`, {
+      await authFetch(`${BACKEND_URL}/conversations/admin-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: adminChatSessionId, content: adminMessage.trim() }),
@@ -203,7 +217,7 @@ export function AdminPortal() {
     setIsLoading(true);
     try {
       // Cargar conversaciones y estadísticas desde /stats
-      const statsRes = await fetch(`${BACKEND_URL}/conversations/stats`);
+      const statsRes = await authFetch(`${BACKEND_URL}/conversations/stats`);
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
@@ -249,7 +263,7 @@ export function AdminPortal() {
       }
 
       // Cargar archivos subidos
-      const uploadsRes = await fetch(`${BACKEND_URL}/uploads/medical-orders`);
+      const uploadsRes = await authFetch(`${BACKEND_URL}/uploads/medical-orders`);
       if (uploadsRes.ok) {
         const uploadsData = await uploadsRes.json();
         console.log('📦 Uploads data:', uploadsData);
@@ -326,7 +340,7 @@ export function AdminPortal() {
               </Link>
               <div className="h-6 w-px bg-slate-200" />
               <h1 className="text-2xl font-black text-slate-800">
-                Portal de Administración - CIOR
+                Portal de Administración - MutuaLyF
               </h1>
             </div>
             <div className="flex items-center gap-2">
@@ -516,7 +530,7 @@ export function AdminPortal() {
                           )
                             return;
                           try {
-                            const res = await fetch(`${BACKEND_URL}/conversations`, {
+                            const res = await authFetch(`${BACKEND_URL}/conversations`, {
                               method: 'DELETE',
                             });
                             if (res.ok) {
