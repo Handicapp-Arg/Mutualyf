@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Plus, Trash2, GripVertical } from 'lucide-react';
+import { Save, RotateCcw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { PortalLayout } from '@/components/portal/portal-layout';
-
-interface QuickButton {
-  icon: string;
-  label: string;
-  prompt: string;
-}
 
 interface AiConfigData {
   systemPrompt: string;
@@ -21,7 +15,6 @@ interface AiConfigData {
 export function AiConfig() {
   const [config, setConfig] = useState<AiConfigData | null>(null);
   const [form, setForm] = useState({ systemPrompt: '', temperature: 0.7, maxTokens: 800 });
-  const [buttons, setButtons] = useState<QuickButton[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -41,12 +34,6 @@ export function AiConfig() {
         temperature: res.data.temperature,
         maxTokens: res.data.maxTokens,
       });
-      try {
-        const parsed = JSON.parse(res.data.quickButtons || '[]');
-        setButtons(Array.isArray(parsed) ? parsed : []);
-      } catch {
-        setButtons([]);
-      }
     } catch (err) {
       console.error('Error cargando config:', err);
       setError('Error al cargar la configuracion');
@@ -61,11 +48,7 @@ export function AiConfig() {
     setSaved(false);
     setError('');
     try {
-      const payload = {
-        ...form,
-        quickButtons: JSON.stringify(buttons),
-      };
-      const res = await apiClient.put('/ai-config', payload);
+      const res = await apiClient.put('/ai-config', form);
       setConfig(res.data);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -83,40 +66,7 @@ export function AiConfig() {
         temperature: config.temperature,
         maxTokens: config.maxTokens,
       });
-      try {
-        const parsed = JSON.parse(config.quickButtons || '[]');
-        setButtons(Array.isArray(parsed) ? parsed : []);
-      } catch {
-        setButtons([]);
-      }
     }
-  };
-
-  const addButton = () => {
-    setButtons((prev) => [...prev, { icon: '💬', label: '', prompt: '' }]);
-  };
-
-  const removeButton = (index: number) => {
-    setButtons((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const updateButton = (index: number, field: keyof QuickButton, value: string) => {
-    setButtons((prev) =>
-      prev.map((btn, i) => (i === index ? { ...btn, [field]: value } : btn))
-    );
-  };
-
-  const moveButton = (index: number, direction: -1 | 1) => {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= buttons.length) return;
-    setButtons((prev) => {
-      const copy = [...prev];
-      const a = copy[index]!;
-      const b = copy[newIndex]!;
-      copy[index] = b;
-      copy[newIndex] = a;
-      return copy;
-    });
   };
 
   const formatDate = (date: string | null) => {
@@ -127,19 +77,10 @@ export function AiConfig() {
     });
   };
 
-  const originalButtons = (() => {
-    try {
-      return JSON.parse(config?.quickButtons || '[]');
-    } catch {
-      return [];
-    }
-  })();
-
   const hasChanges = config && (
     form.systemPrompt !== config.systemPrompt ||
     form.temperature !== config.temperature ||
-    form.maxTokens !== config.maxTokens ||
-    JSON.stringify(buttons) !== JSON.stringify(originalButtons)
+    form.maxTokens !== config.maxTokens
   );
 
   return (
@@ -148,7 +89,7 @@ export function AiConfig() {
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <div>
           <h1 className="text-lg font-bold text-slate-800">Configuracion de IA</h1>
-          <p className="text-xs text-slate-400">System prompt, parametros del modelo y botones rapidos. Los cambios aplican inmediatamente.</p>
+          <p className="text-xs text-slate-400">System prompt y parametros del modelo. Los cambios aplican inmediatamente.</p>
         </div>
         {config?.updatedBy && (
           <span className="text-xs text-slate-400">
@@ -236,110 +177,6 @@ export function AiConfig() {
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* Quick Buttons */}
-            <div className="rounded-xl border bg-white p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700">
-                    Botones rapidos del chat
-                  </label>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Botones visibles en el chat. Al hacer clic, el prompt se envia a la IA.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={addButton}
-                  className="flex items-center gap-1.5 rounded-lg bg-corporate px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-corporate/90"
-                >
-                  <Plus size={14} />
-                  Agregar
-                </button>
-              </div>
-
-              {buttons.length === 0 ? (
-                <div className="rounded-lg border-2 border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
-                  No hay botones configurados. Agrega uno para empezar.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {buttons.map((btn, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4"
-                    >
-                      {/* Reorder */}
-                      <div className="flex flex-col gap-0.5 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => moveButton(idx, -1)}
-                          disabled={idx === 0}
-                          className="text-slate-400 hover:text-slate-600 disabled:opacity-20"
-                          title="Mover arriba"
-                        >
-                          <GripVertical size={14} />
-                        </button>
-                      </div>
-
-                      {/* Fields */}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={btn.icon}
-                            onChange={(e) => updateButton(idx, 'icon', e.target.value)}
-                            placeholder="Emoji"
-                            className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-center text-sm focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate/20"
-                            maxLength={4}
-                          />
-                          <input
-                            type="text"
-                            value={btn.label}
-                            onChange={(e) => updateButton(idx, 'label', e.target.value)}
-                            placeholder="Texto del boton (ej: Servicios de salud)"
-                            className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate/20"
-                          />
-                        </div>
-                        <textarea
-                          value={btn.prompt}
-                          onChange={(e) => updateButton(idx, 'prompt', e.target.value)}
-                          placeholder="Prompt que se envia a la IA cuando el usuario hace clic (ej: Contame sobre los servicios de salud de MutuaLyF)"
-                          rows={2}
-                          className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate/20"
-                        />
-                      </div>
-
-                      {/* Delete */}
-                      <button
-                        type="button"
-                        onClick={() => removeButton(idx)}
-                        className="mt-2 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                        title="Eliminar boton"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {buttons.length > 0 && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-                  <span>Vista previa:</span>
-                  <div className="flex gap-1.5 overflow-x-auto">
-                    {buttons.map((btn, idx) => (
-                      <span
-                        key={idx}
-                        className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600"
-                      >
-                        {btn.icon} {btn.label || '...'}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Actions */}
