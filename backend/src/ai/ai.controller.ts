@@ -10,6 +10,7 @@ import { AiConfigService } from '../ai-config/ai-config.service';
 import { QuickReplyService } from '../quick-reply/quick-reply.service';
 import { MAX_HISTORY_MESSAGES, MUTUALYF_KEYWORDS, OFF_TOPIC_RESPONSE } from './ai.constants';
 import { setupSSE, writeSSEChunked } from './utils/sse.util';
+import { RagService } from '../rag/rag.service';
 
 /** Mensaje de fallback final con datos de contacto reales de MutuaLyF */
 const FALLBACK_RESPONSE =
@@ -27,6 +28,7 @@ export class AiController implements OnModuleInit {
     private readonly ollamaService: OllamaService,
     private readonly aiConfigService: AiConfigService,
     private readonly quickReplyService: QuickReplyService,
+    private readonly ragService: RagService,
   ) {}
 
   async onModuleInit() {
@@ -69,7 +71,7 @@ export class AiController implements OnModuleInit {
 
   /**
    * Endpoint unificado — cascada:
-   * QuickReply → OffTopic → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
+   * QuickReply → OffTopic (keywords) → RAG (retrieval+offtopic semántico) → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
    */
   @Post('chat')
   async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
@@ -89,7 +91,7 @@ export class AiController implements OnModuleInit {
         return;
       }
 
-      // 2. Off-topic guard — rechaza preguntas claramente fuera de tema sin gastar tokens
+      // 2. Off-topic guard rápido por keywords — rechaza obvio sin IO
       if (this.isOffTopic(body.newMessage)) {
         writeSSEChunked(res, OFF_TOPIC_RESPONSE);
         res.write('data: [DONE]\n\n');
@@ -97,9 +99,24 @@ export class AiController implements OnModuleInit {
         return;
       }
 
-      const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
+      // 3. RAG — retrieval híbrido + off-topic semántico + prompt enriquecido con contexto
+      const rag = await this.ragService.prepare({
+        query: body.newMessage,
+        history,
+        basePrompt: config.systemPrompt,
+        sessionId: (body as any).sessionId,
+      });
 
-      // 3. Groq (primario) — API externa, rápida
+      if (rag.shortCircuit) {
+        writeSSEChunked(res, rag.shortCircuit);
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      }
+
+      const { prompt, apiMaxTokens } = this.buildPromptWithLength(rag.systemPrompt, config.maxTokens);
+
+      // 4. Groq (primario) — API externa, rápida
       try {
         const response = await this.groqService.generateResponse(
           history,
@@ -120,7 +137,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'groq', message });
       }
 
-      // 4. Gemini — API externa, segundo intento
+      // 5. Gemini — API externa, segundo intento
       try {
         this.logger.log('Falling back to Gemini...');
         const response = await this.geminiService.generateResponse(
@@ -142,7 +159,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'gemini', message });
       }
 
-      // 5. Ollama fallback (self-hosted) — streaming con early-stop
+      // 6. Ollama fallback (self-hosted) — streaming con early-stop
       try {
         this.logger.log('Falling back to Ollama streaming...');
         let hasContent = false;
@@ -175,7 +192,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama-stream', message });
       }
 
-      // 6. Ollama retry sin streaming
+      // 7. Ollama retry sin streaming
       try {
         this.logger.log('Retrying Ollama without streaming...');
         const response = await this.ollamaService.generateResponse(
@@ -197,7 +214,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama-retry', message });
       }
 
-      // 7. Fallback final con info de contacto + diagnóstico para la consola del front
+      // 8. Fallback final con info de contacto + diagnóstico para la consola del front
       if (failures.length > 0) {
         res.write(`data: ${JSON.stringify({ warning: 'ai-cascade-failed', failures })}\n\n`);
       }

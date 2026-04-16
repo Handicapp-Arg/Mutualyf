@@ -28,8 +28,15 @@ async function bootstrap() {
       logger: new RequestOnlyLogger(),
     });
 
-    // Seguridad: Helmet para headers HTTP seguros
-    app.use(helmet());
+    // Seguridad: Helmet para headers HTTP seguros.
+    // crossOriginResourcePolicy debe ser 'cross-origin' para permitir que el
+    // frontend (otro origen, ej. localhost:5173) cargue imágenes/archivos
+    // servidos por la API (ej. /conversations/attachment/:id).
+    app.use(
+      helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+      }),
+    );
 
     // CORS configurado de forma segura
     app.enableCors({

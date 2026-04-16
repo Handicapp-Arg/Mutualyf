@@ -14,7 +14,7 @@ import {
   Paperclip,
   Loader2,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
 import { useAuthStore } from '@/stores/auth.store';
 import type { ChatMessage } from '@/types';
@@ -31,17 +31,11 @@ interface UploadedFile {
   id: number;
   sessionId: string;
   fileName: string;
-  patientDNI: string;
-  patientName: string;
-  patientPhone?: string;
-  orderDate: string;
-  doctorName?: string;
-  doctorLicense?: string;
-  healthInsurance?: string;
-  requestedStudies: string[];
-  validationStatus: string;
-  createdAt: Date;
-  uploadedAt?: Date;
+  fileType: string;
+  fileSize: number;
+  description?: string | null;
+  uploadedBy: 'user' | 'admin';
+  createdAt: string;
 }
 
 interface Stats {
@@ -57,10 +51,36 @@ interface LiveSession {
   lastSeen: string;
 }
 
+type AdminTab = 'conversations' | 'uploads' | 'stats';
+const VALID_TABS: AdminTab[] = ['conversations', 'uploads', 'stats'];
+
 export function AdminPortal() {
-  const [activeTab, setActiveTab] = useState<
-    'conversations' | 'uploads' | 'stats'
-  >('conversations');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const initialTab: AdminTab = VALID_TABS.includes(tabFromUrl as AdminTab)
+    ? (tabFromUrl as AdminTab)
+    : 'conversations';
+  const [activeTab, setActiveTabState] = useState<AdminTab>(initialTab);
+
+  const setActiveTab = (tab: AdminTab) => {
+    setActiveTabState(tab);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', tab);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  // Sincronizar si el usuario navega con back/forward
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t && VALID_TABS.includes(t as AdminTab) && t !== activeTab) {
+      setActiveTabState(t as AdminTab);
+    }
+  }, [searchParams]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -315,21 +335,15 @@ export function AdminPortal() {
         setStats(calculatedStats);
       }
 
-      // Cargar archivos subidos
-      const uploadsRes = await authFetch(`${BACKEND_URL}/uploads/medical-orders`);
+      // Cargar attachments del chat
+      const uploadsRes = await authFetch(`${BACKEND_URL}/conversations/attachments`);
       if (uploadsRes.ok) {
         const uploadsData = await uploadsRes.json();
-        console.log('📦 Uploads data:', uploadsData);
-
-        // El backend devuelve { success: true, data: [...] }
-        let uploadsArray = [];
-        if (uploadsData.success && Array.isArray(uploadsData.data)) {
-          uploadsArray = uploadsData.data;
-        } else if (Array.isArray(uploadsData)) {
-          uploadsArray = uploadsData;
-        }
-
-        console.log('📋 Uploads array:', uploadsArray);
+        const uploadsArray: UploadedFile[] = Array.isArray(uploadsData?.data)
+          ? uploadsData.data
+          : Array.isArray(uploadsData)
+            ? uploadsData
+            : [];
         setUploads(uploadsArray);
         setStats((prev) => ({ ...prev, totalUploads: uploadsArray.length }));
       }
@@ -372,9 +386,15 @@ export function AdminPortal() {
     a.click();
   };
 
-  const handleDownloadOrder = (orderId: number) => {
-    const url = `${BACKEND_URL}/uploads/medical-orders/file/${orderId}`;
+  const handleDownloadAttachment = (attachmentId: number) => {
+    const url = `${BACKEND_URL}/conversations/attachment/${attachmentId}`;
     window.open(url, '_blank');
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -443,7 +463,7 @@ export function AdminPortal() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase text-slate-500">
-                    Órdenes Subidas
+                    Archivos Subidos
                   </p>
                   <p className="mt-1 text-3xl font-black text-green-600">
                     {stats.totalUploads}
@@ -526,7 +546,7 @@ export function AdminPortal() {
             >
               <div className="flex items-center gap-2">
                 <FileText size={16} />
-                Órdenes Médicas
+                Archivos
               </div>
             </button>
             <button
@@ -872,29 +892,29 @@ export function AdminPortal() {
             {activeTab === 'uploads' && (
               <div className="rounded-xl border bg-white p-6">
                 <h2 className="mb-4 text-lg font-black text-slate-800">
-                  Órdenes Médicas Subidas
+                  Archivos subidos
                 </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
-                          Paciente
+                          Archivo
                         </th>
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
-                          DNI
+                          Descripción
                         </th>
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
-                          Estudios
+                          Sesión
                         </th>
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
-                          Estado
+                          Subido por
                         </th>
                         <th className="pb-3 text-left text-xs font-bold uppercase text-slate-500">
                           Fecha
                         </th>
                         <th className="pb-3 text-center text-xs font-bold uppercase text-slate-500">
-                          Ver
+                          Descargar
                         </th>
                       </tr>
                     </thead>
@@ -905,7 +925,7 @@ export function AdminPortal() {
                             colSpan={6}
                             className="py-8 text-center text-sm text-slate-400"
                           >
-                            No hay órdenes médicas cargadas
+                            Aún no se subieron archivos
                           </td>
                         </tr>
                       ) : (
@@ -914,59 +934,50 @@ export function AdminPortal() {
                             <td className="py-4">
                               <div className="flex items-center gap-2">
                                 <FileText size={16} className="text-corporate" />
-                                <div>
-                                  <p className="text-sm font-bold text-slate-700">
-                                    {upload.patientName}
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-slate-700" title={upload.fileName}>
+                                    {upload.fileName}
                                   </p>
-                                  {upload.patientPhone && (
-                                    <p className="text-xs text-slate-500">
-                                      Tel: {upload.patientPhone}
-                                    </p>
-                                  )}
+                                  <p className="text-xs text-slate-500">
+                                    {formatFileSize(upload.fileSize)} · {upload.fileType || 'archivo'}
+                                  </p>
                                 </div>
                               </div>
                             </td>
                             <td className="py-4">
-                              <span className="text-sm font-medium text-slate-600">
-                                {upload.patientDNI}
-                              </span>
+                              <p className="max-w-xs truncate text-xs text-slate-600" title={upload.description ?? ''}>
+                                {upload.description || <span className="italic text-slate-400">sin descripción</span>}
+                              </p>
                             </td>
                             <td className="py-4">
-                              <div className="max-w-xs">
-                                <p className="text-xs text-slate-600">
-                                  {upload.requestedStudies.join(', ')}
-                                </p>
-                              </div>
+                              <span className="font-mono text-xs text-slate-500" title={upload.sessionId}>
+                                {upload.sessionId.slice(0, 10)}…
+                              </span>
                             </td>
                             <td className="py-4">
                               <span
                                 className={`rounded-full px-2 py-1 text-xs font-bold ${
-                                  upload.validationStatus === 'approved'
-                                    ? 'bg-green-100 text-green-700'
-                                    : upload.validationStatus === 'rejected'
-                                      ? 'bg-red-100 text-red-700'
-                                      : 'bg-yellow-100 text-yellow-700'
+                                  upload.uploadedBy === 'admin'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-slate-100 text-slate-700'
                                 }`}
                               >
-                                {upload.validationStatus === 'approved'
-                                  ? 'Aprobada'
-                                  : upload.validationStatus === 'rejected'
-                                    ? 'Rechazada'
-                                    : 'Pendiente'}
+                                {upload.uploadedBy === 'admin' ? 'Admin' : 'Usuario'}
                               </span>
                             </td>
                             <td className="py-4">
                               <span className="text-xs text-slate-500">
-                                {formatDate(upload.createdAt || upload.uploadedAt)}
+                                {formatDate(upload.createdAt)}
                               </span>
                             </td>
                             <td className="py-4">
                               <div className="flex items-center justify-center">
                                 <button
-                                  onClick={() => handleDownloadOrder(upload.id)}
-                                  className="rounded-lg bg-corporate px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-corporate/90"
+                                  onClick={() => handleDownloadAttachment(upload.id)}
+                                  className="flex items-center gap-1.5 rounded-lg bg-corporate px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-corporate/90"
                                 >
-                                  Ver
+                                  <Download size={12} />
+                                  Descargar
                                 </button>
                               </div>
                             </td>
@@ -1005,7 +1016,7 @@ export function AdminPortal() {
                     </div>
                     <div className="flex items-center justify-between border-b pb-3">
                       <span className="text-sm font-bold text-slate-600">
-                        Órdenes Recibidas
+                        Archivos Recibidos
                       </span>
                       <span className="text-2xl font-black text-green-600">
                         {stats.totalUploads}

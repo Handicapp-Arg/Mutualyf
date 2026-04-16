@@ -90,15 +90,18 @@ export class BackendAPIService {
   /**
    * Subir un archivo adjunto al chat y obtener su metadata.
    */
-  async uploadChatAttachment(file: File): Promise<{
+  async uploadChatAttachment(file: File, description?: string): Promise<{
     success: boolean;
-    data?: { id: number; fileName: string; fileType: string; fileSize: number };
+    data?: { id: number; fileName: string; fileType: string; fileSize: number; description?: string | null };
     message?: string;
   }> {
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('sessionId', this.sessionId);
+      if (description && description.trim()) {
+        formData.append('description', description.trim());
+      }
 
       const response = await fetch(`${BACKEND_URL}/conversations/attachment`, {
         method: 'POST',
@@ -111,7 +114,7 @@ export class BackendAPIService {
       }
 
       const data = await response.json();
-      return { success: true, data: data.data };
+      return { success: true, data: data.data ?? data };
     } catch (error) {
       console.error('Error subiendo archivo adjunto:', error);
       return { success: false, message: 'Error de conexión' };

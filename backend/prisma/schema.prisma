@@ -145,6 +145,7 @@ model ChatAttachment {
   fileType     String   @map("file_type")
   fileSize     Int      @map("file_size")
   filePath     String   @map("file_path")
+  description  String?  @map("description")
   uploadedBy   String   @default("user") @map("uploaded_by") // "user" | "admin"
   createdAt    DateTime @default(now()) @map("created_at")
 

@@ -15,6 +15,8 @@ import { RagController } from "./rag.controller";
 import { PrismaService } from "../prisma/prisma.service";
 import { KNOWLEDGE_SEED } from "./seed/knowledge.seed";
 
+const AUTO_REBUILD_MAX_CHUNKS = 500;
+
 @Module({
   imports: [PrismaModule, ConfigModule],
   controllers: [RagController],
@@ -38,6 +40,7 @@ export class RagModule implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ingestion: IngestionService,
+    private readonly emb: EmbeddingsService,
   ) {}
 
   async onModuleInit() {
@@ -47,14 +50,52 @@ export class RagModule implements OnModuleInit {
     const count = await this.prisma.knowledgeDoc.count({
       where: { status: "active" },
     });
-    if (count > 0) {
-      this.logger.log(`KB has ${count} active docs — skip seeding`);
+    if (count === 0) {
+      this.logger.log(
+        "No knowledge docs found — seeding initial KB in background...",
+      );
+      void this.runSeedBackground();
       return;
     }
-    this.logger.log(
-      "No knowledge docs found — seeding initial KB in background...",
-    );
-    void this.runSeedBackground();
+    this.logger.log(`KB has ${count} active docs — skip seeding`);
+
+    // Auto-rebuild si hay chunks indexados con embModel viejo (típico tras bumpear modelVersion).
+    // Fire-and-forget para no bloquear el boot. Skipea si hay demasiados chunks
+    // (rebuild masivo puede saturar Ollama; en ese caso requerir trigger manual).
+    void this.runAutoRebuildBackground();
+  }
+
+  private async runAutoRebuildBackground(): Promise<void> {
+    try {
+      const currentModel = this.emb.model;
+      const stale = await this.prisma.knowledgeChunk.count({
+        where: {
+          doc: { status: "active" },
+          embModel: { not: currentModel },
+        },
+      });
+      if (stale === 0) return;
+
+      if (stale > AUTO_REBUILD_MAX_CHUNKS) {
+        this.logger.warn(
+          `Found ${stale} chunks with stale embed model (current=${currentModel}), ` +
+            `exceeds AUTO_REBUILD_MAX_CHUNKS=${AUTO_REBUILD_MAX_CHUNKS}. ` +
+            `Run POST /admin/rag/rebuild manually.`,
+        );
+        return;
+      }
+
+      this.logger.log(
+        `Auto-rebuilding ${stale} stale chunks → ${currentModel} (background)...`,
+      );
+      const t0 = Date.now();
+      const { rebuilt } = await this.ingestion.rebuildIndex();
+      this.logger.log(
+        `Auto-rebuild done: ${rebuilt} chunks in ${Date.now() - t0}ms`,
+      );
+    } catch (e) {
+      this.logger.warn(`Auto-rebuild failed: ${(e as Error).message}`);
+    }
   }
 
   private async runSeedBackground(): Promise<void> {

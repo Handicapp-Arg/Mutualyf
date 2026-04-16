@@ -124,8 +124,20 @@ export class ConversationsController {
   async uploadAttachment(
     @UploadedFile() file: Express.Multer.File,
     @Body('sessionId') sessionId: string,
+    @Body('description') description?: string,
   ) {
-    return this.conversationsService.createAttachment(file, sessionId, 'user');
+    return this.conversationsService.createAttachment(file, sessionId, 'user', description);
+  }
+
+  /**
+   * Listar todos los attachments para el panel admin.
+   */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.CONVERSATIONS_READ)
+  @Get('attachments')
+  async listAttachments(@Query('limit') limit?: string) {
+    const limitNum = limit ? Math.min(parseInt(limit, 10) || 100, 500) : 100;
+    return this.conversationsService.listAttachments(limitNum);
   }
 
   /**

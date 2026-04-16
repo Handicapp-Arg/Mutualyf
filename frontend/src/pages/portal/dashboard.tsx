@@ -9,6 +9,7 @@ import {
   LogIn,
   LogOut,
   SendHorizontal,
+  Paperclip,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
@@ -29,16 +30,11 @@ interface UploadedFile {
   id: number;
   sessionId: string;
   fileName: string;
-  patientDNI: string;
-  patientName: string;
-  patientPhone?: string;
-  orderDate: string;
-  doctorName?: string;
-  doctorLicense?: string;
-  healthInsurance?: string;
-  requestedStudies: string[];
-  validationStatus: string;
-  createdAt: Date;
+  fileType: string;
+  fileSize: number;
+  description?: string | null;
+  uploadedBy: 'user' | 'admin';
+  createdAt: string;
 }
 
 interface Stats {
@@ -79,7 +75,7 @@ export function PortalDashboard() {
   const canReadConversations = hasPermission('conversations:read');
   const canDeleteConversations = hasPermission('conversations:delete');
   const canTakeover = hasPermission('conversations:takeover');
-  const canReadUploads = hasPermission('uploads:read');
+  const canReadUploads = hasPermission('conversations:read');
   const canReadSessions = hasPermission('sessions:read');
 
   useEffect(() => {
@@ -187,8 +183,8 @@ export function PortalDashboard() {
       }
 
       if (canReadUploads) {
-        const uploadsRes = await apiClient.get('/uploads/medical-orders');
-        const uploadsArray = Array.isArray(uploadsRes.data) ? uploadsRes.data : [];
+        const uploadsRes = await apiClient.get('/conversations/attachments');
+        const uploadsArray: UploadedFile[] = Array.isArray(uploadsRes.data) ? uploadsRes.data : [];
         setUploads(uploadsArray);
         setStats((prev) => ({ ...prev, totalUploads: uploadsArray.length }));
       }
@@ -225,10 +221,16 @@ export function PortalDashboard() {
     a.click();
   };
 
-  const handleDownloadOrder = (orderId: number) => {
-    const token = useAuthStore.getState().token;
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
-    window.open(`${BACKEND_URL}/uploads/medical-orders/file/${orderId}?token=${token}`, '_blank');
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+
+  const handleDownloadAttachment = (attachmentId: number) => {
+    window.open(`${BACKEND_URL}/conversations/attachment/${attachmentId}`, '_blank');
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -299,7 +301,7 @@ export function PortalDashboard() {
                       </div>
                       <div>
                         <p className="text-2xl font-black text-slate-800">{stats.totalUploads}</p>
-                        <p className="text-[11px] font-medium text-slate-400">Ordenes</p>
+                        <p className="text-[11px] font-medium text-slate-400">Archivos</p>
                       </div>
                     </div>
                   </div>
@@ -402,13 +404,40 @@ export function PortalDashboard() {
                         <p className="text-xs text-slate-400">Session: {selectedConversation.sessionId.substring(0, 20)}...</p>
                       </div>
                       <div className="flex-1 space-y-3 overflow-y-auto" style={{ maxHeight: '500px' }}>
-                        {selectedConversation.messages.map((msg, idx) => (
+                        {selectedConversation.messages.map((msg: any, idx: number) => (
                           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] rounded-xl px-4 py-2 ${
                               msg.role === 'user' ? 'bg-corporate text-white' : msg.role === 'admin' ? 'bg-orange-100 text-orange-900' : 'bg-slate-100 text-slate-800'
                             }`}>
                               {msg.role === 'admin' && <p className="mb-1 text-[10px] font-bold uppercase">Admin</p>}
-                              <p className="text-sm">{msg.content}</p>
+                              {msg.content && <p className="whitespace-pre-wrap text-sm">{msg.content}</p>}
+                              {msg.attachment && (
+                                <a
+                                  href={`${BACKEND_URL}/conversations/attachment/${msg.attachment.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors ${
+                                    msg.role === 'user'
+                                      ? 'bg-white/15 hover:bg-white/25'
+                                      : 'bg-slate-200/60 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  {msg.attachment.fileType?.startsWith('image/') ? (
+                                    <img
+                                      src={`${BACKEND_URL}/conversations/attachment/${msg.attachment.id}`}
+                                      alt={msg.attachment.fileName}
+                                      className="max-h-32 rounded-lg object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <>
+                                      <FileText size={14} className="shrink-0" />
+                                      <span className="flex-1 truncate font-medium">{msg.attachment.fileName}</span>
+                                      <Download size={12} className="shrink-0 opacity-70" />
+                                    </>
+                                  )}
+                                </a>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -448,7 +477,8 @@ export function PortalDashboard() {
           {activeTab === 'uploads' && canReadUploads && (
             <>
               <div className="flex items-center justify-between border-b bg-white px-6 py-4">
-                <h1 className="text-lg font-bold text-slate-800">Ordenes Medicas</h1>
+                <h1 className="text-lg font-bold text-slate-800">Archivos</h1>
+                <span className="text-xs text-slate-400">{uploads.length} archivos</span>
               </div>
               <div className="p-6">
                 <div className="rounded-xl border bg-white p-6">
@@ -456,43 +486,63 @@ export function PortalDashboard() {
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b text-xs font-bold uppercase text-slate-500">
-                          <th className="pb-3 pr-4">Paciente</th>
-                          <th className="pb-3 pr-4">DNI</th>
-                          <th className="pb-3 pr-4">Estudios</th>
-                          <th className="pb-3 pr-4">Estado</th>
+                          <th className="pb-3 pr-4">Archivo</th>
+                          <th className="pb-3 pr-4">Descripcion</th>
+                          <th className="pb-3 pr-4">Sesion</th>
+                          <th className="pb-3 pr-4">Subido por</th>
                           <th className="pb-3 pr-4">Fecha</th>
-                          <th className="pb-3">Acciones</th>
+                          <th className="pb-3 text-center">Descargar</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {uploads.map((upload) => (
+                        {uploads.length === 0 ? (
+                          <tr><td colSpan={6} className="py-8 text-center text-slate-400">Aun no se subieron archivos</td></tr>
+                        ) : uploads.map((upload) => (
                           <tr key={upload.id} className="border-b last:border-0">
-                            <td className="py-3 pr-4 font-medium text-slate-700">{upload.patientName}</td>
-                            <td className="py-3 pr-4 text-slate-500">{upload.patientDNI}</td>
-                            <td className="py-3 pr-4 text-slate-500">
-                              {(Array.isArray(upload.requestedStudies) ? upload.requestedStudies : JSON.parse(upload.requestedStudies as any || '[]')).join(', ')}
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-2">
+                                {upload.fileType?.startsWith('image/') ? (
+                                  <Paperclip size={14} className="text-corporate" />
+                                ) : (
+                                  <FileText size={14} className="text-corporate" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-slate-700" title={upload.fileName}>{upload.fileName}</p>
+                                  <p className="text-[11px] text-slate-400">
+                                    {formatFileSize(upload.fileSize)} · {upload.fileType || 'archivo'}
+                                  </p>
+                                </div>
+                              </div>
                             </td>
                             <td className="py-3 pr-4">
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                                upload.validationStatus === 'validated' ? 'bg-green-100 text-green-700'
-                                : upload.validationStatus === 'rejected' ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
+                              <p className="max-w-xs truncate text-xs text-slate-600" title={upload.description ?? ''}>
+                                {upload.description || <span className="italic text-slate-400">sin descripcion</span>}
+                              </p>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span className="font-mono text-xs text-slate-500" title={upload.sessionId}>
+                                {upload.sessionId.slice(0, 10)}…
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                upload.uploadedBy === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
                               }`}>
-                                {upload.validationStatus === 'validated' ? 'Validado' : upload.validationStatus === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                                {upload.uploadedBy === 'admin' ? 'Admin' : 'Usuario'}
                               </span>
                             </td>
                             <td className="py-3 pr-4 text-xs text-slate-400">{formatDate(upload.createdAt)}</td>
-                            <td className="py-3">
-                              <button onClick={() => handleDownloadOrder(upload.id)}
-                                className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50">
-                                <Download size={14} />
+                            <td className="py-3 text-center">
+                              <button
+                                onClick={() => handleDownloadAttachment(upload.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-corporate px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-corporate/90"
+                              >
+                                <Download size={12} />
+                                Descargar
                               </button>
                             </td>
                           </tr>
                         ))}
-                        {uploads.length === 0 && (
-                          <tr><td colSpan={6} className="py-8 text-center text-slate-400">No hay ordenes medicas</td></tr>
-                        )}
                       </tbody>
                     </table>
                   </div>
@@ -524,7 +574,7 @@ export function PortalDashboard() {
                       <span className="font-bold text-green-600">{stats.avgMessagesPerConversation.toFixed(1)}</span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-                      <span className="text-sm text-slate-600">Ordenes medicas</span>
+                      <span className="text-sm text-slate-600">Archivos subidos</span>
                       <span className="font-bold text-orange-600">{stats.totalUploads}</span>
                     </div>
                   </div>

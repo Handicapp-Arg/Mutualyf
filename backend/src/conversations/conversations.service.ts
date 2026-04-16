@@ -249,8 +249,10 @@ export class ConversationsService {
     file: Express.Multer.File,
     sessionId: string,
     uploadedBy: 'user' | 'admin' = 'user',
+    description?: string,
   ) {
     try {
+      const cleanDescription = description?.trim().slice(0, 500) || null;
       const attachment = await this.prisma.chatAttachment.create({
         data: {
           sessionId,
@@ -259,6 +261,7 @@ export class ConversationsService {
           fileSize: file.size,
           filePath: file.path,
           uploadedBy,
+          description: cleanDescription,
         },
       });
 
@@ -271,6 +274,7 @@ export class ConversationsService {
         fileName: attachment.fileName,
         fileType: attachment.fileType,
         fileSize: attachment.fileSize,
+        description: attachment.description,
       };
     } catch (error) {
       // Limpiar archivo si falla el registro en DB
@@ -278,6 +282,26 @@ export class ConversationsService {
       this.logger.error(`Error creando attachment: ${error.message}`);
       throw new DatabaseException('createAttachment', error.message);
     }
+  }
+
+  /**
+   * Listado de attachments para el panel admin (más reciente primero).
+   */
+  async listAttachments(limit = 100) {
+    const rows = await this.prisma.chatAttachment.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      sessionId: r.sessionId,
+      fileName: r.fileName,
+      fileType: r.fileType,
+      fileSize: r.fileSize,
+      description: r.description,
+      uploadedBy: r.uploadedBy,
+      createdAt: r.createdAt,
+    }));
   }
 
   /**

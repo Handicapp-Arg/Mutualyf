@@ -9,7 +9,7 @@ interface PortalLayoutProps {
 
 const navItems = [
   { path: '/portal/dashboard', label: 'Conversaciones', icon: MessageSquare, tab: 'conversations', permission: 'conversations:read' },
-  { path: '/portal/dashboard', label: 'Ordenes', icon: FileText, tab: 'uploads', permission: 'uploads:read' },
+  { path: '/portal/dashboard', label: 'Archivos', icon: FileText, tab: 'uploads', permission: 'conversations:read' },
   { path: '/portal/dashboard', label: 'Estadisticas', icon: TrendingUp, tab: 'stats', permission: 'sessions:read' },
   { path: '/portal/users', label: 'Usuarios', icon: Users, permission: 'users:read' },
   { path: '/portal/roles', label: 'Roles', icon: Shield, permission: 'roles:read' },

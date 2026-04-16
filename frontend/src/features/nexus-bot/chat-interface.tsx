@@ -36,6 +36,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachInputRef = useRef<HTMLInputElement>(null);
   const [pendingChatAttachment, setPendingChatAttachment] = useState<File | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const chatService = useRef(new ChatAIService());
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
@@ -266,18 +267,13 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const hasText = inputText.trim().length > 0;
-    const hasAttachment = !!pendingChatAttachment;
 
-    if ((!hasText && !hasAttachment) || isLoading) return;
+    // Mientras hay un attachment pendiente, el envío de texto está bloqueado:
+    // el usuario debe confirmar/cancelar el upload primero.
+    if (pendingChatAttachment || !hasText || isLoading) return;
 
     const text = inputText.trim();
     setInputText('');
-
-    // Si hay un archivo adjunto, usar el flujo de attachment
-    if (hasAttachment) {
-      await sendWithAttachment(text, pendingChatAttachment!);
-      return;
-    }
 
     if (adminActiveRef.current) {
       const userMessage: ChatMessage = {
@@ -442,11 +438,17 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     if (attachInputRef.current) attachInputRef.current.value = '';
   };
 
-  /** Envía un mensaje con archivo adjunto */
-  const sendWithAttachment = async (text: string, file: File) => {
-    setIsLoading(true);
+  /**
+   * Confirma el upload del archivo pendiente (con descripción opcional).
+   * El bubble del usuario muestra la descripción como contenido + el attachment.
+   * Si no hay admin activo y la descripción tiene texto, también se envía a la IA.
+   */
+  const handleConfirmAttachment = async (description: string) => {
+    if (!pendingChatAttachment) return;
+    const file = pendingChatAttachment;
+    setIsUploadingAttachment(true);
     try {
-      const result = await backendService.current.uploadChatAttachment(file);
+      const result = await backendService.current.uploadChatAttachment(file, description);
       if (!result.success || !result.data) {
         setMessages((prev) => [
           ...prev,
@@ -463,41 +465,46 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
-        content: text || '',
+        content: description || '',
         timestamp: new Date(),
         attachment: result.data,
       };
       setMessages((prev) => [...prev, userMessage]);
+      setPendingChatAttachment(null);
 
-      // Si admin no está activo, enviar a IA (sin el archivo, solo texto)
-      if (!adminActiveRef.current && text.trim()) {
+      // Solo encolamos respuesta de IA si hay descripción y el admin no está atendiendo
+      if (!adminActiveRef.current && description.trim()) {
+        setIsLoading(true);
         let assistantContent = '';
         let isFirstChunk = true;
-
-        for await (const chunk of chatService.current.sendMessage(text)) {
-          if (isFirstChunk) {
-            setIsLoading(false);
-            isFirstChunk = false;
-          }
-          assistantContent += chunk;
-          setMessages((prev) => {
-            const lastIdx = prev.length - 1;
-            if (prev[lastIdx]?.role === 'assistant' && !isFirstChunk) {
-              return [
-                ...prev.slice(0, lastIdx),
-                { ...prev[lastIdx], content: assistantContent },
-              ];
+        try {
+          for await (const chunk of chatService.current.sendMessage(description)) {
+            if (isFirstChunk) {
+              setIsLoading(false);
+              isFirstChunk = false;
             }
-            return [
-              ...prev,
-              {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant' as const,
-                content: assistantContent,
-                timestamp: new Date(),
-              },
-            ];
-          });
+            assistantContent += chunk;
+            setMessages((prev) => {
+              const lastIdx = prev.length - 1;
+              if (prev[lastIdx]?.role === 'assistant' && !isFirstChunk) {
+                return [
+                  ...prev.slice(0, lastIdx),
+                  { ...prev[lastIdx], content: assistantContent },
+                ];
+              }
+              return [
+                ...prev,
+                {
+                  id: (Date.now() + 1).toString(),
+                  role: 'assistant' as const,
+                  content: assistantContent,
+                  timestamp: new Date(),
+                },
+              ];
+            });
+          }
+        } finally {
+          setIsLoading(false);
         }
       }
     } catch (error) {
@@ -511,8 +518,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         },
       ]);
     } finally {
-      setIsLoading(false);
-      setPendingChatAttachment(null);
+      setIsUploadingAttachment(false);
     }
   };
 
@@ -680,6 +686,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         onAttachClick={() => attachInputRef.current?.click()}
         attachInputRef={attachInputRef}
         onAttachFile={handleAttachFile}
+        onConfirmAttachment={handleConfirmAttachment}
+        isUploadingAttachment={isUploadingAttachment}
       />
 
       {showOrderForm && pendingFile && analyzedData && (

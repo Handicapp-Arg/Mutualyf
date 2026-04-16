@@ -161,12 +161,15 @@ export class IngestionService {
   /**
    * Rebuilds the vector+FTS index from existing chunks in DB.
    * Útil si cambió el modelo de embedding o el índice se corrompió.
+   * Marca embModel actualizado en cada batch para que un nuevo onModuleInit
+   * no vuelva a disparar el rebuild si éste se completó.
    */
   async rebuildIndex(): Promise<{ rebuilt: number }> {
     const chunks = await this.prisma.knowledgeChunk.findMany({
       where: { doc: { status: "active" } },
     });
     let done = 0;
+    const currentModel = this.emb.model;
     for (let i = 0; i < chunks.length; i += this.cfg.embedBatchSize) {
       const batch = chunks.slice(i, i + this.cfg.embedBatchSize);
       const emb = await this.emb.embed(batch.map((c) => c.contentClean));
@@ -180,10 +183,14 @@ export class IngestionService {
           }),
         ),
       );
+      await this.prisma.knowledgeChunk.updateMany({
+        where: { id: { in: batch.map((c) => c.id) } },
+        data: { embModel: currentModel },
+      });
       done += batch.length;
     }
     this.retrieval.invalidateCache();
-    this.logger.log(`rebuilt index with ${done} chunks`);
+    this.logger.log(`rebuilt index with ${done} chunks (model=${currentModel})`);
     return { rebuilt: done };
   }
 }
