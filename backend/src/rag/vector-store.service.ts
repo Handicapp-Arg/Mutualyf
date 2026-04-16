@@ -11,8 +11,13 @@ import * as path from "path";
 import { Hit } from "./rag.types";
 
 export const EMBEDDING_DIM = 768;
-const TABLE_VEC = "kb_vec_v1";
-const TABLE_FTS = "kb_fts";
+// _v3: tras descubrir bug en sqlite-vec 0.1.9 con `partition key` (al insertar
+// el segundo doc en una particion ya creada, falla con "Error opening vector blob").
+// Nuevo schema: solo chunk_id + embedding. La filtracion por categoria se hace
+// en hydrate() via Prisma. Es post-filter pero el dataset es chico.
+const TABLE_VEC = "kb_vec_v3";
+const TABLE_FTS = "kb_fts_v2";
+const LEGACY_TABLES = ["kb_fts", "kb_vec_v1", "kb_vec_v2"];
 
 /**
  * Único writer sobre la tabla vectorial y FTS.
@@ -26,7 +31,6 @@ export class VectorStoreService implements OnModuleInit, OnModuleDestroy {
   private writeQueue: Promise<void> = Promise.resolve();
   private stmts!: {
     knn: Database.Statement;
-    knnCat: Database.Statement;
     fts: Database.Statement;
     ftsCat: Database.Statement;
     delVec: Database.Statement;
@@ -38,25 +42,56 @@ export class VectorStoreService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly config: ConfigService) {}
 
   onModuleInit() {
+    // IMPORTANTE: el vector store vive en un archivo SEPARADO de la DB de Prisma.
+    // Compartir el archivo corrompia paginas (Prisma driver + better-sqlite3 + sqlite-vec
+    // pisandose entre si). El separado elimina conflictos.
     const dbUrl = this.config.get<string>(
       "DATABASE_URL",
       "file:./data/chat.db",
     );
-    const file = dbUrl.replace(/^file:/, "");
-    const abs = path.isAbsolute(file)
-      ? file
-      : path.resolve(process.cwd(), "prisma", file);
-    this.logger.log(`Opening vector DB at ${abs}`);
+    const prismaFile = dbUrl.replace(/^file:/, "");
+    const prismaAbs = path.isAbsolute(prismaFile)
+      ? prismaFile
+      : path.resolve(process.cwd(), "prisma", prismaFile);
+    const dir = path.dirname(prismaAbs);
+    const abs = path.join(dir, "chat-rag.db");
+    this.logger.log(`Opening vector DB at ${abs} (separate from Prisma)`);
     this.db = new Database(abs);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("busy_timeout = 5000");
     this.db.pragma("synchronous = NORMAL");
     sqliteVec.load(this.db);
 
+    this.dropLegacyTables();
+    this.createTables();
+    this.prepareStatements();
+
+    this.logger.log("Vector store ready (sqlite-vec + FTS5)");
+  }
+
+  /**
+   * Limpia tablas legacy (versiones anteriores de los indices).
+   * Best-effort: si una tabla legacy esta tan corrupta que ni se puede dropear,
+   * loggeamos y seguimos — la nueva tabla con sufijo _v2 funciona en paralelo.
+   */
+  private dropLegacyTables() {
+    for (const t of LEGACY_TABLES) {
+      try {
+        this.db.exec(`DROP TABLE IF EXISTS ${t};`);
+      } catch (e) {
+        this.logger.warn(
+          `Could not drop legacy table ${t}: ${(e as Error).message}`,
+        );
+      }
+    }
+  }
+
+  private createTables() {
+    // vec0: solo chunk_id + embedding. Sin partition (bug en sqlite-vec 0.1.9).
+    // Filtrado por categoria en hydrate() (Prisma).
     this.db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS ${TABLE_VEC} USING vec0(
         chunk_id INTEGER PRIMARY KEY,
-        category TEXT partition key,
         embedding FLOAT[${EMBEDDING_DIM}]
       );
     `);
@@ -69,13 +104,12 @@ export class VectorStoreService implements OnModuleInit, OnModuleDestroy {
         tokenize = 'unicode61 remove_diacritics 2'
       );
     `);
+  }
 
+  private prepareStatements() {
     this.stmts = {
       knn: this.db.prepare(
         `SELECT chunk_id, distance FROM ${TABLE_VEC} WHERE embedding MATCH ? AND k = ? ORDER BY distance`,
-      ),
-      knnCat: this.db.prepare(
-        `SELECT chunk_id, distance FROM ${TABLE_VEC} WHERE embedding MATCH ? AND category = ? AND k = ? ORDER BY distance`,
       ),
       fts: this.db.prepare(
         `SELECT chunk_id, bm25(${TABLE_FTS}) AS score FROM ${TABLE_FTS} WHERE ${TABLE_FTS} MATCH ? ORDER BY score LIMIT ?`,
@@ -85,15 +119,37 @@ export class VectorStoreService implements OnModuleInit, OnModuleDestroy {
       ),
       delVec: this.db.prepare(`DELETE FROM ${TABLE_VEC} WHERE chunk_id = ?`),
       insVec: this.db.prepare(
-        `INSERT INTO ${TABLE_VEC}(chunk_id, category, embedding) VALUES (?, ?, ?)`,
+        `INSERT INTO ${TABLE_VEC}(chunk_id, embedding) VALUES (?, ?)`,
       ),
       delFts: this.db.prepare(`DELETE FROM ${TABLE_FTS} WHERE chunk_id = ?`),
       insFts: this.db.prepare(
         `INSERT INTO ${TABLE_FTS}(chunk_id, content, category) VALUES (?, ?, ?)`,
       ),
     };
+  }
 
-    this.logger.log("Vector store ready (sqlite-vec + FTS5)");
+  /**
+   * Tira abajo y recrea las tablas FTS5 y vec0 desde cero.
+   * Útil cuando los índices se corrompen ("fts5: corruption found") o tras cambiar
+   * EMBEDDING_DIM. El caller debe re-poblar luego desde KnowledgeChunk.
+   */
+  async recreateIndices(): Promise<void> {
+    this.writeQueue = this.writeQueue.then(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          try {
+            this.db.exec(`DROP TABLE IF EXISTS ${TABLE_FTS};`);
+            this.db.exec(`DROP TABLE IF EXISTS ${TABLE_VEC};`);
+            this.createTables();
+            this.prepareStatements();
+            this.logger.warn("Recreated kb_fts + kb_vec_v1 (data wiped)");
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        }),
+    );
+    return this.writeQueue;
   }
 
   onModuleDestroy() {
@@ -120,7 +176,7 @@ export class VectorStoreService implements OnModuleInit, OnModuleDestroy {
             const idBig = BigInt(c.id);
             const tx = this.db.transaction(() => {
               this.stmts.delVec.run(idBig);
-              this.stmts.insVec.run(idBig, c.category, buf);
+              this.stmts.insVec.run(idBig, buf);
               this.stmts.delFts.run(c.id);
               this.stmts.insFts.run(c.id, c.content, c.category);
             });
@@ -162,16 +218,14 @@ export class VectorStoreService implements OnModuleInit, OnModuleDestroy {
       opts.embedding.byteOffset,
       opts.embedding.byteLength,
     );
+    // category param se ignora a nivel vec (filtramos en hydrate via Prisma).
+    // Si se quiso filtrar, sobre-pedimos para que el post-filter no quede vacio.
+    const fetchK = opts.category ? Math.max(opts.k * 5, 20) : opts.k;
     try {
-      const rows = opts.category
-        ? (this.stmts.knnCat.all(buf, opts.category, opts.k) as Array<{
-            chunk_id: number;
-            distance: number;
-          }>)
-        : (this.stmts.knn.all(buf, opts.k) as Array<{
-            chunk_id: number;
-            distance: number;
-          }>);
+      const rows = this.stmts.knn.all(buf, fetchK) as Array<{
+        chunk_id: number;
+        distance: number;
+      }>;
       // vec0 devuelve distance (coseno o L2). Lo normalizamos: score = 1/(1+d)
       return rows.map((r) => ({
         chunkId: r.chunk_id,

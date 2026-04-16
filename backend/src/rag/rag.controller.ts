@@ -4,10 +4,12 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
@@ -15,9 +17,11 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { IngestionService } from "./ingestion.service";
 import { EmbeddingsService } from "./embeddings.service";
 import { EMBEDDING_DIM } from "./vector-store.service";
-import { KNOWLEDGE_SEED } from "./seed/knowledge.seed";
 import { CATEGORIES } from "./rag.types";
 import { RagConfig } from "./rag.config";
+import { PermissionsGuard } from "../auth/guards/permissions.guard";
+import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
+import { PermissionCode } from "../auth/constants/permissions.enum";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -32,6 +36,8 @@ const ALLOWED_MIMES = new Set([
   "application/octet-stream", // algunos clientes mandan .md como octet
 ]);
 
+@UseGuards(PermissionsGuard)
+@RequirePermissions(PermissionCode.AI_CONFIG_MANAGE)
 @Controller("admin/rag")
 export class RagController {
   constructor(
@@ -74,6 +80,13 @@ export class RagController {
     return this.ingestion.listDocs();
   }
 
+  @Get("docs/:id")
+  async getOne(@Param("id", ParseIntPipe) id: number) {
+    const doc = await this.ingestion.getDoc(id);
+    if (!doc) throw new NotFoundException("Doc not found");
+    return doc;
+  }
+
   @Post("docs")
   create(
     @Body()
@@ -88,8 +101,8 @@ export class RagController {
   }
 
   @Delete("docs/:id")
-  async archive(@Param("id", ParseIntPipe) id: number) {
-    await this.ingestion.archiveDoc(id);
+  async remove(@Param("id", ParseIntPipe) id: number) {
+    await this.ingestion.deleteDoc(id);
     return { ok: true };
   }
 
@@ -253,15 +266,5 @@ export class RagController {
       return String(data?.text || "");
     }
     return file.buffer.toString("utf8");
-  }
-
-  @Post("seed")
-  async seed() {
-    const results: any[] = [];
-    for (const doc of KNOWLEDGE_SEED) {
-      const r = await this.ingestion.ingestText(doc);
-      results.push({ title: doc.title, ...r });
-    }
-    return { total: results.length, results };
   }
 }

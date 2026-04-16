@@ -54,17 +54,26 @@ export class IngestionService {
 
     const hash = createHash("sha256").update(cleanContent).digest("hex");
 
-    // Dedup por hash
+    // Dedup por hash, pero ignora "orphans" (docs sin chunks de ingestas previas
+    // que fallaron a mitad de camino). Si encontramos un orphan con el mismo hash,
+    // lo borramos y dejamos que la ingesta nueva lo recree limpio.
     const existing = await this.prisma.knowledgeDoc.findUnique({
       where: { hash },
+      include: { _count: { select: { chunks: true } } },
     });
-    if (existing) {
+    if (existing && existing._count.chunks > 0) {
       return {
         docId: existing.id,
         chunks: 0,
         skipped: true,
         reason: "hash-exists",
       };
+    }
+    if (existing) {
+      this.logger.warn(
+        `Orphan doc detected (id=${existing.id}, "${existing.title}") — deleting and re-ingesting`,
+      );
+      await this.prisma.knowledgeDoc.delete({ where: { id: existing.id } });
     }
 
     // Versioning: archivar docs previos con mismo source
@@ -85,6 +94,10 @@ export class IngestionService {
     });
     const tokensTotal = rawChunks.reduce((s, c) => s + estimateTokens(c), 0);
 
+    // Doc + chunks en una sola operacion atomica (nested write).
+    // Antes lo haciamos en dos pasos (create doc + $transaction chunks) y a veces
+    // tiraba "Foreign key constraint violated" en SQLite porque la transaccion
+    // de los chunks no veia el doc recien creado.
     const doc = await this.prisma.knowledgeDoc.create({
       data: {
         title: input.title,
@@ -93,25 +106,22 @@ export class IngestionService {
         hash,
         version,
         tokensTotal,
-      },
-    });
-
-    // Sanitizar y persistir chunks
-    const chunkRows = await this.prisma.$transaction(
-      rawChunks.map((c, i) =>
-        this.prisma.knowledgeChunk.create({
-          data: {
-            docId: doc.id,
+        chunks: {
+          create: rawChunks.map((c, i) => ({
             ord: i,
             content: c,
             contentClean: sanitizeChunk(c),
             tokens: estimateTokens(c),
             category: input.category,
             embModel: this.emb.model,
-          },
-        }),
-      ),
-    );
+          })),
+        },
+      },
+      include: {
+        chunks: { orderBy: { ord: "asc" } },
+      },
+    });
+    const chunkRows = doc.chunks;
 
     // Embed en batches + insert vectorial
     for (let i = 0; i < chunkRows.length; i += this.cfg.embedBatchSize) {
@@ -136,19 +146,17 @@ export class IngestionService {
     return { docId: doc.id, chunks: chunkRows.length };
   }
 
-  async archiveDoc(docId: number): Promise<void> {
+  async deleteDoc(docId: number): Promise<void> {
     const doc = await this.prisma.knowledgeDoc.findUnique({
       where: { id: docId },
       include: { chunks: { select: { id: true } } },
     });
     if (!doc) throw new BadRequestException("Doc not found");
     await this.vec.deleteByChunkIds(doc.chunks.map((c) => c.id));
-    await this.prisma.knowledgeDoc.update({
-      where: { id: docId },
-      data: { status: "archived", archivedAt: new Date() },
-    });
+    // Cascade en Prisma borra los chunks asociados al eliminar el doc.
+    await this.prisma.knowledgeDoc.delete({ where: { id: docId } });
     this.retrieval.invalidateCache();
-    this.logger.log(`archived doc=${docId}`);
+    this.logger.log(`deleted doc=${docId} chunks=${doc.chunks.length}`);
   }
 
   async listDocs() {
@@ -158,13 +166,34 @@ export class IngestionService {
     });
   }
 
+  async getDoc(id: number) {
+    return this.prisma.knowledgeDoc.findUnique({
+      where: { id },
+      include: {
+        chunks: {
+          orderBy: { ord: "asc" },
+          select: {
+            id: true,
+            ord: true,
+            content: true,
+            tokens: true,
+            category: true,
+            embModel: true,
+          },
+        },
+      },
+    });
+  }
+
   /**
    * Rebuilds the vector+FTS index from existing chunks in DB.
    * Útil si cambió el modelo de embedding o el índice se corrompió.
-   * Marca embModel actualizado en cada batch para que un nuevo onModuleInit
-   * no vuelva a disparar el rebuild si éste se completó.
+   * Tira abajo las tablas FTS5/vec0 y las repuebla desde KnowledgeChunk
+   * (Prisma es la fuente de verdad). Esto resuelve corrupciones de FTS5
+   * que impiden DELETE/INSERT en upserts normales.
    */
   async rebuildIndex(): Promise<{ rebuilt: number }> {
+    await this.vec.recreateIndices();
     const chunks = await this.prisma.knowledgeChunk.findMany({
       where: { doc: { status: "active" } },
     });

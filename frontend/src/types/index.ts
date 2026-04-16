@@ -76,6 +76,23 @@ export interface KnowledgeDoc {
   _count: { chunks: number };
 }
 
+/** Chunk individual de un documento */
+export interface KnowledgeChunk {
+  id: number;
+  ord: number;
+  content: string;
+  tokens: number;
+  category: string;
+  embModel: string;
+}
+
+/** Documento con sus chunks (detalle) */
+export interface KnowledgeDocDetail extends Omit<KnowledgeDoc, '_count'> {
+  hash: string;
+  updatedAt: string;
+  chunks: KnowledgeChunk[];
+}
+
 /** Categorías RAG disponibles */
 export const RAG_CATEGORIES = [
   { value: 'contact', label: 'Contacto' },

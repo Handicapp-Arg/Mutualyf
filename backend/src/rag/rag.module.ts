@@ -13,7 +13,6 @@ import { RagMetrics } from "./rag.metrics";
 import { RagConfig } from "./rag.config";
 import { RagController } from "./rag.controller";
 import { PrismaService } from "../prisma/prisma.service";
-import { KNOWLEDGE_SEED } from "./seed/knowledge.seed";
 
 const AUTO_REBUILD_MAX_CHUNKS = 500;
 
@@ -44,20 +43,10 @@ export class RagModule implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Auto-seed inicial si no hay docs activos.
-    // Fire-and-forget: el seed dispara N embeddings (Ollama puede tardar minutos
-    // si está cold). Bloquear el startup haría que la app no levante mientras tanto.
     const count = await this.prisma.knowledgeDoc.count({
       where: { status: "active" },
     });
-    if (count === 0) {
-      this.logger.log(
-        "No knowledge docs found — seeding initial KB in background...",
-      );
-      void this.runSeedBackground();
-      return;
-    }
-    this.logger.log(`KB has ${count} active docs — skip seeding`);
+    this.logger.log(`KB has ${count} active docs`);
 
     // Auto-rebuild si hay chunks indexados con embModel viejo (típico tras bumpear modelVersion).
     // Fire-and-forget para no bloquear el boot. Skipea si hay demasiados chunks
@@ -96,22 +85,5 @@ export class RagModule implements OnModuleInit {
     } catch (e) {
       this.logger.warn(`Auto-rebuild failed: ${(e as Error).message}`);
     }
-  }
-
-  private async runSeedBackground(): Promise<void> {
-    let ok = 0,
-      failed = 0;
-    for (const doc of KNOWLEDGE_SEED) {
-      try {
-        await this.ingestion.ingestText(doc);
-        ok++;
-      } catch (e) {
-        failed++;
-        this.logger.warn(`seed "${doc.title}" failed: ${(e as Error).message}`);
-      }
-    }
-    this.logger.log(
-      `Background seed done: ok=${ok} failed=${failed} total=${KNOWLEDGE_SEED.length}`,
-    );
   }
 }

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  BookOpen, Upload, RefreshCw, Archive, FileText, Loader2,
+  BookOpen, Upload, RefreshCw, FileText, Loader2,
   Plus, Pencil, Trash2, X, Save, ToggleLeft, ToggleRight, Zap,
+  ChevronRight, Hash, Tag, Calendar, Layers, Cpu, FolderUp,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
 import { PortalLayout } from '@/components/portal/portal-layout';
 import { RAG_CATEGORIES } from '@/types';
-import type { KnowledgeDoc } from '@/types';
+import type { KnowledgeDoc, KnowledgeDocDetail } from '@/types';
 
 // ── Quick Reply types ──
 
@@ -89,13 +90,16 @@ function DocumentsTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
+  const [isIngestingFolder, setIsIngestingFolder] = useState(false);
 
-  const [mode, setMode] = useState<'text' | 'file'>('text');
+  const [mode, setMode] = useState<'text' | 'file'>('file');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('general');
   const [textContent, setTextContent] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [detailDocId, setDetailDocId] = useState<number | null>(null);
 
   useEffect(() => { loadDocs(); }, []);
 
@@ -148,13 +152,37 @@ function DocumentsTab() {
     }
   };
 
-  const handleArchive = async (id: number) => {
-    if (!window.confirm('¿Archivar este documento? Se elimina del indice.')) return;
+  const handleDelete = async (id: number, title: string) => {
+    if (!window.confirm(`¿Eliminar "${title}"? Se borra el documento, sus fragmentos y los vectores. Esta accion no se puede deshacer.`)) return;
     try {
       await apiClient.delete(`/admin/rag/docs/${id}`);
       await loadDocs();
-    } catch (err) {
-      console.error('Error archivando:', err);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al eliminar documento');
+    }
+  };
+
+  const handleIngestFolder = async () => {
+    if (!window.confirm(
+      'Cargar todos los .md/.pdf/.txt de prisma/data/knowledge/<categoria>/ del servidor?\n\n' +
+      'Cada archivo se indexa como un documento. Los duplicados (mismo titulo + categoria) se omiten.'
+    )) return;
+    setIsIngestingFolder(true);
+    try {
+      const res = await apiClient.post('/admin/rag/ingest-folder', {});
+      const { total, ingested, skipped, failed } = res.data ?? {};
+      alert(
+        `Ingesta completada:\n` +
+        `- Total: ${total}\n` +
+        `- Indexados: ${ingested}\n` +
+        `- Omitidos: ${skipped}\n` +
+        `- Fallidos: ${failed}`
+      );
+      await loadDocs();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al cargar carpeta');
+    } finally {
+      setIsIngestingFolder(false);
     }
   };
 
@@ -190,6 +218,12 @@ function DocumentsTab() {
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
             Refrescar
+          </button>
+          <button onClick={handleIngestFolder} disabled={isIngestingFolder}
+            className="flex items-center gap-1.5 rounded-lg border border-corporate/30 bg-corporate/5 px-3 py-2 text-xs font-bold text-corporate hover:bg-corporate/10 disabled:opacity-50"
+            title="Indexar todos los archivos de prisma/data/knowledge/<categoria>/">
+            {isIngestingFolder ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />}
+            Cargar carpeta
           </button>
           <button onClick={handleRebuild} disabled={isRebuilding}
             className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-100 disabled:opacity-50">
@@ -304,10 +338,13 @@ function DocumentsTab() {
           ) : (
             <div className="space-y-3">
               {docs.map((doc) => (
-                <div key={doc.id}
-                  className={`flex items-start justify-between rounded-lg border p-4 ${
+                <button
+                  key={doc.id}
+                  onClick={() => setDetailDocId(doc.id)}
+                  className={`group flex w-full items-start justify-between rounded-lg border p-4 text-left transition-colors hover:border-corporate hover:bg-slate-50 ${
                     doc.status === 'active' ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'
-                  }`}>
+                  }`}
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="truncate text-sm font-bold text-slate-700">{doc.title}</h3>
@@ -326,19 +363,145 @@ function DocumentsTab() {
                       <span>{formatDate(doc.createdAt)}</span>
                     </div>
                   </div>
-                  {doc.status === 'active' && (
-                    <button onClick={() => handleArchive(doc.id)}
-                      className="ml-3 flex shrink-0 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100">
-                      <Archive size={12} /> Archivar
+                  <div className="ml-3 flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }}
+                      className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100"
+                      title="Eliminar documento"
+                    >
+                      <Trash2 size={12} /> Eliminar
                     </button>
-                  )}
-                </div>
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-corporate" />
+                  </div>
+                </button>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {detailDocId !== null && (
+        <DocDetailModal docId={detailDocId} onClose={() => setDetailDocId(null)} />
+      )}
     </>
+  );
+}
+
+// ══════════════════════════════════════════════
+// Modal: Detalle de documento (chunks)
+// ══════════════════════════════════════════════
+
+function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void }) {
+  const [doc, setDoc] = useState<KnowledgeDocDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError('');
+    apiClient.get(`/admin/rag/docs/${docId}`)
+      .then((res) => { if (!cancelled) setDoc(res.data); })
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.message || 'Error al cargar'); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [docId]);
+
+  const getCategoryLabel = (cat: string) =>
+    RAG_CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-black text-slate-800">
+              {doc?.title || 'Cargando...'}
+            </h2>
+            {doc && (
+              <p className="mt-0.5 truncate text-xs text-slate-500">{doc.source}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex h-40 items-center justify-center">
+              <Loader2 size={24} className="animate-spin text-corporate" />
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center text-sm text-red-600">{error}</div>
+          ) : doc ? (
+            <>
+              {/* Metadata */}
+              <div className="grid grid-cols-2 gap-4 border-b border-slate-100 bg-slate-50 p-5 sm:grid-cols-4">
+                <Meta icon={Tag} label="Categoria" value={getCategoryLabel(doc.category)} />
+                <Meta icon={Layers} label="Fragmentos" value={String(doc.chunks.length)} />
+                <Meta icon={Hash} label="Tokens totales" value={String(doc.tokensTotal)} />
+                <Meta icon={Calendar} label="Creado" value={formatDate(doc.createdAt)} />
+                <Meta icon={Tag} label="Estado" value={doc.status === 'active' ? 'Activo' : 'Archivado'} />
+                <Meta icon={Hash} label="Version" value={`v${doc.version}`} />
+                <Meta icon={Cpu} label="Modelo embed" value={doc.chunks[0]?.embModel ?? '-'} />
+                <Meta icon={Hash} label="Hash" value={doc.hash.slice(0, 12) + '...'} mono />
+              </div>
+
+              {/* Chunks */}
+              <div className="p-5">
+                <h3 className="mb-3 text-sm font-bold text-slate-700">
+                  Fragmentos ({doc.chunks.length})
+                </h3>
+                {doc.chunks.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400">Este documento no tiene fragmentos indexados.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {doc.chunks.map((chunk) => (
+                      <div key={chunk.id} className="rounded-lg border border-slate-200 bg-white">
+                        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2">
+                          <span className="text-xs font-bold text-slate-600">
+                            Fragmento #{chunk.ord + 1}
+                          </span>
+                          <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                            <span>id: {chunk.id}</span>
+                            <span>{chunk.tokens} tokens</span>
+                          </div>
+                        </div>
+                        <pre className="whitespace-pre-wrap break-words px-3 py-3 text-xs leading-relaxed text-slate-700">
+                          {chunk.content}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Meta({
+  icon: Icon, label, value, mono = false,
+}: { icon: React.ElementType; label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-400">
+        <Icon size={10} />
+        {label}
+      </div>
+      <div className={`mt-0.5 truncate text-xs font-semibold text-slate-700 ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </div>
+    </div>
   );
 }
 

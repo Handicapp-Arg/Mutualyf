@@ -189,7 +189,7 @@ export class RetrievalService {
       return res;
     }
 
-    const chunks = await this.hydrate(fused);
+    const chunks = await this.hydrate(fused, category);
     const res: RetrievalResult = {
       chunks,
       topScore,
@@ -231,11 +231,11 @@ export class RetrievalService {
       .digest("hex");
   }
 
-  private async hydrate(hits: Hit[]): Promise<HydratedChunk[]> {
+  private async hydrate(hits: Hit[], category?: string): Promise<HydratedChunk[]> {
     if (!hits.length) return [];
     const ids = hits.map((h) => h.chunkId);
     const rows = await this.prisma.knowledgeChunk.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, ...(category ? { category } : {}) },
       include: { doc: true },
     });
     const byId = new Map(rows.map((r) => [r.id, r]));

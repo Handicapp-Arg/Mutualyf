@@ -5,7 +5,9 @@
       "Bash(npx tsc:*)",
       "Bash(npx prisma:*)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@mutualyf.com\",\"password\":\"123456\"}')",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
