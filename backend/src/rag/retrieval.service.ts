@@ -107,12 +107,12 @@ export class RetrievalService {
     const category = intent.categoryConfident ? intent.category : undefined;
 
     // Vector path es best-effort: si embeddings fallan, seguimos con FTS puro.
-    const ftsHits = this.vec.fts({ query: rewritten, k: k * 3, category });
+    const ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3, category });
     let vecHits: Hit[] = [];
     let embeddingsAvailable = true;
     try {
       const [qEmb] = await this.emb.embed([rewritten], "query");
-      vecHits = this.vec.knn({ embedding: qEmb, k: k * 3, category });
+      vecHits = await this.vec.knnAsync({ embedding: qEmb, k: k * 3, category });
     } catch (e) {
       embeddingsAvailable = false;
       this.logger.warn(

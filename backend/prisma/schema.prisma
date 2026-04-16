@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -36,9 +36,9 @@ model Conversation {
   id             Int           @id @default(autoincrement())
   sessionId      String        @unique @map("session_id")
   userName       String?       @map("user_name")
-  userMessage    String        @map("user_message")
-  botResponse    String        @map("bot_response")
-  messages       String?       // JSON string con array completo de mensajes
+  userMessage    String        @map("user_message") @db.Text
+  botResponse    String        @map("bot_response") @db.Text
+  messages       String?       @db.Text // JSON string con array completo de mensajes
   timestamp      String
   aiModel        String?       @map("ai_model")
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -160,7 +160,7 @@ model ChatAttachment {
 model AiConfig {
   id            Int      @id @default(autoincrement())
   key           String   @unique @default("default")
-  systemPrompt  String   @map("system_prompt")
+  systemPrompt  String   @map("system_prompt") @db.Text
   temperature   Float    @default(0.7)
   maxTokens     Int      @default(800) @map("max_tokens")
   quickButtons  String   @default("[]") @map("quick_buttons") // JSON array de {icon, label, prompt}
@@ -176,8 +176,8 @@ model AiConfig {
 
 model QuickReply {
   id        Int      @id @default(autoincrement())
-  keywords  String   // JSON array: ["horario", "hora", "abierto"]
-  response  String   // Markdown response text
+  keywords  String   @db.Text // JSON array: ["horario", "hora", "abierto"]
+  response  String   @db.Text // Markdown response text
   priority  Int      @default(0)
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
@@ -204,7 +204,7 @@ model MedicalOrder {
   doctorName        String?   @map("doctor_name")
   doctorLicense     String?   @map("doctor_license")
   healthInsurance   String?   @map("health_insurance")
-  requestedStudies  String    @map("requested_studies") // JSON string con array de estudios
+  requestedStudies  String    @map("requested_studies") @db.Text // JSON string con array de estudios
   
   // Archivo
   fileName          String    @map("file_name")
@@ -256,8 +256,8 @@ model KnowledgeChunk {
   docId        Int      @map("doc_id")
   doc          KnowledgeDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
   ord          Int
-  content      String
-  contentClean String   @map("content_clean")
+  content      String   @db.Text
+  contentClean String   @map("content_clean") @db.Text
   tokens       Int
   category     String
   embModel     String   @map("emb_model")
