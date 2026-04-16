@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { RetrievalService } from './retrieval.service';
-import { RagConfig } from './rag.config';
-import { HydratedChunk, Intent, RetrievalResult, ChatMsg } from './rag.types';
-import { escapeXmlAttr } from './sanitizer';
+import { Injectable, Logger } from "@nestjs/common";
+import { RetrievalService } from "./retrieval.service";
+import { RagConfig } from "./rag.config";
+import { HydratedChunk, Intent, RetrievalResult, ChatMsg } from "./rag.types";
+import { escapeXmlAttr } from "./sanitizer";
 
 const OFFTOPIC_MSG =
-  'Solo puedo ayudarte con consultas sobre MutuaLyF. ¿En qué te puedo asistir?';
+  "Solo puedo ayudarte con consultas sobre MutuaLyF. ¿En qué te puedo asistir?";
 
 @Injectable()
 export class RagService {
@@ -35,20 +35,34 @@ export class RagService {
       });
     } catch (e) {
       // RAG nunca debe tirar el chat. Degradamos al prompt base.
-      this.logger.warn(`retrieval failed, degrading to base prompt: ${(e as Error).message}`);
+      this.logger.warn(
+        `retrieval failed, degrading to base prompt: ${(e as Error).message}`,
+      );
       return { systemPrompt: opts.basePrompt, retrieval: null };
     }
 
-    if (retrieval.intent.kind === 'offtopic') {
-      return { systemPrompt: opts.basePrompt, retrieval, shortCircuit: OFFTOPIC_MSG };
+    if (retrieval.intent.kind === "offtopic") {
+      return {
+        systemPrompt: opts.basePrompt,
+        retrieval,
+        shortCircuit: OFFTOPIC_MSG,
+      };
     }
 
-    const systemPrompt = this.buildSystemPrompt(opts.basePrompt, retrieval.chunks, retrieval.intent);
+    const systemPrompt = this.buildSystemPrompt(
+      opts.basePrompt,
+      retrieval.chunks,
+      retrieval.intent,
+    );
     return { systemPrompt, retrieval };
   }
 
-  private buildSystemPrompt(base: string, chunks: HydratedChunk[], intent: Intent): string {
-    if (intent.kind === 'chitchat' || chunks.length === 0) {
+  private buildSystemPrompt(
+    base: string,
+    chunks: HydratedChunk[],
+    intent: Intent,
+  ): string {
+    if (intent.kind === "chitchat" || chunks.length === 0) {
       return `${base}
 
 TONO: amable, breve, rioplatense. Si el usuario pide un dato específico (horario, teléfono, dirección, nombre, monto), respondé con la info disponible o derivá al 0800 777 4413 / MiMutuaLyF.`;
@@ -58,14 +72,18 @@ TONO: amable, breve, rioplatense. Si el usuario pide un dato específico (horari
     const budgeted: HydratedChunk[] = [];
     let used = 0;
     for (const c of chunks) {
-      if (used + c.tokens > this.cfg.contextTokenBudget && budgeted.length > 0) break;
+      if (used + c.tokens > this.cfg.contextTokenBudget && budgeted.length > 0)
+        break;
       budgeted.push(c);
       used += c.tokens;
     }
 
-    const ctxBlocks = budgeted.map((c, i) =>
-      `<doc id="${i + 1}" category="${escapeXmlAttr(c.category)}" source="${escapeXmlAttr(c.source)}">\n${c.contentClean}\n</doc>`,
-    ).join('\n');
+    const ctxBlocks = budgeted
+      .map(
+        (c, i) =>
+          `<doc id="${i + 1}" category="${escapeXmlAttr(c.category)}" source="${escapeXmlAttr(c.source)}">\n${c.contentClean}\n</doc>`,
+      )
+      .join("\n");
 
     return `${base}
 

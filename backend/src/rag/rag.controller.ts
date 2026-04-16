@@ -9,30 +9,30 @@ import {
   Post,
   UploadedFile,
   UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { IngestionService } from './ingestion.service';
-import { EmbeddingsService } from './embeddings.service';
-import { EMBEDDING_DIM } from './vector-store.service';
-import { KNOWLEDGE_SEED } from './seed/knowledge.seed';
-import { CATEGORIES } from './rag.types';
-import { RagConfig } from './rag.config';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+} from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { IngestionService } from "./ingestion.service";
+import { EmbeddingsService } from "./embeddings.service";
+import { EMBEDDING_DIM } from "./vector-store.service";
+import { KNOWLEDGE_SEED } from "./seed/knowledge.seed";
+import { CATEGORIES } from "./rag.types";
+import { RagConfig } from "./rag.config";
+import * as fs from "fs/promises";
+import * as path from "path";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse');
+const pdfParse = require("pdf-parse");
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIMES = new Set([
-  'application/pdf',
-  'text/plain',
-  'text/markdown',
-  'text/x-markdown',
-  'application/octet-stream', // algunos clientes mandan .md como octet
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/x-markdown",
+  "application/octet-stream", // algunos clientes mandan .md como octet
 ]);
 
-@Controller('admin/rag')
+@Controller("admin/rag")
 export class RagController {
   constructor(
     private readonly ingestion: IngestionService,
@@ -40,19 +40,19 @@ export class RagController {
     private readonly cfg: RagConfig,
   ) {}
 
-  @Get('config')
+  @Get("config")
   config() {
     return this.cfg.snapshot();
   }
 
-  @Get('health')
+  @Get("health")
   async health() {
     const t0 = Date.now();
     let embOk = false;
     let embDim = 0;
     let embError: string | null = null;
     try {
-      const [v] = await this.emb.embed(['health check mutualyf']);
+      const [v] = await this.emb.embed(["health check mutualyf"]);
       embOk = v instanceof Float32Array && v.length === EMBEDDING_DIM;
       embDim = v?.length ?? 0;
     } catch (e) {
@@ -69,23 +69,32 @@ export class RagController {
     };
   }
 
-  @Get('docs')
+  @Get("docs")
   list() {
     return this.ingestion.listDocs();
   }
 
-  @Post('docs')
-  create(@Body() body: { title: string; source: string; category: string; content: string }) {
+  @Post("docs")
+  create(
+    @Body()
+    body: {
+      title: string;
+      source: string;
+      category: string;
+      content: string;
+    },
+  ) {
     return this.ingestion.ingestText(body);
   }
 
-  @Delete('docs/:id')
-  async archive(@Param('id', ParseIntPipe) id: number) {
+  @Delete("docs/:id")
+  async archive(@Param("id", ParseIntPipe) id: number) {
     await this.ingestion.archiveDoc(id);
     return { ok: true };
   }
 
-  @Post('rebuild')
+  @Throttle({ default: { ttl: 300_000, limit: 2 } })
+  @Post("rebuild")
   rebuild() {
     return this.ingestion.rebuildIndex();
   }
@@ -99,25 +108,39 @@ export class RagController {
    *
    * Default: prisma/data/knowledge/ (overrideable con RAG_KNOWLEDGE_DIR env).
    */
-  @Post('ingest-folder')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Post("ingest-folder")
   async ingestFolder(@Body() body: { dir?: string }) {
-    const baseDir = body?.dir
-      || process.env.RAG_KNOWLEDGE_DIR
-      || path.resolve(process.cwd(), 'prisma', 'data', 'knowledge');
+    const baseDir =
+      body?.dir ||
+      process.env.RAG_KNOWLEDGE_DIR ||
+      path.resolve(process.cwd(), "prisma", "data", "knowledge");
 
     const stat = await fs.stat(baseDir).catch(() => null);
     if (!stat?.isDirectory()) {
       throw new BadRequestException(`Not a directory: ${baseDir}`);
     }
 
-    const results: Array<{ file: string; category: string; docId?: number; chunks?: number; skipped?: boolean; reason?: string; error?: string }> = [];
+    const results: Array<{
+      file: string;
+      category: string;
+      docId?: number;
+      chunks?: number;
+      skipped?: boolean;
+      reason?: string;
+      error?: string;
+    }> = [];
     const categories = await fs.readdir(baseDir, { withFileTypes: true });
 
     for (const catDir of categories) {
       if (!catDir.isDirectory()) continue;
       const category = catDir.name;
       if (!CATEGORIES.includes(category as any)) {
-        results.push({ file: catDir.name, category, error: 'invalid category' });
+        results.push({
+          file: catDir.name,
+          category,
+          error: "invalid category",
+        });
         continue;
       }
 
@@ -131,17 +154,21 @@ export class RagController {
         try {
           const buf = await fs.readFile(full);
           const content = /\.pdf$/i.test(f.name)
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            ? String((await require('pdf-parse')(buf))?.text || '')
-            : buf.toString('utf8');
+            ? String((await require("pdf-parse")(buf))?.text || "")
+            : buf.toString("utf8");
 
           if (content.trim().length < 40) {
-            results.push({ file: f.name, category, skipped: true, reason: 'empty or scanned' });
+            results.push({
+              file: f.name,
+              category,
+              skipped: true,
+              reason: "empty or scanned",
+            });
             continue;
           }
 
           const r = await this.ingestion.ingestText({
-            title: f.name.replace(/\.(pdf|md|markdown|txt)$/i, ''),
+            title: f.name.replace(/\.(pdf|md|markdown|txt)$/i, ""),
             source: `folder:${category}/${f.name}`,
             category,
             content,
@@ -156,14 +183,14 @@ export class RagController {
     return {
       dir: baseDir,
       total: results.length,
-      ingested: results.filter(r => r.docId && !r.skipped).length,
-      skipped: results.filter(r => r.skipped).length,
-      failed: results.filter(r => r.error).length,
+      ingested: results.filter((r) => r.docId && !r.skipped).length,
+      skipped: results.filter((r) => r.skipped).length,
+      failed: results.filter((r) => r.error).length,
       results,
     };
   }
 
-  @Post('pull-model')
+  @Post("pull-model")
   async pullModel() {
     const pull = await this.emb.pullModel();
     // Tras pullear, reintenta el health check para confirmar
@@ -171,26 +198,43 @@ export class RagController {
     return { pull, health };
   }
 
-  @Post('upload')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post("upload")
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: MAX_UPLOAD_BYTES } }),
+  )
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { title?: string; category?: string },
   ) {
-    if (!file) throw new BadRequestException('file is required (multipart field "file")');
+    if (!file)
+      throw new BadRequestException(
+        'file is required (multipart field "file")',
+      );
     if (!body?.category || !CATEGORIES.includes(body.category as any)) {
-      throw new BadRequestException(`category required. Allowed: ${CATEGORIES.join(', ')}`);
+      throw new BadRequestException(
+        `category required. Allowed: ${CATEGORIES.join(", ")}`,
+      );
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      throw new BadRequestException(`file too large (max ${MAX_UPLOAD_BYTES} bytes)`);
+      throw new BadRequestException(
+        `file too large (max ${MAX_UPLOAD_BYTES} bytes)`,
+      );
     }
-    if (!ALLOWED_MIMES.has(file.mimetype) && !/\.(pdf|md|markdown|txt)$/i.test(file.originalname)) {
-      throw new BadRequestException(`unsupported mime "${file.mimetype}" — accepted: pdf, md, txt`);
+    if (
+      !ALLOWED_MIMES.has(file.mimetype) &&
+      !/\.(pdf|md|markdown|txt)$/i.test(file.originalname)
+    ) {
+      throw new BadRequestException(
+        `unsupported mime "${file.mimetype}" — accepted: pdf, md, txt`,
+      );
     }
 
     const content = await this.extractText(file);
     if (content.trim().length < 40) {
-      throw new BadRequestException('extracted text too short — the file may be scanned/empty');
+      throw new BadRequestException(
+        "extracted text too short — the file may be scanned/empty",
+      );
     }
 
     return this.ingestion.ingestText({
@@ -202,15 +246,16 @@ export class RagController {
   }
 
   private async extractText(file: Express.Multer.File): Promise<string> {
-    const isPdf = file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
+    const isPdf =
+      file.mimetype === "application/pdf" || /\.pdf$/i.test(file.originalname);
     if (isPdf) {
       const data = await pdfParse(file.buffer);
-      return String(data?.text || '');
+      return String(data?.text || "");
     }
-    return file.buffer.toString('utf8');
+    return file.buffer.toString("utf8");
   }
 
-  @Post('seed')
+  @Post("seed")
   async seed() {
     const results: any[] = [];
     for (const doc of KNOWLEDGE_SEED) {

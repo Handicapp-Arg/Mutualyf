@@ -11,9 +11,9 @@ export interface SeedDoc {
  */
 export const KNOWLEDGE_SEED: SeedDoc[] = [
   {
-    title: 'Identificación institucional',
-    source: 'seed:identidad-v1',
-    category: 'general',
+    title: "Identificación institucional",
+    source: "seed:identidad-v1",
+    category: "general",
     content: `MutuaLyF es la Mutual Provincial de Luz y Fuerza de Santa Fe, una entidad solidaria de salud creada en 1999.
 
 Tipo de entidad: Mutual de salud.
@@ -22,9 +22,9 @@ Cobertura geográfica: Provincia de Santa Fe, con red de prestadores en todo el 
 Misión: brindar atención médica y prestaciones de salud a sus asociados bajo un modelo mutualista.`,
   },
   {
-    title: 'Horarios de atención',
-    source: 'seed:horarios-v1',
-    category: 'contact',
+    title: "Horarios de atención",
+    source: "seed:horarios-v1",
+    category: "contact",
     content: `Horarios de atención de MutuaLyF:
 
 - Atención telefónica: lunes a viernes de 07:30 a 19:30 hs.
@@ -34,9 +34,9 @@ Misión: brindar atención médica y prestaciones de salud a sus asociados bajo 
 Fuera del horario de atención telefónica, los afiliados pueden iniciar trámites por la plataforma MiMutuaLyF.`,
   },
   {
-    title: 'Canales de contacto',
-    source: 'seed:contacto-v1',
-    category: 'contact',
+    title: "Canales de contacto",
+    source: "seed:contacto-v1",
+    category: "contact",
     content: `Canales de contacto oficiales de MutuaLyF:
 
 - Teléfono: 0800 777 4413 (lunes a viernes de 07:30 a 19:30 hs).
@@ -47,9 +47,9 @@ Fuera del horario de atención telefónica, los afiliados pueden iniciar trámit
 Para cualquier consulta urgente, el canal recomendado es el 0800 777 4413.`,
   },
   {
-    title: 'Plataforma digital MiMutuaLyF',
-    source: 'seed:plataforma-v1',
-    category: 'platform',
+    title: "Plataforma digital MiMutuaLyF",
+    source: "seed:plataforma-v1",
+    category: "platform",
     content: `MiMutuaLyF es el sistema de autogestión digital para afiliados, accesible desde la web las 24 horas.
 
 Funciones disponibles:
@@ -63,9 +63,9 @@ Funciones disponibles:
 Siempre se recomienda usar MiMutuaLyF antes de llamar por teléfono, ya que la mayoría de los trámites se resuelven online.`,
   },
   {
-    title: 'Servicios de salud y especialidades',
-    source: 'seed:servicios-v1',
-    category: 'services',
+    title: "Servicios de salud y especialidades",
+    source: "seed:servicios-v1",
+    category: "services",
     content: `MutuaLyF brinda servicios de atención médica general y especializada mediante centro médico propio y red de profesionales externos.
 
 Especialidades cubiertas:
@@ -83,9 +83,9 @@ Internaciones: cobertura de internaciones médicas y quirúrgicas, coordinadas c
 Consultas médicas: generales y en especialidades, por orden médica o turno según el caso.`,
   },
   {
-    title: 'Medicamentos y vademécum',
-    source: 'seed:medicamentos-v1',
-    category: 'meds',
+    title: "Medicamentos y vademécum",
+    source: "seed:medicamentos-v1",
+    category: "meds",
     content: `Cobertura de medicamentos en MutuaLyF:
 
 - La cobertura depende del plan del afiliado y se basa en el vademécum oficial.
@@ -98,9 +98,9 @@ Consultas médicas: generales y en especialidades, por orden médica o turno seg
 Para consultar si un medicamento específico está cubierto, el afiliado debe ingresar a MiMutuaLyF o llamar al 0800 777 4413.`,
   },
   {
-    title: 'Recetas y órdenes médicas',
-    source: 'seed:recetas-ordenes-v1',
-    category: 'procedure',
+    title: "Recetas y órdenes médicas",
+    source: "seed:recetas-ordenes-v1",
+    category: "procedure",
     content: `Recetas y órdenes médicas en MutuaLyF:
 
 - Formato: EXCLUSIVAMENTE digital. No se utilizan recetas ni órdenes en papel.
@@ -112,9 +112,9 @@ Para consultar si un medicamento específico está cubierto, el afiliado debe in
 Los afiliados pueden subir órdenes médicas desde el chat o desde la plataforma MiMutuaLyF para iniciar su validación.`,
   },
   {
-    title: 'Trámites administrativos',
-    source: 'seed:tramites-v1',
-    category: 'procedure',
+    title: "Trámites administrativos",
+    source: "seed:tramites-v1",
+    category: "procedure",
     content: `Tipos de trámites administrativos disponibles en MutuaLyF:
 
 - Autorizaciones de prácticas, estudios e internaciones.
@@ -129,9 +129,9 @@ Modalidades de gestión:
 - Presencial: en sedes administrativas durante horario laboral.`,
   },
   {
-    title: 'Pagos y coseguros',
-    source: 'seed:pagos-v1',
-    category: 'payments',
+    title: "Pagos y coseguros",
+    source: "seed:pagos-v1",
+    category: "payments",
     content: `Pagos y coseguros en MutuaLyF:
 
 Medios de pago aceptados:
@@ -147,9 +147,9 @@ Consideraciones:
 - Los coseguros pueden abonarse online desde MiMutuaLyF.`,
   },
   {
-    title: 'Flujo general de atención',
-    source: 'seed:flujo-v1',
-    category: 'procedure',
+    title: "Flujo general de atención",
+    source: "seed:flujo-v1",
+    category: "procedure",
     content: `Flujo típico de atención para un afiliado de MutuaLyF:
 
 1. El afiliado realiza la consulta médica con un profesional del padrón.
@@ -161,9 +161,9 @@ Consideraciones:
 Recomendación general: usar siempre MiMutuaLyF como primer canal; si no se resuelve, llamar al 0800 777 4413.`,
   },
   {
-    title: 'Reglas importantes del asistente',
-    source: 'seed:reglas-asistente-v1',
-    category: 'general',
+    title: "Reglas importantes del asistente",
+    source: "seed:reglas-asistente-v1",
+    category: "general",
     content: `Reglas importantes a tener en cuenta al informar a un afiliado:
 
 - No se inventan datos de contacto, direcciones ni información que no esté en la base de conocimiento.

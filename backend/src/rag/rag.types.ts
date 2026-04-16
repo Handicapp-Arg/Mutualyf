@@ -1,15 +1,22 @@
 export type Category =
-  | 'contact'
-  | 'services'
-  | 'payments'
-  | 'meds'
-  | 'procedure'
-  | 'legal'
-  | 'platform'
-  | 'general';
+  | "contact"
+  | "services"
+  | "payments"
+  | "meds"
+  | "procedure"
+  | "legal"
+  | "platform"
+  | "general";
 
 export const CATEGORIES: Category[] = [
-  'contact', 'services', 'payments', 'meds', 'procedure', 'legal', 'platform', 'general',
+  "contact",
+  "services",
+  "payments",
+  "meds",
+  "procedure",
+  "legal",
+  "platform",
+  "general",
 ];
 
 export interface ChatMsg {
@@ -32,7 +39,7 @@ export interface HydratedChunk {
   tokens: number;
 }
 
-export type IntentKind = 'chitchat' | 'rag' | 'offtopic';
+export type IntentKind = "chitchat" | "rag" | "offtopic";
 
 export interface Intent {
   kind: IntentKind;

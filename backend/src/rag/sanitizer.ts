@@ -13,13 +13,21 @@ const ZERO_WIDTH = /[\u200B-\u200F\u202A-\u202E\uFEFF]/g;
 
 export function sanitizeChunk(text: string): string {
   let t = text;
-  for (const re of INJECTION_PATTERNS) t = t.replace(re, '[redacted]');
-  t = t.replace(ZERO_WIDTH, '');
+  for (const re of INJECTION_PATTERNS) t = t.replace(re, "[redacted]");
+  t = t.replace(ZERO_WIDTH, "");
   return t.trim();
 }
 
 export function escapeXmlAttr(s: string): string {
-  return s.replace(/[<>&"']/g, (c) => ({
-    '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;',
-  }[c]!));
+  return s.replace(
+    /[<>&"']/g,
+    (c) =>
+      ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c]!,
+  );
 }
