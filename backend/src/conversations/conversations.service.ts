@@ -7,6 +7,7 @@ import {
   BusinessException,
 } from '../common/exceptions/business.exception';
 import { EventsGateway } from '../events/events.gateway';
+import { unlink } from 'fs/promises';
 
 @Injectable()
 export class ConversationsService {
@@ -235,6 +236,123 @@ export class ConversationsService {
 
     this.events.emitAdminTakeover(sessionId, active);
     return { success: true, sessionId, adminActive: active };
+  }
+
+  // ==========================================
+  // Chat Attachments
+  // ==========================================
+
+  /**
+   * Guardar un archivo adjunto y devolver su metadata.
+   */
+  async createAttachment(
+    file: Express.Multer.File,
+    sessionId: string,
+    uploadedBy: 'user' | 'admin' = 'user',
+  ) {
+    try {
+      const attachment = await this.prisma.chatAttachment.create({
+        data: {
+          sessionId,
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          fileSize: file.size,
+          filePath: file.path,
+          uploadedBy,
+        },
+      });
+
+      this.logger.log(
+        `Attachment creado: ${attachment.id} (${file.originalname}) para sesión ${sessionId}`,
+      );
+
+      return {
+        id: attachment.id,
+        fileName: attachment.fileName,
+        fileType: attachment.fileType,
+        fileSize: attachment.fileSize,
+      };
+    } catch (error) {
+      // Limpiar archivo si falla el registro en DB
+      try { await unlink(file.path); } catch {}
+      this.logger.error(`Error creando attachment: ${error.message}`);
+      throw new DatabaseException('createAttachment', error.message);
+    }
+  }
+
+  /**
+   * Obtener un attachment por ID (para servir el archivo).
+   */
+  async getAttachmentById(id: number) {
+    const attachment = await this.prisma.chatAttachment.findUnique({
+      where: { id },
+    });
+    if (!attachment) {
+      throw new ResourceNotFoundException('ChatAttachment', id);
+    }
+    return attachment;
+  }
+
+  /**
+   * Subir archivo como admin y emitir mensaje con attachment al usuario.
+   */
+  async sendAdminAttachment(
+    file: Express.Multer.File,
+    sessionId: string,
+    caption?: string,
+  ) {
+    const attachment = await this.createAttachment(file, sessionId, 'admin');
+
+    const now = new Date().toISOString();
+    const attachmentPayload = {
+      id: attachment.id,
+      fileName: attachment.fileName,
+      fileType: attachment.fileType,
+      fileSize: attachment.fileSize,
+    };
+
+    const adminMessage = {
+      role: 'assistant',
+      content: caption || '',
+      timestamp: now,
+      attachment: attachmentPayload,
+    };
+
+    // Guardar en la conversación
+    const existing = await this.prisma.conversation.findUnique({
+      where: { sessionId },
+    });
+
+    let messages: any[] = [];
+    if (existing) {
+      try { messages = JSON.parse(existing.messages || '[]'); } catch { messages = []; }
+    }
+
+    messages.push(adminMessage);
+    const messagesJson = JSON.stringify(messages);
+
+    const conversation = await this.prisma.conversation.upsert({
+      where: { sessionId },
+      create: {
+        sessionId,
+        userMessage: '',
+        botResponse: caption || `[Archivo: ${attachment.fileName}]`,
+        messages: messagesJson,
+        timestamp: now,
+      },
+      update: {
+        botResponse: caption || `[Archivo: ${attachment.fileName}]`,
+        messages: messagesJson,
+        timestamp: now,
+      },
+    });
+
+    // Emitir al usuario vía socket
+    this.events.emitAdminMessage(sessionId, adminMessage as any);
+    this.events.emitConversationUpserted(this.formatConversation(conversation));
+
+    this.logger.log(`Admin envió archivo a sesión: ${sessionId}`);
+    return { success: true, message: adminMessage, attachment: attachmentPayload };
   }
 
   /**

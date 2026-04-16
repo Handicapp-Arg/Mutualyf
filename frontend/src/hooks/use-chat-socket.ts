@@ -75,7 +75,7 @@ export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
 
     socket.on(
       'admin.message',
-      (data: { sessionId: string; message: { role: string; content: string; timestamp: string } }) => {
+      (data: { sessionId: string; message: { role: string; content: string; timestamp: string; attachment?: any } }) => {
         if (data.sessionId !== sessionId) return;
         setAdminMessages((prev) => [
           ...prev,
@@ -84,6 +84,7 @@ export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
             role: 'assistant',
             content: data.message.content,
             timestamp: new Date(data.message.timestamp),
+            ...(data.message.attachment ? { attachment: data.message.attachment } : {}),
           },
         ]);
       },

@@ -11,6 +11,8 @@ import {
   LogIn,
   LogOut,
   SendHorizontal,
+  Paperclip,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminSocket } from '@/hooks/use-admin-socket';
@@ -75,7 +77,10 @@ export function AdminPortal() {
   const [adminChatSessionId, setAdminChatSessionId] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState('');
   const [isSendingAdmin, setIsSendingAdmin] = useState(false);
+  const [adminAttachment, setAdminAttachment] = useState<File | null>(null);
+  const [isUploadingAdmin, setIsUploadingAdmin] = useState(false);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
@@ -186,19 +191,67 @@ export function AdminPortal() {
 
   // Enviar mensaje como admin
   const handleSendAdminMessage = async () => {
-    if (!adminChatSessionId || !adminMessage.trim() || isSendingAdmin) return;
+    const sessionId = adminChatSessionId || selectedConversation?.sessionId;
+    if (!sessionId || !adminMessage.trim() || isSendingAdmin) return;
     setIsSendingAdmin(true);
     try {
       await authFetch(`${BACKEND_URL}/conversations/admin-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: adminChatSessionId, content: adminMessage.trim() }),
+        body: JSON.stringify({ sessionId, content: adminMessage.trim() }),
       });
       setAdminMessage('');
     } catch (err) {
       console.error('Error al enviar mensaje:', err);
     } finally {
       setIsSendingAdmin(false);
+    }
+  };
+
+  // Obtener el sessionId activo (takeover o conversación seleccionada)
+  const getActiveSessionId = (): string | null => {
+    return adminChatSessionId || selectedConversation?.sessionId || null;
+  };
+
+  // Enviar archivo adjunto como admin
+  const handleSendAdminAttachment = async () => {
+    const sessionId = getActiveSessionId();
+    if (!sessionId || !adminAttachment) return;
+    setIsUploadingAdmin(true);
+    try {
+      const token = useAuthStore.getState().token;
+      const formData = new FormData();
+      formData.append('file', adminAttachment);
+      formData.append('sessionId', sessionId);
+      if (adminMessage.trim()) {
+        formData.append('caption', adminMessage.trim());
+      }
+
+      const res = await fetch(`${BACKEND_URL}/conversations/admin-attachment`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      if (res.ok) {
+        setAdminMessage('');
+        setAdminAttachment(null);
+      }
+    } catch (err) {
+      console.error('Error al enviar archivo:', err);
+    } finally {
+      setIsUploadingAdmin(false);
+    }
+  };
+
+  // Enviar mensaje o archivo según lo que esté pendiente
+  const handleAdminSubmit = async () => {
+    if (adminAttachment) {
+      await handleSendAdminAttachment();
+    } else {
+      await handleSendAdminMessage();
     }
   };
 
@@ -678,7 +731,7 @@ export function AdminPortal() {
                         {selectedConversation.messages &&
                         Array.isArray(selectedConversation.messages) &&
                         selectedConversation.messages.length > 0 ? (
-                          selectedConversation.messages.map((msg, idx) => (
+                          selectedConversation.messages.map((msg: any, idx: number) => (
                             <div
                               key={idx}
                               className={`rounded-lg p-4 ${
@@ -695,7 +748,36 @@ export function AdminPortal() {
                                   {formatDate(msg.timestamp)}
                                 </span>
                               </div>
-                              <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                              {msg.content && (
+                                <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                              )}
+                              {msg.attachment && (
+                                <a
+                                  href={`${BACKEND_URL}/conversations/attachment/${msg.attachment.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs transition-colors ${
+                                    msg.role === 'user'
+                                      ? 'bg-white/15 hover:bg-white/25'
+                                      : 'bg-slate-200/60 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  {msg.attachment.fileType?.startsWith('image/') ? (
+                                    <img
+                                      src={`${BACKEND_URL}/conversations/attachment/${msg.attachment.id}`}
+                                      alt={msg.attachment.fileName}
+                                      className="max-h-32 rounded-lg object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <>
+                                      <FileText size={16} className="shrink-0" />
+                                      <span className="flex-1 truncate font-medium">{msg.attachment.fileName}</span>
+                                      <Download size={14} className="shrink-0 opacity-60" />
+                                    </>
+                                  )}
+                                </a>
+                              )}
                             </div>
                           ))
                         ) : (
@@ -708,34 +790,72 @@ export function AdminPortal() {
                         <div ref={adminMessagesEndRef} />
                       </div>
 
-                      {/* Input del admin cuando está en un chat activo */}
-                      {adminChatSessionId === selectedConversation.sessionId && (
-                        <div className="mt-4 border-t pt-4">
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              handleSendAdminMessage();
-                            }}
-                            className="flex items-center gap-2"
-                          >
-                            <input
-                              type="text"
-                              value={adminMessage}
-                              onChange={(e) => setAdminMessage(e.target.value)}
-                              placeholder="Escribir mensaje como admin..."
-                              className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
-                              disabled={isSendingAdmin}
-                            />
+                      {/* Input del admin: siempre visible cuando hay conversación seleccionada */}
+                      <div className="mt-4 border-t pt-4">
+                        {/* Preview de archivo adjunto del admin */}
+                        {adminAttachment && (
+                          <div className="mb-2 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2">
+                            <Paperclip size={14} className="shrink-0 text-corporate" />
+                            <span className="flex-1 truncate text-xs text-slate-600">
+                              {adminAttachment.name}
+                            </span>
                             <button
-                              type="submit"
-                              disabled={!adminMessage.trim() || isSendingAdmin}
-                              className="flex h-10 w-10 items-center justify-center rounded-lg bg-corporate text-white transition-colors hover:bg-corporate/90 disabled:opacity-50"
+                              onClick={() => setAdminAttachment(null)}
+                              className="text-xs font-bold text-red-500 hover:text-red-700"
                             >
-                              <SendHorizontal size={18} />
+                              Quitar
                             </button>
-                          </form>
-                        </div>
-                      )}
+                          </div>
+                        )}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleAdminSubmit();
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          {/* Input oculto para archivos */}
+                          <input
+                            type="file"
+                            ref={adminFileInputRef}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setAdminAttachment(file);
+                              if (adminFileInputRef.current) adminFileInputRef.current.value = '';
+                            }}
+                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => adminFileInputRef.current?.click()}
+                            disabled={isSendingAdmin || isUploadingAdmin}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-corporate disabled:opacity-50"
+                            title="Adjuntar archivo"
+                          >
+                            <Paperclip size={18} />
+                          </button>
+                          <input
+                            type="text"
+                            value={adminMessage}
+                            onChange={(e) => setAdminMessage(e.target.value)}
+                            placeholder={adminAttachment ? 'Agregar mensaje (opcional)...' : 'Escribir mensaje como admin...'}
+                            className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
+                            disabled={isSendingAdmin || isUploadingAdmin}
+                          />
+                          <button
+                            type="submit"
+                            disabled={(!adminMessage.trim() && !adminAttachment) || isSendingAdmin || isUploadingAdmin}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg bg-corporate text-white transition-colors hover:bg-corporate/90 disabled:opacity-50"
+                          >
+                            {isUploadingAdmin ? (
+                              <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                              <SendHorizontal size={18} />
+                            )}
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex h-64 items-center justify-center">

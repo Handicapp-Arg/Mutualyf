@@ -1,6 +1,8 @@
 import { memo } from 'react';
+import { FileText, Download } from 'lucide-react';
 import { AnalyzingOrderLoader } from './analyzing-order-loader';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage, ChatAttachment } from '@/types';
+import { BACKEND_URL } from '@/lib/constants';
 
 interface ChatMessageBubbleProps {
   message: ChatMessage;
@@ -8,6 +10,45 @@ interface ChatMessageBubbleProps {
   isLoading: boolean;
   onOptionClick: (value: string, label: string) => void;
   cleanMarkdown: (text: string) => string;
+}
+
+function AttachmentPreview({ attachment }: { attachment: ChatAttachment }) {
+  const url = `${BACKEND_URL}/conversations/attachment/${attachment.id}`;
+  const isImage = attachment.fileType.startsWith('image/');
+  const sizeLabel =
+    attachment.fileSize >= 1024 * 1024
+      ? `${(attachment.fileSize / (1024 * 1024)).toFixed(1)} MB`
+      : `${(attachment.fileSize / 1024).toFixed(0)} KB`;
+
+  if (isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={url}
+          alt={attachment.fileName}
+          className="mt-2 max-h-48 rounded-xl object-cover"
+          loading="lazy"
+        />
+        <span className="mt-1 block text-[10px] opacity-60">{attachment.fileName}</span>
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 flex items-center gap-2 rounded-xl bg-black/5 px-3 py-2 transition-colors hover:bg-black/10"
+    >
+      <FileText size={18} className="shrink-0 opacity-60" />
+      <div className="flex-1 min-w-0">
+        <p className="truncate text-sm font-medium">{attachment.fileName}</p>
+        <p className="text-[10px] opacity-60">{sizeLabel}</p>
+      </div>
+      <Download size={14} className="shrink-0 opacity-40" />
+    </a>
+  );
 }
 
 export const ChatMessageBubble = memo(function ChatMessageBubble({
@@ -34,9 +75,16 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
           {message.content.startsWith('__ANALYZING_ORDER__') ? (
             <AnalyzingOrderLoader progress={uploadProgress} />
           ) : (
-            <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-              {cleanMarkdown(message.content)}
-            </p>
+            <>
+              {message.content && (
+                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
+                  {cleanMarkdown(message.content)}
+                </p>
+              )}
+              {message.attachment && (
+                <AttachmentPreview attachment={message.attachment} />
+              )}
+            </>
           )}
         </div>
 

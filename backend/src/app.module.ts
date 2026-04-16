@@ -16,6 +16,7 @@ import { AdminUsersModule } from './admin-users/admin-users.module';
 import { RolesModule } from './roles/roles.module';
 import { AiModule } from './ai/ai.module';
 import { QuickReplyModule } from './quick-reply/quick-reply.module';
+import { RagModule } from './rag/rag.module';
 
 @Module({
   imports: [
@@ -36,6 +37,9 @@ import { QuickReplyModule } from './quick-reply/quick-reply.module';
     AuthModule,
     AdminUsersModule,
     RolesModule,
+
+    // RAG (debe cargarse antes que AiModule porque AiModule lo importa)
+    RagModule,
 
     // IA (incluye AiConfig + QuickReplies)
     AiModule,

@@ -69,7 +69,7 @@ export class AiController implements OnModuleInit {
 
   /**
    * Endpoint unificado — cascada:
-   * QuickReply → OffTopic → Ollama (streaming) → Ollama retry → Groq → Fallback
+   * QuickReply → OffTopic → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
    */
   @Post('chat')
   async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
@@ -97,9 +97,54 @@ export class AiController implements OnModuleInit {
         return;
       }
 
-      // 3. Ollama (self-hosted) — streaming real con early-stop
       const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
+
+      // 3. Groq (primario) — API externa, rápida
       try {
+        const response = await this.groqService.generateResponse(
+          history,
+          body.newMessage,
+          prompt,
+          config.temperature,
+          apiMaxTokens,
+        );
+        if (response) {
+          writeSSEChunked(res, response);
+          res.write('data: [DONE]\n\n');
+          res.end();
+          return;
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Groq failed: ${message}`);
+        failures.push({ stage: 'groq', message });
+      }
+
+      // 4. Gemini — API externa, segundo intento
+      try {
+        this.logger.log('Falling back to Gemini...');
+        const response = await this.geminiService.generateResponse(
+          history,
+          body.newMessage,
+          prompt,
+          config.temperature,
+          apiMaxTokens,
+        );
+        if (response) {
+          writeSSEChunked(res, response);
+          res.write('data: [DONE]\n\n');
+          res.end();
+          return;
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Gemini failed: ${message}`);
+        failures.push({ stage: 'gemini', message });
+      }
+
+      // 5. Ollama fallback (self-hosted) — streaming con early-stop
+      try {
+        this.logger.log('Falling back to Ollama streaming...');
         let hasContent = false;
         let accumulated = '';
         for await (const chunk of this.ollamaService.generateResponseStream(
@@ -130,7 +175,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama-stream', message });
       }
 
-      // 4. Ollama retry sin streaming
+      // 6. Ollama retry sin streaming
       try {
         this.logger.log('Retrying Ollama without streaming...');
         const response = await this.ollamaService.generateResponse(
@@ -152,29 +197,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama-retry', message });
       }
 
-      // 5. Groq fallback — API externa
-      try {
-        this.logger.log('Falling back to Groq...');
-        const response = await this.groqService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
-        if (response) {
-          writeSSEChunked(res, response);
-          res.write('data: [DONE]\n\n');
-          res.end();
-          return;
-        }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Groq fallback failed: ${message}`);
-        failures.push({ stage: 'groq', message });
-      }
-
-      // 6. Fallback final con info de contacto + diagnóstico para la consola del front
+      // 7. Fallback final con info de contacto + diagnóstico para la consola del front
       if (failures.length > 0) {
         res.write(`data: ${JSON.stringify({ warning: 'ai-cascade-failed', failures })}\n\n`);
       }

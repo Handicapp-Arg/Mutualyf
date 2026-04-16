@@ -33,6 +33,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof Error ? exception.stack : exception,
     );
 
+    // Log de detalles de validación para debug
+    if (status === 400 && exception instanceof HttpException) {
+      const res = exception.getResponse();
+      this.logger.error(`Validation details: ${JSON.stringify(res)}`);
+    }
+
     // Respuesta estandarizada
     const errorResponse = {
       success: false,

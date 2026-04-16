@@ -135,6 +135,24 @@ model RolePermission {
 }
 
 // ==========================================
+// Archivos Adjuntos del Chat
+// ==========================================
+
+model ChatAttachment {
+  id           Int      @id @default(autoincrement())
+  sessionId    String   @map("session_id")
+  fileName     String   @map("file_name")
+  fileType     String   @map("file_type")
+  fileSize     Int      @map("file_size")
+  filePath     String   @map("file_path")
+  uploadedBy   String   @default("user") @map("uploaded_by") // "user" | "admin"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("chat_attachments")
+}
+
+// ==========================================
 // Configuración de IA
 // ==========================================
 
@@ -207,4 +225,73 @@ model MedicalOrder {
   @@index([patientDNI])
   @@index([validationStatus])
   @@map("medical_orders")
+}
+
+// ==========================================
+// RAG — Knowledge Base
+// ==========================================
+
+model KnowledgeDoc {
+  id          Int       @id @default(autoincrement())
+  title       String
+  source      String
+  category    String
+  hash        String    @unique
+  version     Int       @default(1)
+  status      String    @default("active")
+  tokensTotal Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  archivedAt  DateTime? @map("archived_at")
+
+  chunks      KnowledgeChunk[]
+
+  @@index([category, status])
+  @@index([status])
+  @@map("knowledge_docs")
+}
+
+model KnowledgeChunk {
+  id           Int      @id @default(autoincrement())
+  docId        Int      @map("doc_id")
+  doc          KnowledgeDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  ord          Int
+  content      String
+  contentClean String   @map("content_clean")
+  tokens       Int
+  category     String
+  embModel     String   @map("emb_model")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([docId])
+  @@index([category])
+  @@map("knowledge_chunks")
+}
+
+model QueryCache {
+  id         Int      @id @default(autoincrement())
+  queryHash  String   @unique @map("query_hash")
+  embedding  Bytes
+  hitCount   Int      @default(1) @map("hit_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("query_cache")
+}
+
+model RetrievalLog {
+  id           Int      @id @default(autoincrement())
+  sessionId    String?  @map("session_id")
+  query        String
+  rewritten    String?
+  category     String?
+  topK         Int      @map("top_k")
+  topScore     Float    @map("top_score")
+  chunkIds     String   @map("chunk_ids")
+  latencyMs    Int      @map("latency_ms")
+  intent       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("retrieval_logs")
 }

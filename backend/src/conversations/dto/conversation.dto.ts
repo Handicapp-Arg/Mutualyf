@@ -21,6 +21,9 @@ class MessageDto {
 
   @IsOptional()
   timestamp?: any; // Puede ser Date o string
+
+  @IsOptional()
+  attachment?: any; // Metadata de archivo adjunto
 }
 
 export class CreateConversationDto {

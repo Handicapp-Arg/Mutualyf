@@ -69,7 +69,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Emitir mensaje de admin a una sesión específica.
    */
-  emitAdminMessage(sessionId: string, message: { role: string; content: string; timestamp: string }): void {
+  emitAdminMessage(sessionId: string, message: { role: string; content: string; timestamp: string; attachment?: any }): void {
     this.server?.emit('admin.message', { sessionId, message });
   }
 

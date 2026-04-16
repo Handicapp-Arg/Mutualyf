@@ -34,6 +34,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  const [pendingChatAttachment, setPendingChatAttachment] = useState<File | null>(null);
   const chatService = useRef(new ChatAIService());
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
@@ -85,10 +87,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   useEffect(() => {
     if (messages.length === 0) return;
     const timeoutId = setTimeout(() => {
-      const messagesToSave = messages.map(({ role, content, timestamp }) => ({
+      const messagesToSave = messages.map(({ role, content, timestamp, attachment }) => ({
         role,
         content,
         timestamp,
+        ...(attachment ? { attachment } : {}),
       }));
       backendService.current
         .saveConversation(messagesToSave, userNameRef.current || 'Anonimo')
@@ -104,11 +107,12 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       const history = await backendService.current.getConversationHistory();
       if (history.length > 0) {
         setMessages(
-          history.map((msg, idx) => ({
+          history.map((msg: any, idx: number) => ({
             id: idx.toString(),
             role: msg.role,
             content: msg.content,
             timestamp: new Date(msg.timestamp),
+            ...(msg.attachment ? { attachment: msg.attachment } : {}),
           }))
         );
       } else {
@@ -261,22 +265,31 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
+    const hasText = inputText.trim().length > 0;
+    const hasAttachment = !!pendingChatAttachment;
+
+    if ((!hasText && !hasAttachment) || isLoading) return;
+
+    const text = inputText.trim();
+    setInputText('');
+
+    // Si hay un archivo adjunto, usar el flujo de attachment
+    if (hasAttachment) {
+      await sendWithAttachment(text, pendingChatAttachment!);
+      return;
+    }
 
     if (adminActiveRef.current) {
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
-        content: inputText,
+        content: text,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMessage]);
-      setInputText('');
       return;
     }
 
-    const text = inputText.trim();
-    setInputText('');
     await sendToAI(text, text);
   };
 
@@ -405,6 +418,104 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
   };
 
+  /** Maneja la selección de un archivo adjunto para el chat */
+  const handleAttachFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'El archivo es demasiado grande. El tamaño maximo permitido es 10MB.',
+          timestamp: new Date(),
+        },
+      ]);
+      if (attachInputRef.current) attachInputRef.current.value = '';
+      return;
+    }
+
+    setPendingChatAttachment(file);
+    if (attachInputRef.current) attachInputRef.current.value = '';
+  };
+
+  /** Envía un mensaje con archivo adjunto */
+  const sendWithAttachment = async (text: string, file: File) => {
+    setIsLoading(true);
+    try {
+      const result = await backendService.current.uploadChatAttachment(file);
+      if (!result.success || !result.data) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `No se pudo subir el archivo: ${result.message || 'Error desconocido'}`,
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
+
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: text || '',
+        timestamp: new Date(),
+        attachment: result.data,
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Si admin no está activo, enviar a IA (sin el archivo, solo texto)
+      if (!adminActiveRef.current && text.trim()) {
+        let assistantContent = '';
+        let isFirstChunk = true;
+
+        for await (const chunk of chatService.current.sendMessage(text)) {
+          if (isFirstChunk) {
+            setIsLoading(false);
+            isFirstChunk = false;
+          }
+          assistantContent += chunk;
+          setMessages((prev) => {
+            const lastIdx = prev.length - 1;
+            if (prev[lastIdx]?.role === 'assistant' && !isFirstChunk) {
+              return [
+                ...prev.slice(0, lastIdx),
+                { ...prev[lastIdx], content: assistantContent },
+              ];
+            }
+            return [
+              ...prev,
+              {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant' as const,
+                content: assistantContent,
+                timestamp: new Date(),
+              },
+            ];
+          });
+        }
+      }
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'Hubo un error al procesar el archivo. Por favor, intenta nuevamente.',
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+      setPendingChatAttachment(null);
+    }
+  };
+
   const handleOrderSubmit = async (orderData: MedicalOrderData) => {
     if (!pendingFile) return;
 
@@ -492,10 +603,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
     if (currentMessages.length > 0) {
       try {
-        const messagesToSave = currentMessages.map(({ role, content, timestamp }) => ({
+        const messagesToSave = currentMessages.map(({ role, content, timestamp, attachment }) => ({
           role,
           content,
           timestamp,
+          ...(attachment ? { attachment } : {}),
         }));
         await backendService.current.saveConversation(messagesToSave, currentUserName);
       } catch (err) {
@@ -563,6 +675,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         onSubmit={handleSubmit}
         onFileUpload={handleFileUpload}
         fileInputRef={fileInputRef}
+        pendingAttachment={pendingChatAttachment}
+        onClearAttachment={() => setPendingChatAttachment(null)}
+        onAttachClick={() => attachInputRef.current?.click()}
+        attachInputRef={attachInputRef}
+        onAttachFile={handleAttachFile}
       />
 
       {showOrderForm && pendingFile && analyzedData && (

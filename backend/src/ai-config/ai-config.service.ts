@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateAiConfigDto } from './dto/update-ai-config.dto';
-import { DEFAULT_SYSTEM_PROMPT, DEFAULT_QUICK_BUTTONS } from '../ai/ai.constants';
+import { BASE_SYSTEM_PROMPT, DEFAULT_SYSTEM_PROMPT, DEFAULT_QUICK_BUTTONS } from '../ai/ai.constants';
 
 export interface AiConfigData {
   systemPrompt: string;
@@ -60,12 +60,27 @@ export class AiConfigService implements OnModuleInit {
       row = await this.prisma.aiConfig.create({
         data: {
           key: 'default',
-          systemPrompt: DEFAULT_SYSTEM_PROMPT,
+          systemPrompt: BASE_SYSTEM_PROMPT,
           temperature: 0.7,
           maxTokens: 800,
           quickButtons: JSON.stringify(DEFAULT_QUICK_BUTTONS),
         },
       });
+    } else {
+      // Auto-migración al BASE actual si:
+      //  - es el prompt legacy (KB embebida), o
+      //  - nadie lo editó manualmente (updatedBy null o gestionado por el sistema).
+      // Si un admin lo editó (updatedBy con email), respetamos su versión.
+      const isLegacy = row.systemPrompt === DEFAULT_SYSTEM_PROMPT;
+      const isSystemManaged = !row.updatedBy || row.updatedBy.startsWith('system:');
+      const outdated = row.systemPrompt !== BASE_SYSTEM_PROMPT;
+      if (outdated && (isLegacy || isSystemManaged)) {
+        row = await this.prisma.aiConfig.update({
+          where: { key: 'default' },
+          data: { systemPrompt: BASE_SYSTEM_PROMPT, updatedBy: 'system:rag-migration' },
+        });
+        this.logger.log('Migrated AiConfig.systemPrompt to current BASE');
+      }
     }
 
     this.cachedConfig = {

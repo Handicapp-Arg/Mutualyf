@@ -88,6 +88,37 @@ export class BackendAPIService {
 
 
   /**
+   * Subir un archivo adjunto al chat y obtener su metadata.
+   */
+  async uploadChatAttachment(file: File): Promise<{
+    success: boolean;
+    data?: { id: number; fileName: string; fileType: string; fileSize: number };
+    message?: string;
+  }> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sessionId', this.sessionId);
+
+      const response = await fetch(`${BACKEND_URL}/conversations/attachment`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        return { success: false, message: error.message || 'Error al subir archivo' };
+      }
+
+      const data = await response.json();
+      return { success: true, data: data.data };
+    } catch (error) {
+      console.error('Error subiendo archivo adjunto:', error);
+      return { success: false, message: 'Error de conexión' };
+    }
+  }
+
+  /**
    * Analizar orden médica con OCR (paso 1)
    */
   async analyzeMedicalOrder(file: File): Promise<{
