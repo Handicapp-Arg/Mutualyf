@@ -6,8 +6,14 @@ import { EmbeddingsService } from "./embeddings.service";
 import { VectorStoreService } from "./vector-store.service";
 import { RouterService } from "./router.service";
 import { QueryRewriterService } from "./query-rewriter.service";
-import { RagMetrics } from "./rag.metrics";
+import { RagMetrics, OfftopicDebug } from "./rag.metrics";
 import { RagConfig } from "./rag.config";
+import {
+  OfftopicDetectorService,
+  OfftopicSignals,
+  computeOverlapRatio,
+  computeConcentration,
+} from "./offtopic-detector.service";
 import {
   ChatMsg,
   Hit,
@@ -32,6 +38,7 @@ export class RetrievalService {
     private readonly rewriter: QueryRewriterService,
     private readonly metrics: RagMetrics,
     private readonly cfg: RagConfig,
+    private readonly offtopicDetector: OfftopicDetectorService,
   ) {
     this.resultCache = new LRUCache<string, RetrievalResult>({
       max: CACHE_MAX,
@@ -103,11 +110,9 @@ export class RetrievalService {
     const ftsHits = this.vec.fts({ query: rewritten, k: k * 3, category });
     let vecHits: Hit[] = [];
     let embeddingsAvailable = true;
-    let topVecScore = 0;
     try {
       const [qEmb] = await this.emb.embed([rewritten], "query");
       vecHits = this.vec.knn({ embedding: qEmb, k: k * 3, category });
-      topVecScore = vecHits[0]?.score ?? 0;
     } catch (e) {
       embeddingsAvailable = false;
       this.logger.warn(
@@ -118,24 +123,37 @@ export class RetrievalService {
     const fused = rrfFuse(vecHits, ftsHits, this.cfg.rrfK).slice(0, k);
     const topScore = fused[0]?.score ?? 0;
 
-    // Guard off-topic: SOLO cuando tenemos vector search confiable.
-    // Compara contra topVecScore (raw cosine ~ 1/(1+L2_dist)), no RRF.
-    // RRF score ~0.03 no es comparable con un threshold tipo similarity (~0.45).
-    // - embeddings caídos → no podemos decidir.
-    // - query muy corta → ambigua por naturaleza.
-    // - hay history → confiamos en el LLM para interpretarlo.
-    const words = rewritten.trim().split(/\s+/).length;
-    const hasHistory = opts.history.length > 0;
-    const canDetectOfftopic =
-      this.cfg.enableOfftopicGuard &&
-      embeddingsAvailable &&
-      words >= this.cfg.minWordsForOfftopic &&
-      !hasHistory;
+    const signals: OfftopicSignals = {
+      topVecScore: vecHits[0]?.score ?? 0,
+      topFtsScore: ftsHits[0]?.score ?? 0,
+      fusedHitCount: fused.length,
+      vecHitCount: vecHits.length,
+      ftsHitCount: ftsHits.length,
+      overlapRatio: computeOverlapRatio(
+        vecHits,
+        ftsHits,
+        this.cfg.offtopicOverlapTopN,
+      ),
+      concentration: computeConcentration(fused, k),
+      queryWords: rewritten.trim().split(/\s+/).filter(Boolean).length,
+      hasHistory: opts.history.length > 0,
+      routerConfident: intent.categoryConfident,
+      embeddingsAvailable,
+    };
+    const decision = this.offtopicDetector.detect(signals);
+    const offtopicDebug: OfftopicDebug = {
+      confidence: decision.confidence,
+      effectiveThreshold: decision.effectiveThreshold,
+      reason: decision.reason,
+      topVecScore: signals.topVecScore,
+      topFtsScore: signals.topFtsScore,
+      overlapRatio: signals.overlapRatio,
+      concentration: signals.concentration,
+      queryWords: signals.queryWords,
+      routerConfident: signals.routerConfident,
+    };
 
-    if (
-      canDetectOfftopic &&
-      (!fused.length || topVecScore < this.cfg.offtopicThreshold)
-    ) {
+    if (decision.isOfftopic) {
       const res: RetrievalResult = {
         chunks: [],
         topScore,
@@ -150,10 +168,11 @@ export class RetrievalService {
         rewritten,
         category: intent.category ?? null,
         topK: k,
-        topScore: topVecScore,
+        topScore,
         chunkIds: [],
         latencyMs: res.latencyMs,
         intent: "offtopic",
+        offtopic: offtopicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -184,6 +203,7 @@ export class RetrievalService {
         chunkIds: [],
         latencyMs: res.latencyMs,
         intent: "no-context",
+        offtopic: offtopicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -208,6 +228,7 @@ export class RetrievalService {
       chunkIds: chunks.map((c) => c.id),
       latencyMs: res.latencyMs,
       intent: "rag",
+      offtopic: offtopicDebug,
     });
     this.resultCache.set(cacheKey, res);
     return res;

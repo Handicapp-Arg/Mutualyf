@@ -9,14 +9,33 @@ import { ConfigService } from "@nestjs/config";
 @Injectable()
 export class RagConfig {
   // --- Retrieval ---
-  // Threshold sobre raw vector score = 1/(1+L2_dist) ∈ [0.33, 1] para vectores L2-normalizados.
-  // 0.45 ≈ cosine_sim 0.35 — separa "irrelevante" de "marginalmente relacionado".
-  readonly offtopicThreshold: number; // RAG_OFFTOPIC_THRESHOLD (default 0.45)
   readonly rrfK: number; // RAG_RRF_K (default 60)
-  readonly minWordsForOfftopic: number; // RAG_MIN_WORDS_OFFTOPIC (default 5)
   readonly kSmall: number; // RAG_K_SMALL (default 2)
   readonly kMedium: number; // RAG_K_MEDIUM (default 4)
   readonly kLarge: number; // RAG_K_LARGE (default 6)
+
+  // --- Off-topic detector (multi-signal scorer) ---
+  // Ver OfftopicDetectorService. Los defaults están calibrados para embeddings
+  // normalizados (score = 1/(1+L2) ∈ [0.33, 1]) + BM25 invertido de FTS5.
+  readonly offtopicBaseThreshold: number; // RAG_OFFTOPIC_BASE (0..1, default 0.25)
+  readonly offtopicWeightVec: number; // RAG_OFFTOPIC_W_VEC (default 0.40)
+  readonly offtopicWeightFts: number; // RAG_OFFTOPIC_W_FTS (default 0.30)
+  readonly offtopicWeightOverlap: number; // RAG_OFFTOPIC_W_OVERLAP (default 0.20)
+  readonly offtopicWeightConcentration: number; // RAG_OFFTOPIC_W_CONC (default 0.10)
+  /** Vec score considerado "plenamente relevante" (normaliza vecNorm a 1). */
+  readonly offtopicVecTarget: number; // RAG_OFFTOPIC_VEC_TARGET (default 0.55)
+  /** -BM25 considerado "plenamente relevante" (normaliza ftsNorm a 1). */
+  readonly offtopicFtsTarget: number; // RAG_OFFTOPIC_FTS_TARGET (default 5)
+  /** -BM25 mínimo para vetar off-topic (match léxico fuerte = la palabra está en la KB). */
+  readonly offtopicFtsVeto: number; // RAG_OFFTOPIC_FTS_VETO (default 2)
+  /** Queries con menos de N palabras usan umbral relajado. */
+  readonly offtopicShortQueryWords: number; // RAG_OFFTOPIC_SHORT_WORDS (default 4)
+  /** Multiplicador del umbral para queries cortas (<1 = más permisivo). */
+  readonly offtopicShortQueryRelax: number; // RAG_OFFTOPIC_SHORT_RELAX (default 0.6)
+  /** Multiplicador del umbral si el router clasificó con confianza. */
+  readonly offtopicRouterConfidentRelax: number; // RAG_OFFTOPIC_ROUTER_RELAX (default 0.7)
+  /** Cuántos hits comparar entre vec y FTS para calcular overlap. */
+  readonly offtopicOverlapTopN: number; // RAG_OFFTOPIC_OVERLAP_N (default 5)
 
   // --- Prompt builder ---
   readonly contextTokenBudget: number; // RAG_CONTEXT_TOKEN_BUDGET (default 1200)
@@ -53,12 +72,23 @@ export class RagConfig {
       return ["1", "true", "yes", "on"].includes(v.toLowerCase());
     };
 
-    this.offtopicThreshold = num("RAG_OFFTOPIC_THRESHOLD", 0.45);
     this.rrfK = num("RAG_RRF_K", 60);
-    this.minWordsForOfftopic = num("RAG_MIN_WORDS_OFFTOPIC", 5);
     this.kSmall = num("RAG_K_SMALL", 2);
     this.kMedium = num("RAG_K_MEDIUM", 4);
     this.kLarge = num("RAG_K_LARGE", 6);
+
+    this.offtopicBaseThreshold = num("RAG_OFFTOPIC_BASE", 0.25);
+    this.offtopicWeightVec = num("RAG_OFFTOPIC_W_VEC", 0.4);
+    this.offtopicWeightFts = num("RAG_OFFTOPIC_W_FTS", 0.3);
+    this.offtopicWeightOverlap = num("RAG_OFFTOPIC_W_OVERLAP", 0.2);
+    this.offtopicWeightConcentration = num("RAG_OFFTOPIC_W_CONC", 0.1);
+    this.offtopicVecTarget = num("RAG_OFFTOPIC_VEC_TARGET", 0.55);
+    this.offtopicFtsTarget = num("RAG_OFFTOPIC_FTS_TARGET", 5);
+    this.offtopicFtsVeto = num("RAG_OFFTOPIC_FTS_VETO", 2);
+    this.offtopicShortQueryWords = num("RAG_OFFTOPIC_SHORT_WORDS", 4);
+    this.offtopicShortQueryRelax = num("RAG_OFFTOPIC_SHORT_RELAX", 0.6);
+    this.offtopicRouterConfidentRelax = num("RAG_OFFTOPIC_ROUTER_RELAX", 0.7);
+    this.offtopicOverlapTopN = num("RAG_OFFTOPIC_OVERLAP_N", 5);
 
     this.contextTokenBudget = num("RAG_CONTEXT_TOKEN_BUDGET", 1200);
     this.maxHistoryMessages = num("RAG_MAX_HISTORY", 6);

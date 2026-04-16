@@ -11,6 +11,7 @@ import { IngestionService } from "./ingestion.service";
 import { RagService } from "./rag.service";
 import { RagMetrics } from "./rag.metrics";
 import { RagConfig } from "./rag.config";
+import { OfftopicDetectorService } from "./offtopic-detector.service";
 import { RagController } from "./rag.controller";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -26,6 +27,7 @@ const AUTO_REBUILD_MAX_CHUNKS = 500;
     EmbeddingsService,
     RouterService,
     QueryRewriterService,
+    OfftopicDetectorService,
     RetrievalService,
     IngestionService,
     RagService,
