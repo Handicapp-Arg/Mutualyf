@@ -142,6 +142,7 @@ export function PermissionMatrix() {
     conversations: 'Conversaciones',
     sessions: 'Sesiones',
     uploads: 'Ordenes Medicas',
+    ai: 'Asistente IA',
     users: 'Usuarios',
     roles: 'Roles y Permisos',
   };

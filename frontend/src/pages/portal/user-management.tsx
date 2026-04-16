@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Power, Edit2, Shield } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
+import { formatDate } from '@/lib/utils';
 import { PortalLayout } from '@/components/portal/portal-layout';
 
 interface Role {
@@ -91,13 +92,6 @@ export function UserManagement() {
     setEditingUser(u);
     setForm({ email: u.email, password: '', fullName: u.fullName, roleId: u.role.id });
     setShowModal(true);
-  };
-
-  const formatDate = (date: string | null) => {
-    if (!date) return 'Nunca';
-    return new Date(date).toLocaleDateString('es-AR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
   };
 
   return (

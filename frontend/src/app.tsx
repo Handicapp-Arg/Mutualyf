@@ -6,8 +6,14 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useAuthStore } from '@/stores/auth.store';
 
-const PortalDashboard = lazy(() =>
-  import('@/pages/portal/dashboard').then((m) => ({ default: m.PortalDashboard })),
+const Conversations = lazy(() =>
+  import('@/pages/portal/conversations').then((m) => ({ default: m.Conversations })),
+);
+const Uploads = lazy(() =>
+  import('@/pages/portal/uploads').then((m) => ({ default: m.Uploads })),
+);
+const StatsPage = lazy(() =>
+  import('@/pages/portal/stats').then((m) => ({ default: m.Stats })),
 );
 const UserManagement = lazy(() =>
   import('@/pages/portal/user-management').then((m) => ({ default: m.UserManagement })),
@@ -18,8 +24,8 @@ const PermissionMatrix = lazy(() =>
 const AiConfig = lazy(() =>
   import('@/pages/portal/ai-config').then((m) => ({ default: m.AiConfig })),
 );
-const QuickReplies = lazy(() =>
-  import('@/pages/portal/quick-replies').then((m) => ({ default: m.QuickReplies })),
+const Knowledge = lazy(() =>
+  import('@/pages/portal/knowledge').then((m) => ({ default: m.Knowledge })),
 );
 
 function PortalFallback() {
@@ -41,56 +47,23 @@ export function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-          {/* Rutas públicas */}
+          {/* Rutas publicas */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Redirect legacy /admin */}
-          <Route path="/admin" element={<Navigate to="/portal/dashboard" replace />} />
+          {/* Redirects legacy */}
+          <Route path="/admin" element={<Navigate to="/portal/conversations" replace />} />
 
           {/* Rutas protegidas del portal */}
           <Route path="/portal" element={<ProtectedRoute />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route
-              path="dashboard"
-              element={
-                <Suspense fallback={<PortalFallback />}>
-                  <PortalDashboard />
-                </Suspense>
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <Suspense fallback={<PortalFallback />}>
-                  <UserManagement />
-                </Suspense>
-              }
-            />
-            <Route
-              path="roles"
-              element={
-                <Suspense fallback={<PortalFallback />}>
-                  <PermissionMatrix />
-                </Suspense>
-              }
-            />
-            <Route
-              path="ai-config"
-              element={
-                <Suspense fallback={<PortalFallback />}>
-                  <AiConfig />
-                </Suspense>
-              }
-            />
-            <Route
-              path="quick-replies"
-              element={
-                <Suspense fallback={<PortalFallback />}>
-                  <QuickReplies />
-                </Suspense>
-              }
-            />
+            <Route index element={<Navigate to="conversations" replace />} />
+            <Route path="conversations" element={<Suspense fallback={<PortalFallback />}><Conversations /></Suspense>} />
+            <Route path="uploads" element={<Suspense fallback={<PortalFallback />}><Uploads /></Suspense>} />
+            <Route path="stats" element={<Suspense fallback={<PortalFallback />}><StatsPage /></Suspense>} />
+            <Route path="users" element={<Suspense fallback={<PortalFallback />}><UserManagement /></Suspense>} />
+            <Route path="roles" element={<Suspense fallback={<PortalFallback />}><PermissionMatrix /></Suspense>} />
+            <Route path="ai-config" element={<Suspense fallback={<PortalFallback />}><AiConfig /></Suspense>} />
+            <Route path="knowledge" element={<Suspense fallback={<PortalFallback />}><Knowledge /></Suspense>} />
           </Route>
         </Routes>
       </BrowserRouter>

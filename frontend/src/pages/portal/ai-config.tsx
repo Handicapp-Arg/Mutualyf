@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, RotateCcw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { formatDate } from '@/lib/utils';
 import { PortalLayout } from '@/components/portal/portal-layout';
 
 interface AiConfigData {
@@ -67,14 +68,6 @@ export function AiConfig() {
         maxTokens: config.maxTokens,
       });
     }
-  };
-
-  const formatDate = (date: string | null) => {
-    if (!date) return null;
-    return new Date(date).toLocaleDateString('es-AR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
   };
 
   const hasChanges = config && (

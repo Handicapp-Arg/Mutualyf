@@ -24,6 +24,7 @@ const OPERATOR_PERMISSIONS = [
   'conversations:takeover',
   'sessions:read',
   'sessions:live',
+  'uploads:read',
 ];
 
 async function main() {

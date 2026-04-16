@@ -17,7 +17,7 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/portal/dashboard', { replace: true });
+      navigate('/portal/conversations', { replace: true });
     } catch {
       // Error ya se maneja en el store
     } finally {
