@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -13,6 +14,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     try {
+      this.logger.log('Sincronizando schema con la base de datos...');
+      execSync('npx prisma db push --skip-generate', {
+        stdio: 'inherit',
+        timeout: 30_000,
+      });
       await this.$connect();
     } catch (error) {
       this.logger.error('Error al conectar con la base de datos:', error);
