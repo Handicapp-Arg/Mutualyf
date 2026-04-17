@@ -105,6 +105,19 @@ export function LoginPage() {
               {isSubmitting ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
+
+          {/* Acceso rápido demo */}
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <p className="mb-3 text-center text-xs font-medium text-slate-400">Acceso rápido</p>
+            <button
+              type="button"
+              onClick={() => { setEmail('admin@mutualyf.com'); setPassword('123456'); }}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-slate-100"
+            >
+              <span className="block font-semibold text-slate-700">Administrador</span>
+              <span className="text-xs text-slate-400">admin@mutualyf.com</span>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}
