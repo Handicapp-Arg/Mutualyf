@@ -172,7 +172,7 @@ export class ConversationsController {
     }
 
     res.setHeader('Content-Type', attachment.fileType);
-    res.setHeader('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
     return res.sendFile(absolutePath);
   }
 }
