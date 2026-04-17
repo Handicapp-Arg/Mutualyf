@@ -15,7 +15,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit() {
     try {
       this.logger.log('Sincronizando schema con la base de datos...');
-      execSync('npx prisma db push --skip-generate', {
+      execSync('npx prisma db push --skip-generate --accept-data-loss', {
         stdio: 'inherit',
         timeout: 30_000,
       });
