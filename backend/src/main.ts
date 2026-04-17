@@ -16,6 +16,12 @@ class RequestOnlyLogger extends ConsoleLogger {
   log(message: any, context?: string) {
     if (context === 'HTTP') super.log(message, context);
   }
+  warn(message: any, context?: string) {
+    super.warn(message, context);
+  }
+  error(message: any, stack?: string, context?: string) {
+    super.error(message, stack, context);
+  }
   debug() {}
   verbose() {}
 }

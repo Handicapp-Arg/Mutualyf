@@ -20,8 +20,22 @@ export class AiConfigService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.loadFromDb();
-    this.logger.log('AI config loaded into memory cache');
+    try {
+      await this.loadFromDb();
+      this.logger.log('AI config loaded into memory cache');
+    } catch (error) {
+      this.logger.warn(
+        'Could not load AI config from DB, using defaults. Run prisma migrate deploy to create the table.',
+      );
+      this.cachedConfig = {
+        systemPrompt: BASE_SYSTEM_PROMPT,
+        temperature: 0.7,
+        maxTokens: 800,
+        quickButtons: '[]',
+        updatedAt: new Date(),
+        updatedBy: null,
+      };
+    }
   }
 
   getConfig(): AiConfigData {
