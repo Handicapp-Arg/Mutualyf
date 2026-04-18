@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { Hit } from "./rag.types";
+import { normalizeText, normalizeForFts } from "./text-utils";
 
 export const EMBEDDING_DIM = 768;
 
@@ -89,7 +90,7 @@ export class VectorStoreService implements OnModuleInit {
     const embStr = `[${Array.from(c.embedding).join(",")}]`;
     // Normalizar acentos para FTS: "cardiología" → "cardiologia"
     // El embedding usa el texto original (mejor semántica); FTS usa sin acentos.
-    const contentFts = stripAccents(c.content);
+    const contentFts = normalizeText(c.content);
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO kb_vectors (chunk_id, embedding, content, category)
        VALUES ($1, $2::vector, $3, $4)
@@ -260,11 +261,7 @@ const STOPWORDS_ES = new Set([
  * ts_rank ordena por cobertura: documentos con más matches suben al tope.
  */
 function toTsQuery(raw: string): string {
-  const allTokens = raw
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
+  const allTokens = normalizeForFts(raw)
     .split(/\s+/)
     .filter((t) => t.length >= 2)
     .slice(0, 12);
@@ -273,9 +270,16 @@ function toTsQuery(raw: string): string {
   const tokens = significant.length > 0 ? significant : allTokens;
   if (!tokens.length) return "";
 
-  return tokens.map((t) => `${t}:*`).join(" | ");
+  // Expande plurales españoles para que FTS matchee en ambas direcciones:
+  // "especialidades" → también busca "especialidad:*"
+  // "cardiologos"   → también busca "cardiologo:*"
+  const expanded = new Set<string>();
+  for (const t of tokens) {
+    expanded.add(t);
+    if (t.endsWith("es") && t.length > 5) expanded.add(t.slice(0, -2));
+    else if (t.endsWith("s") && t.length > 4) expanded.add(t.slice(0, -1));
+  }
+
+  return [...expanded].map((t) => `${t}:*`).join(" | ");
 }
 
-function stripAccents(text: string): string {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}

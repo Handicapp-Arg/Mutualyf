@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Category, Intent } from "./rag.types";
 import { RagConfig } from "./rag.config";
+import { normalizeText } from "./text-utils";
 
 const CHITCHAT_RE =
   /^(\s*(hola|holaa+|buenas|buen(os)?\s*(dias|tardes|noches)|hey|ola|que tal|como (andas|estas|va)|gracias|muchas gracias|chau|adios|hasta luego|ok|dale|perfecto|genial|👋|🙂|😊|❤️|👍)\s*[!?.,]*\s*)+$/i;
@@ -143,20 +144,14 @@ export class RouterService {
     if (META_RE.test(trimmed) && trimmed.length < 80) {
       return { kind: "chitchat", categoryConfident: false };
     }
-    const normalized = trimmed
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    const normalized = normalizeText(trimmed);
 
     let best: { cat: Category; hits: number } | null = null;
     for (const cat of Object.keys(CATEGORY_KEYWORDS) as Category[]) {
       const kws = CATEGORY_KEYWORDS[cat];
       let hits = 0;
       for (const kw of kws) {
-        if (
-          normalized.includes(
-            kw.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
-          )
+        if (normalized.includes(normalizeText(kw))
         )
           hits++;
       }

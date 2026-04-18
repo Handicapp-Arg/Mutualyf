@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { LRUCache } from "lru-cache";
 import { createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
+import { normalizeText } from "./text-utils";
 import { EmbeddingsService } from "./embeddings.service";
 import { VectorStoreService } from "./vector-store.service";
 import { RouterService } from "./router.service";
@@ -263,7 +264,7 @@ export class RetrievalService {
       .map((m) => `${m.role}:${m.content.slice(0, 200)}`)
       .join("|");
     return createHash("sha1")
-      .update(`${query.trim().toLowerCase()}::${tail}`)
+      .update(`${normalizeText(query)}::${tail}`)
       .digest("hex");
   }
 

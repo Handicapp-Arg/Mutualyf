@@ -6,6 +6,7 @@ import { createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EMBEDDING_DIM } from "./vector-store.service";
 import { RagConfig } from "./rag.config";
+import { normalizeText } from "./text-utils";
 
 export type EmbedKind = "query" | "document";
 
@@ -217,7 +218,7 @@ export class EmbeddingsService implements OnModuleInit {
 
   private keyOf(text: string, kind: EmbedKind): string {
     return createHash("sha1")
-      .update(`${this.modelVersion}::${kind}::${text.trim().toLowerCase()}`)
+      .update(`${this.modelVersion}::${kind}::${normalizeText(text)}`)
       .digest("hex");
   }
 

@@ -11,6 +11,7 @@ import { QuickReplyService } from '../quick-reply/quick-reply.service';
 import { MAX_HISTORY_MESSAGES, MUTUALYF_KEYWORDS, OFF_TOPIC_RESPONSE } from './ai.constants';
 import { setupSSE, writeSSEChunked } from './utils/sse.util';
 import { RagService } from '../rag/rag.service';
+import { normalizeText } from '../rag/text-utils';
 
 /** Mensaje de fallback final con datos de contacto reales de MutuaLyF */
 const FALLBACK_RESPONSE =
@@ -58,15 +59,10 @@ export class AiController implements OnModuleInit {
    * Mensajes cortos o con contexto implícito pasan al detector semántico del RAG.
    */
   private isOffTopic(message: string): boolean {
-    const normalized = message
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
+    const normalized = normalizeText(message);
     const words = normalized.split(/\s+/).filter(Boolean);
     if (words.length <= 8) return false;
-
-    return !MUTUALYF_KEYWORDS.some((kw) => normalized.includes(kw));
+    return !MUTUALYF_KEYWORDS.some((kw) => normalized.includes(normalizeText(kw)));
   }
 
   /**
