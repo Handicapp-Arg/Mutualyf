@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw } from 'lucide-react';
+import { Save, RotateCcw, Bot, Sliders, AlignLeft } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { PortalLayout } from '@/components/portal/portal-layout';
 
@@ -20,22 +20,15 @@ export function AiConfig() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
+  useEffect(() => { loadConfig(); }, []);
 
   const loadConfig = async () => {
     setIsLoading(true);
     try {
       const res = await apiClient.get('/ai-config');
       setConfig(res.data);
-      setForm({
-        systemPrompt: res.data.systemPrompt,
-        temperature: res.data.temperature,
-        maxTokens: res.data.maxTokens,
-      });
-    } catch (err) {
-      console.error('Error cargando config:', err);
+      setForm({ systemPrompt: res.data.systemPrompt, temperature: res.data.temperature, maxTokens: res.data.maxTokens });
+    } catch {
       setError('Error al cargar la configuracion');
     } finally {
       setIsLoading(false);
@@ -60,13 +53,7 @@ export function AiConfig() {
   };
 
   const handleReset = () => {
-    if (config) {
-      setForm({
-        systemPrompt: config.systemPrompt,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-      });
-    }
+    if (config) setForm({ systemPrompt: config.systemPrompt, temperature: config.temperature, maxTokens: config.maxTokens });
   };
 
   const hasChanges = config && (
@@ -75,127 +62,155 @@ export function AiConfig() {
     form.maxTokens !== config.maxTokens
   );
 
+  const creatividadInfo =
+    form.temperature <= 0.3 ? { label: 'Exacto', desc: 'Respuestas consistentes y predecibles', color: 'text-blue-600' } :
+    form.temperature <= 0.7 ? { label: 'Equilibrado', desc: 'Balance entre precisión y naturalidad', color: 'text-corporate' } :
+    { label: 'Creativo', desc: 'Respuestas más variadas y expresivas', color: 'text-amber-600' };
+
+  const longitudInfo =
+    form.maxTokens <= 300 ? { label: 'Corta', desc: '1 a 2 oraciones por respuesta' } :
+    form.maxTokens <= 800 ? { label: 'Media', desc: '2 a 4 párrafos por respuesta' } :
+    { label: 'Larga', desc: 'Respuestas detalladas y extensas' };
+
   return (
     <PortalLayout>
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-bold text-slate-800">Configuracion de IA</h1>
+        <h1 className="text-lg font-bold text-slate-800">Configuracion de IA</h1>
+        <div className="flex items-center gap-3">
+          {saved && (
+            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-600">
+              Guardado correctamente
+            </span>
+          )}
+          {error && config && (
+            <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">{error}</span>
+          )}
+          {hasChanges && (
+            <button type="button" onClick={handleReset}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-50">
+              <RotateCcw size={13} />
+              Descartar
+            </button>
+          )}
+          <button
+            form="ai-config-form"
+            type="submit"
+            disabled={isSaving || !hasChanges}
+            className="flex items-center gap-1.5 rounded-lg bg-corporate px-4 py-1.5 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-40">
+            <Save size={13} />
+            {isSaving ? 'Guardando...' : 'Guardar cambios'}
+          </button>
         </div>
       </div>
 
-      {/* Content */}
       <div className="px-6 py-6">
         {isLoading ? (
-          <div className="flex h-32 items-center justify-center">
+          <div className="flex h-40 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-corporate" />
           </div>
         ) : error && !config ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-600">
-            {error}
-          </div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-600">{error}</div>
         ) : (
-          <form onSubmit={handleSave} className="space-y-6">
-            {/* System Prompt */}
-            <div className="rounded-xl border bg-white p-6">
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                System Prompt
-              </label>
-              <p className="mb-3 text-xs text-slate-400">
-                Instrucciones que definen la personalidad y comportamiento del asistente. Se inyecta en cada conversacion.
-              </p>
-              <textarea
-                value={form.systemPrompt}
-                onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
-                rows={16}
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 font-mono text-sm leading-relaxed text-slate-700 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate/20"
-                placeholder="Eres un asistente..."
-              />
-              <div className="mt-2 text-right text-xs text-slate-400">
-                {form.systemPrompt.length} caracteres
+          <form id="ai-config-form" onSubmit={handleSave} className="space-y-5">
+
+            {/* Cambios sin guardar */}
+            {hasChanges && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700">
+                Tenés cambios sin guardar
+              </div>
+            )}
+
+            {/* Personalidad */}
+            <div className="rounded-xl border bg-white">
+              <div className="flex items-center gap-3 border-b px-6 py-4">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+                  <Bot size={16} className="text-corporate" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Personalidad del asistente</p>
+                  <p className="text-xs text-slate-400">Definí el tono, las reglas y cómo debe presentarse</p>
+                </div>
+              </div>
+              <div className="p-6">
+                <textarea
+                  value={form.systemPrompt}
+                  onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
+                  rows={14}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm leading-relaxed text-slate-700 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20"
+                  placeholder="Ej: Sos el asistente virtual de MutuaLyF. Respondé siempre en español, con un tono amable y profesional. No inventes información que no tengas disponible..."
+                />
+                <p className="mt-2 text-right text-xs text-slate-400">{form.systemPrompt.length} caracteres</p>
               </div>
             </div>
 
-            {/* Parameters */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="rounded-xl border bg-white p-6">
-                <label className="mb-2 block text-sm font-bold text-slate-700">
-                  Temperature
-                </label>
-                <p className="mb-3 text-xs text-slate-400">
-                  Controla la creatividad. 0 = determinista, 2 = muy creativo.
-                </p>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.1"
-                    value={form.temperature}
-                    onChange={(e) => setForm((f) => ({ ...f, temperature: parseFloat(e.target.value) }))}
-                    className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-corporate"
-                  />
-                  <span className="w-12 rounded-lg border border-slate-200 px-2 py-1 text-center text-sm font-bold text-slate-700">
-                    {form.temperature.toFixed(1)}
-                  </span>
+            {/* Parámetros */}
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+
+              {/* Creatividad */}
+              <div className="rounded-xl border bg-white">
+                <div className="flex items-center gap-3 border-b px-6 py-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+                    <Sliders size={16} className="text-corporate" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">Creatividad</p>
+                    <p className="text-xs text-slate-400">Qué tan variable es cada respuesta</p>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="mb-5 flex items-center gap-3">
+                    <input
+                      type="range" min="0" max="2" step="0.1"
+                      value={form.temperature}
+                      onChange={(e) => setForm((f) => ({ ...f, temperature: parseFloat(e.target.value) }))}
+                      className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-corporate"
+                    />
+                    <span className="w-11 shrink-0 rounded-lg border border-slate-200 bg-slate-50 py-1 text-center text-sm font-bold text-slate-700">
+                      {form.temperature.toFixed(1)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400 mb-3">
+                    <span>Exacto</span><span>Equilibrado</span><span>Creativo</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-4 py-3">
+                    <p className={`text-xs font-bold ${creatividadInfo.color}`}>{creatividadInfo.label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{creatividadInfo.desc}</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-xl border bg-white p-6">
-                <label className="mb-2 block text-sm font-bold text-slate-700">
-                  Max Tokens
-                </label>
-                <p className="mb-3 text-xs text-slate-400">
-                  Longitud maxima de la respuesta. Mayor = respuestas mas largas.
-                </p>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="100"
-                    max="4096"
-                    step="50"
-                    value={form.maxTokens}
-                    onChange={(e) => setForm((f) => ({ ...f, maxTokens: parseInt(e.target.value) }))}
-                    className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-corporate"
-                  />
-                  <span className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-center text-sm font-bold text-slate-700">
-                    {form.maxTokens}
-                  </span>
+              {/* Longitud */}
+              <div className="rounded-xl border bg-white">
+                <div className="flex items-center gap-3 border-b px-6 py-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+                    <AlignLeft size={16} className="text-corporate" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">Extensión de respuestas</p>
+                    <p className="text-xs text-slate-400">Qué tan largas son las respuestas</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between">
-              <div>
-                {saved && (
-                  <span className="text-sm font-bold text-green-600">
-                    Configuracion guardada correctamente
-                  </span>
-                )}
-                {error && config && (
-                  <span className="text-sm font-bold text-red-600">{error}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {hasChanges && (
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
-                  >
-                    <RotateCcw size={14} />
-                    Descartar
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={isSaving || !hasChanges}
-                  className="flex items-center gap-2 rounded-lg bg-corporate px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-50"
-                >
-                  <Save size={14} />
-                  {isSaving ? 'Guardando...' : 'Guardar'}
-                </button>
+                <div className="p-6">
+                  <div className="mb-5 flex items-center gap-3">
+                    <input
+                      type="range" min="100" max="4096" step="50"
+                      value={form.maxTokens}
+                      onChange={(e) => setForm((f) => ({ ...f, maxTokens: parseInt(e.target.value) }))}
+                      className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-corporate"
+                    />
+                    <span className="w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 py-1 text-center text-sm font-bold text-slate-700">
+                      {form.maxTokens}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400 mb-3">
+                    <span>Corta</span><span>Media</span><span>Larga</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-4 py-3">
+                    <p className="text-xs font-bold text-corporate">{longitudInfo.label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{longitudInfo.desc}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </form>

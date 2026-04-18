@@ -182,169 +182,188 @@ function DocumentsTab() {
 
   return (
     <>
-      {/* Info + acciones */}
-      <div className="mb-4 flex items-start justify-between">
-        <p className="text-xs text-slate-400">
-          Documentos que el bot consulta cuando un usuario hace una pregunta. Podes agregar texto o subir archivos PDF/TXT.
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <button onClick={loadDocs} disabled={isLoading}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            Refrescar
-          </button>
-          <button onClick={handleRebuild} disabled={isRebuilding}
-            className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-100 disabled:opacity-50">
-            {isRebuilding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Re-indexar
-          </button>
-        </div>
-      </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Formulario */}
-        <div className="rounded-xl border bg-white p-6">
-          <h2 className="mb-4 text-base font-black text-slate-800">Agregar contenido</h2>
-
-          <div className="mb-4 flex rounded-lg bg-slate-100 p-1">
-            <button onClick={() => setMode('text')}
-              className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'text' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
-              Texto
-            </button>
-            <button onClick={() => setMode('file')}
-              className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'file' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
-              Archivo
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">Titulo</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Horarios de atencion"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
-                disabled={isUploading} />
+        {/* Card: Agregar contenido */}
+        <div className="rounded-xl border bg-white">
+          <div className="flex items-center gap-3 border-b px-5 py-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+              <Plus size={15} className="text-corporate" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">Categoria</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
-                disabled={isUploading}>
-                {RAG_CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
-                ))}
-              </select>
+              <p className="text-sm font-bold text-slate-800">Agregar contenido</p>
+              <p className="text-xs text-slate-400">PDF, TXT o texto libre</p>
             </div>
-
-            {mode === 'text' ? (
-              <>
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-600">Contenido</label>
-                  <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)}
-                    placeholder="Escribi la informacion que el bot debe saber..."
-                    rows={8} disabled={isUploading}
-                    className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate" />
-                </div>
-                <button onClick={handleCreateText}
-                  disabled={isUploading || !title.trim() || !textContent.trim()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white hover:bg-corporate/90 disabled:opacity-50">
-                  {isUploading ? <><Loader2 size={16} className="animate-spin" /> Procesando...</>
-                    : <><BookOpen size={16} /> Agregar documento</>}
-                </button>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-600">Archivo (PDF, TXT, MD)</label>
-                  <input type="file" ref={fileInputRef}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }}
-                    accept=".pdf,.txt,.md,.markdown" className="hidden" />
-                  <div onClick={() => fileInputRef.current?.click()}
-                    className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-6 text-center hover:border-corporate hover:bg-slate-50">
-                    {file ? (
-                      <div className="flex items-center gap-2">
-                        <FileText size={18} className="text-corporate" />
-                        <span className="text-sm font-medium text-slate-700">{file.name}</span>
-                        <span className="text-xs text-slate-400">({(file.size / 1024).toFixed(0)} KB)</span>
-                      </div>
-                    ) : (
-                      <><Upload size={24} className="text-slate-400" /><p className="text-xs text-slate-500">Click para seleccionar</p></>
-                    )}
-                  </div>
-                </div>
-                <button onClick={handleUploadFile} disabled={isUploading || !file}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white hover:bg-corporate/90 disabled:opacity-50">
-                  {isUploading ? <><Loader2 size={16} className="animate-spin" /> Subiendo...</>
-                    : <><Upload size={16} /> Subir archivo</>}
-                </button>
-              </>
-            )}
           </div>
-        </div>
 
-        {/* Lista de documentos */}
-        <div className="rounded-xl border bg-white p-6 xl:col-span-2">
-          <h2 className="mb-4 text-base font-black text-slate-800">
-            Documentos indexados
-            {!isLoading && (
-              <span className="ml-2 text-sm font-medium text-slate-400">
-                ({docs.filter((d) => d.status === 'active').length} activos)
-              </span>
-            )}
-          </h2>
+          <div className="p-5">
+            <div className="mb-4 flex rounded-lg bg-slate-100 p-1">
+              <button onClick={() => setMode('text')}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'text' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
+                Texto libre
+              </button>
+              <button onClick={() => setMode('file')}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'file' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
+                Archivo
+              </button>
+            </div>
 
-          {isLoading ? (
-            <div className="flex h-40 items-center justify-center">
-              <Loader2 size={24} className="animate-spin text-corporate" />
-            </div>
-          ) : docs.length === 0 ? (
-            <div className="flex h-40 flex-col items-center justify-center gap-2 text-slate-400">
-              <BookOpen size={32} />
-              <p className="text-sm">No hay documentos cargados</p>
-              <p className="text-xs">Agrega contenido para que el bot responda mejor</p>
-            </div>
-          ) : (
             <div className="space-y-3">
-              {docs.map((doc) => (
-                <button
-                  key={doc.id}
-                  onClick={() => setDetailDocId(doc.id)}
-                  className={`group flex w-full items-start justify-between rounded-lg border p-4 text-left transition-colors hover:border-corporate hover:bg-slate-50 ${
-                    doc.status === 'active' ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-sm font-bold text-slate-700">{doc.title}</h3>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        doc.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
-                      }`}>
-                        {doc.status === 'active' ? 'Activo' : 'Archivado'}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                      <span className="rounded bg-corporate/10 px-1.5 py-0.5 font-medium text-corporate">
-                        {getCategoryLabel(doc.category)}
-                      </span>
-                      <span>{doc._count.chunks} fragmentos</span>
-                      <span>{formatTokens(doc.tokensTotal)} tokens</span>
-                      <span>{formatDate(doc.createdAt)}</span>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Título</label>
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ej: Horarios de atención"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20"
+                  disabled={isUploading} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Categoría</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20"
+                  disabled={isUploading}>
+                  {RAG_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {mode === 'text' ? (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Contenido</label>
+                    <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)}
+                      placeholder="Escribí la información que el bot debe conocer..."
+                      rows={7} disabled={isUploading}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20" />
+                  </div>
+                  <button onClick={handleCreateText}
+                    disabled={isUploading || !title.trim() || !textContent.trim()}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-40">
+                    {isUploading ? <><Loader2 size={15} className="animate-spin" />Procesando...</>
+                      : <><BookOpen size={15} />Agregar documento</>}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Archivo (PDF, TXT, MD)</label>
+                    <input type="file" ref={fileInputRef}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }}
+                      accept=".pdf,.txt,.md,.markdown" className="hidden" />
+                    <div onClick={() => fileInputRef.current?.click()}
+                      className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-4 py-8 text-center transition-colors hover:border-corporate hover:bg-slate-50">
+                      {file ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <FileText size={22} className="text-corporate" />
+                          <span className="text-sm font-semibold text-slate-700">{file.name}</span>
+                          <span className="text-xs text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload size={22} className="text-slate-300" />
+                          <p className="text-xs font-medium text-slate-500">Hacé click para seleccionar</p>
+                          <p className="text-[10px] text-slate-400">PDF · TXT · MD</p>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="ml-3 flex shrink-0 items-center gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }}
-                      className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100"
-                      title="Eliminar documento"
-                    >
-                      <Trash2 size={12} /> Eliminar
-                    </button>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-corporate" />
-                  </div>
-                </button>
-              ))}
+                  <button onClick={handleUploadFile} disabled={isUploading || !file}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-40">
+                    {isUploading ? <><Loader2 size={15} className="animate-spin" />Subiendo...</>
+                      : <><Upload size={15} />Subir archivo</>}
+                  </button>
+                </>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Card: Documentos indexados */}
+        <div className="rounded-xl border bg-white xl:col-span-2">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+                <FileText size={15} className="text-corporate" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  Documentos indexados
+                  {!isLoading && (
+                    <span className="ml-2 font-normal text-slate-400">
+                      ({docs.filter((d) => d.status === 'active').length} activos)
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400">El bot consulta estos archivos para responder</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={loadDocs} disabled={isLoading}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-50">
+                <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+                Refrescar
+              </button>
+              <button onClick={handleRebuild} disabled={isRebuilding}
+                className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-100 disabled:opacity-50">
+                {isRebuilding ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Re-indexar
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5">
+            {isLoading ? (
+              <div className="flex h-48 items-center justify-center">
+                <Loader2 size={24} className="animate-spin text-corporate" />
+              </div>
+            ) : docs.length === 0 ? (
+              <div className="flex h-48 flex-col items-center justify-center gap-3 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                  <BookOpen size={22} className="text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-600">Sin documentos aún</p>
+                  <p className="mt-0.5 text-xs text-slate-400">Agregá contenido para que el bot pueda responder consultas</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {docs.map((doc) => (
+                  <button key={doc.id} onClick={() => setDetailDocId(doc.id)}
+                    className={`group flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors hover:border-corporate/40 hover:bg-slate-50 ${
+                      doc.status === 'active' ? 'border-slate-200' : 'border-slate-100 opacity-50'
+                    }`}>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        doc.status === 'active' ? 'bg-green-50' : 'bg-slate-100'
+                      }`}>
+                        <FileText size={14} className={doc.status === 'active' ? 'text-green-600' : 'text-slate-400'} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-700">{doc.title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                          <span className="rounded bg-corporate/10 px-1.5 py-0.5 font-medium text-corporate">
+                            {getCategoryLabel(doc.category)}
+                          </span>
+                          <span>{doc._count.chunks} fragmentos</span>
+                          <span>{formatTokens(doc.tokensTotal)} tokens</span>
+                          <span>{formatDate(doc.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-3 flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }}
+                        className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100">
+                        <Trash2 size={12} />
+                      </button>
+                      <ChevronRight size={15} className="text-slate-300 transition-colors group-hover:text-corporate" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
