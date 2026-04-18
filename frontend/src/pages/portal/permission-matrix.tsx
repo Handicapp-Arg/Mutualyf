@@ -217,10 +217,7 @@ export function PermissionMatrix() {
                       {perms.map((perm) => (
                         <tr key={perm.id} className="border-b border-slate-100 last:border-0">
                           <td className="py-2.5 pr-6">
-                            <div>
-                              <p className="font-medium text-slate-700">{perm.displayName}</p>
-                              <p className="text-xs text-slate-400">{perm.code}</p>
-                            </div>
+                            <p className="font-medium text-slate-700">{perm.displayName}</p>
                           </td>
                           {roles.map((role) => (
                             <td key={`${role.id}-${perm.id}`} className="px-4 py-2.5 text-center">
