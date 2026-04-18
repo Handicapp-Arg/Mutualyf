@@ -87,6 +87,9 @@ export class VectorStoreService implements OnModuleInit {
     embedding: Float32Array;
   }): Promise<void> {
     const embStr = `[${Array.from(c.embedding).join(",")}]`;
+    // Normalizar acentos para FTS: "cardiología" → "cardiologia"
+    // El embedding usa el texto original (mejor semántica); FTS usa sin acentos.
+    const contentFts = stripAccents(c.content);
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO kb_vectors (chunk_id, embedding, content, category)
        VALUES ($1, $2::vector, $3, $4)
@@ -96,7 +99,7 @@ export class VectorStoreService implements OnModuleInit {
          category = EXCLUDED.category`,
       c.id,
       embStr,
-      c.content,
+      contentFts,
       c.category,
     );
   }
@@ -271,4 +274,8 @@ function toTsQuery(raw: string): string {
   if (!tokens.length) return "";
 
   return tokens.map((t) => `${t}:*`).join(" | ");
+}
+
+function stripAccents(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }

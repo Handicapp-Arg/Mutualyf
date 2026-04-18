@@ -54,8 +54,8 @@ export class AiController implements OnModuleInit {
 
   /**
    * Detecta si un mensaje es claramente off-topic (no relacionado con MutuaLyF).
-   * Mensajes cortos (<=3 palabras) se dejan pasar a Ollama por ambigüedad.
-   * Mensajes largos sin ninguna keyword se rechazan inmediatamente.
+   * Solo bloquea mensajes muy largos (>8 palabras) sin ninguna keyword.
+   * Mensajes cortos o con contexto implícito pasan al detector semántico del RAG.
    */
   private isOffTopic(message: string): boolean {
     const normalized = message
@@ -64,7 +64,7 @@ export class AiController implements OnModuleInit {
       .replace(/[\u0300-\u036f]/g, '');
 
     const words = normalized.split(/\s+/).filter(Boolean);
-    if (words.length <= 3) return false;
+    if (words.length <= 8) return false;
 
     return !MUTUALYF_KEYWORDS.some((kw) => normalized.includes(kw));
   }
