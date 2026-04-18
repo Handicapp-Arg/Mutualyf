@@ -62,16 +62,6 @@ export function AiConfig() {
     form.maxTokens !== config.maxTokens
   );
 
-  const creatividadInfo =
-    form.temperature <= 0.3 ? { label: 'Exacto', desc: 'Respuestas consistentes y predecibles', color: 'text-blue-600' } :
-    form.temperature <= 0.7 ? { label: 'Equilibrado', desc: 'Balance entre precisión y naturalidad', color: 'text-corporate' } :
-    { label: 'Creativo', desc: 'Respuestas más variadas y expresivas', color: 'text-amber-600' };
-
-  const longitudInfo =
-    form.maxTokens <= 300 ? { label: 'Corta', desc: '1 a 2 oraciones por respuesta' } :
-    form.maxTokens <= 800 ? { label: 'Media', desc: '2 a 4 párrafos por respuesta' } :
-    { label: 'Larga', desc: 'Respuestas detalladas y extensas' };
-
   return (
     <PortalLayout>
       {/* Header */}
@@ -127,10 +117,7 @@ export function AiConfig() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
                   <Bot size={16} className="text-corporate" />
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">Personalidad del asistente</p>
-                  <p className="text-xs text-slate-400">Definí el tono, las reglas y cómo debe presentarse</p>
-                </div>
+                <p className="text-sm font-bold text-slate-800">Personalidad del asistente</p>
               </div>
               <div className="p-6">
                 <textarea
@@ -153,10 +140,7 @@ export function AiConfig() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
                     <Sliders size={16} className="text-corporate" />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">Creatividad</p>
-                    <p className="text-xs text-slate-400">Qué tan variable es cada respuesta</p>
-                  </div>
+                  <p className="text-sm font-bold text-slate-800">Creatividad</p>
                 </div>
                 <div className="p-6">
                   <div className="mb-5 flex items-center gap-3">
@@ -170,12 +154,8 @@ export function AiConfig() {
                       {form.temperature.toFixed(1)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-400 mb-3">
+                  <div className="flex justify-between text-[10px] text-slate-400">
                     <span>Exacto</span><span>Equilibrado</span><span>Creativo</span>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-4 py-3">
-                    <p className={`text-xs font-bold ${creatividadInfo.color}`}>{creatividadInfo.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{creatividadInfo.desc}</p>
                   </div>
                 </div>
               </div>
@@ -186,10 +166,7 @@ export function AiConfig() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
                     <AlignLeft size={16} className="text-corporate" />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">Extensión de respuestas</p>
-                    <p className="text-xs text-slate-400">Qué tan largas son las respuestas</p>
-                  </div>
+                  <p className="text-sm font-bold text-slate-800">Extensión de respuestas</p>
                 </div>
                 <div className="p-6">
                   <div className="mb-5 flex items-center gap-3">
@@ -203,12 +180,8 @@ export function AiConfig() {
                       {form.maxTokens}
                     </span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-400 mb-3">
+                  <div className="flex justify-between text-[10px] text-slate-400">
                     <span>Corta</span><span>Media</span><span>Larga</span>
-                  </div>
-                  <div className="rounded-lg bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-bold text-corporate">{longitudInfo.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{longitudInfo.desc}</p>
                   </div>
                 </div>
               </div>

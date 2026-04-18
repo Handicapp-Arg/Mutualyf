@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BookOpen, Upload, RefreshCw, FileText, Loader2,
-  Plus, Pencil, Trash2, X, Save, ToggleLeft, ToggleRight, Zap,
-  ChevronRight, Hash, Tag, Calendar, Layers, Cpu,
+  Plus, Pencil, Trash2, X, Save, ToggleLeft, ToggleRight,
+  ChevronRight, Tag, Calendar, Layers,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
@@ -52,25 +52,23 @@ export function Knowledge() {
         <div className="mb-6 flex gap-1 rounded-lg bg-slate-100 p-1">
           <button
             onClick={() => setTab('documents')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
+            className={`flex flex-1 items-center justify-center rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
               tab === 'documents'
                 ? 'bg-white text-corporate shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <BookOpen size={16} />
             Documentos
           </button>
           <button
             onClick={() => setTab('quick-replies')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
+            className={`flex flex-1 items-center justify-center rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
               tab === 'quick-replies'
                 ? 'bg-white text-corporate shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <Zap size={16} />
-            Respuestas rapidas
+            Respuestas rápidas
           </button>
         </div>
 
@@ -404,13 +402,17 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
-          <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 p-5">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <h2 className="truncate text-lg font-black text-slate-800">
               {doc?.title || 'Cargando...'}
             </h2>
             {doc && (
-              <p className="mt-0.5 truncate text-xs text-slate-500">{doc.source}</p>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                doc.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {doc.status === 'active' ? 'Activo' : 'Archivado'}
+              </span>
             )}
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -429,22 +431,14 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
           ) : doc ? (
             <>
               {/* Metadata */}
-              <div className="grid grid-cols-2 gap-4 border-b border-slate-100 bg-slate-50 p-5 sm:grid-cols-4">
-                <Meta icon={Tag} label="Categoria" value={getCategoryLabel(doc.category)} />
+              <div className="grid grid-cols-3 gap-4 border-b border-slate-100 bg-slate-50 p-5">
+                <Meta icon={Tag} label="Categoría" value={getCategoryLabel(doc.category)} />
                 <Meta icon={Layers} label="Fragmentos" value={String(doc.chunks.length)} />
-                <Meta icon={Hash} label="Tokens totales" value={String(doc.tokensTotal)} />
                 <Meta icon={Calendar} label="Creado" value={formatDate(doc.createdAt)} />
-                <Meta icon={Tag} label="Estado" value={doc.status === 'active' ? 'Activo' : 'Archivado'} />
-                <Meta icon={Hash} label="Version" value={`v${doc.version}`} />
-                <Meta icon={Cpu} label="Modelo embed" value={doc.chunks[0]?.embModel ?? '-'} />
-                <Meta icon={Hash} label="Hash" value={doc.hash.slice(0, 12) + '...'} mono />
               </div>
 
               {/* Chunks */}
               <div className="p-5">
-                <h3 className="mb-3 text-sm font-bold text-slate-700">
-                  Fragmentos ({doc.chunks.length})
-                </h3>
                 {doc.chunks.length === 0 ? (
                   <p className="text-center text-xs text-slate-400">Este documento no tiene fragmentos indexados.</p>
                 ) : (
@@ -455,10 +449,7 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
                           <span className="text-xs font-bold text-slate-600">
                             Fragmento #{chunk.ord + 1}
                           </span>
-                          <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                            <span>id: {chunk.id}</span>
-                            <span>{chunk.tokens} tokens</span>
-                          </div>
+                          <span className="text-[10px] text-slate-400">{chunk.tokens} tokens</span>
                         </div>
                         <pre className="whitespace-pre-wrap break-words px-3 py-3 text-xs leading-relaxed text-slate-700">
                           {chunk.content}
@@ -476,18 +467,14 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
   );
 }
 
-function Meta({
-  icon: Icon, label, value, mono = false,
-}: { icon: React.ElementType; label: string; value: string; mono?: boolean }) {
+function Meta({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
     <div>
       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-400">
         <Icon size={10} />
         {label}
       </div>
-      <div className={`mt-0.5 truncate text-xs font-semibold text-slate-700 ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </div>
+      <div className="mt-0.5 truncate text-xs font-semibold text-slate-700">{value}</div>
     </div>
   );
 }
