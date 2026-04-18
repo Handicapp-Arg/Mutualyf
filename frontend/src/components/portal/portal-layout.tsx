@@ -1,8 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import {
   MessageSquare, FileText, BarChart3, Users, Shield, Power, Bot, BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { apiClient } from '@/lib/api-client';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -46,10 +48,19 @@ const navSections: NavSection[] = [
   },
 ];
 
-export function PortalLayout({ children, liveSessions = 0 }: PortalLayoutProps) {
+export function PortalLayout({ children, liveSessions: liveSessionsProp }: PortalLayoutProps) {
   const { user, logout, hasPermission } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [liveCount, setLiveCount] = useState(liveSessionsProp ?? 0);
+
+  useEffect(() => {
+    if (liveSessionsProp !== undefined) { setLiveCount(liveSessionsProp); return; }
+    if (!hasPermission('sessions:live')) return;
+    apiClient.get('/sessions/live/list')
+      .then((res) => setLiveCount(Array.isArray(res.data) ? res.data.length : 0))
+      .catch(() => {});
+  }, [liveSessionsProp]);
 
   const handleLogout = () => {
     logout();
@@ -93,13 +104,13 @@ export function PortalLayout({ children, liveSessions = 0 }: PortalLayoutProps) 
                       >
                         <item.icon size={16} />
                         {item.label}
-                        {item.path === '/portal/conversations' && liveSessions > 0 && (
+                        {item.path === '/portal/conversations' && liveCount > 0 && (
                           <span className="ml-auto flex items-center gap-1.5">
                             <span className="relative flex h-2 w-2">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                             </span>
-                            <span className="text-[10px] font-bold text-emerald-300">{liveSessions}</span>
+                            <span className="text-[10px] font-bold text-emerald-300">{liveCount}</span>
                           </span>
                         )}
                       </button>
