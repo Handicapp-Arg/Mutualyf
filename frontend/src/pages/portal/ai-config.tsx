@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, RotateCcw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
-import { formatDate } from '@/lib/utils';
 import { PortalLayout } from '@/components/portal/portal-layout';
 
 interface AiConfigData {
@@ -82,13 +81,7 @@ export function AiConfig() {
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <div>
           <h1 className="text-lg font-bold text-slate-800">Configuracion de IA</h1>
-          <p className="text-xs text-slate-400">System prompt y parametros del modelo. Los cambios aplican inmediatamente.</p>
         </div>
-        {config?.updatedBy && (
-          <span className="text-xs text-slate-400">
-            Editado por {config.updatedBy} el {formatDate(config.updatedAt)}
-          </span>
-        )}
       </div>
 
       {/* Content */}

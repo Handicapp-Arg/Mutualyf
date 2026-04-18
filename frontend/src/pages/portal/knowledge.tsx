@@ -40,15 +40,14 @@ export function Knowledge() {
 
   return (
     <PortalLayout>
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-black text-slate-800">Base de Conocimiento</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Todo lo que el asistente sabe para responder consultas
-          </p>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+        <div>
+          <h1 className="text-lg font-bold text-slate-800">Base de Conocimiento</h1>
         </div>
+      </div>
 
+      <div className="p-6">
         {/* Tabs */}
         <div className="mb-6 flex gap-1 rounded-lg bg-slate-100 p-1">
           <button
