@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BookOpen, Upload, RefreshCw, FileText, Loader2,
   Plus, Pencil, Trash2, X, Save, ToggleLeft, ToggleRight, Zap,
-  ChevronRight, Hash, Tag, Calendar, Layers, Cpu, FolderUp,
+  ChevronRight, Hash, Tag, Calendar, Layers, Cpu,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
@@ -89,7 +89,6 @@ function DocumentsTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
-  const [isIngestingFolder, setIsIngestingFolder] = useState(false);
 
   const [mode, setMode] = useState<'text' | 'file'>('file');
   const [title, setTitle] = useState('');
@@ -161,30 +160,6 @@ function DocumentsTab() {
     }
   };
 
-  const handleIngestFolder = async () => {
-    if (!window.confirm(
-      'Cargar todos los .md/.pdf/.txt de prisma/data/knowledge/<categoria>/ del servidor?\n\n' +
-      'Cada archivo se indexa como un documento. Los duplicados (mismo titulo + categoria) se omiten.'
-    )) return;
-    setIsIngestingFolder(true);
-    try {
-      const res = await apiClient.post('/admin/rag/ingest-folder', {});
-      const { total, ingested, skipped, failed } = res.data ?? {};
-      alert(
-        `Ingesta completada:\n` +
-        `- Total: ${total}\n` +
-        `- Indexados: ${ingested}\n` +
-        `- Omitidos: ${skipped}\n` +
-        `- Fallidos: ${failed}`
-      );
-      await loadDocs();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al cargar carpeta');
-    } finally {
-      setIsIngestingFolder(false);
-    }
-  };
-
   const handleRebuild = async () => {
     if (!window.confirm('¿Reconstruir el indice? Puede tardar unos segundos.')) return;
     setIsRebuilding(true);
@@ -217,12 +192,6 @@ function DocumentsTab() {
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
             Refrescar
-          </button>
-          <button onClick={handleIngestFolder} disabled={isIngestingFolder}
-            className="flex items-center gap-1.5 rounded-lg border border-corporate/30 bg-corporate/5 px-3 py-2 text-xs font-bold text-corporate hover:bg-corporate/10 disabled:opacity-50"
-            title="Indexar todos los archivos de prisma/data/knowledge/<categoria>/">
-            {isIngestingFolder ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />}
-            Cargar carpeta
           </button>
           <button onClick={handleRebuild} disabled={isRebuilding}
             className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-100 disabled:opacity-50">
