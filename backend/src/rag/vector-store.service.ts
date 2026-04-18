@@ -22,13 +22,16 @@ export class VectorStoreService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    try {
-      // Crear extensión pgvector si no existe
-      await this.prisma.$executeRawUnsafe(
-        `CREATE EXTENSION IF NOT EXISTS vector;`,
-      );
+    // Extensiones — errores aquí no deben bloquear la creación de la tabla
+    await this.prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector;`).catch((e) => {
+      this.logger.warn(`vector extension: ${(e as Error).message}`);
+    });
+    await this.prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS unaccent;`).catch(() => {
+      this.logger.warn("unaccent extension not available");
+    });
 
-      // Crear tabla de vectores si no existe
+    // Tabla — siempre se crea, independientemente de las extensiones
+    try {
       await this.prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS kb_vectors (
           chunk_id INTEGER PRIMARY KEY,
@@ -37,28 +40,32 @@ export class VectorStoreService implements OnModuleInit {
           category TEXT NOT NULL DEFAULT ''
         );
       `);
-
-      // Crear índice IVFFlat para búsqueda rápida (si hay suficientes filas)
+    } catch {
+      // pgvector no disponible — tabla sin columna embedding
       await this.prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS kb_vectors_embedding_idx
-        ON kb_vectors USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 10);
-      `).catch(() => {
-        // IVFFlat requiere al menos 1 fila para crear el índice,
-        // si falla lo ignoramos y se creará después
-        this.logger.debug("IVFFlat index deferred (table may be empty)");
-      });
-
-      // Crear índice GIN para full-text search
-      await this.prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS kb_vectors_fts_idx
-        ON kb_vectors USING gin (to_tsvector('spanish', content));
+        CREATE TABLE IF NOT EXISTS kb_vectors (
+          chunk_id INTEGER PRIMARY KEY,
+          content TEXT NOT NULL DEFAULT '',
+          category TEXT NOT NULL DEFAULT ''
+        );
       `);
-
-      this.logger.log("Vector store ready (pgvector + tsvector)");
-    } catch (e) {
-      this.logger.error(`Vector store init failed: ${(e as Error).message}`);
+      this.logger.warn("kb_vectors creada sin columna embedding (pgvector no disponible)");
     }
+
+    // Índices — fallos no críticos
+    await this.prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS kb_vectors_embedding_idx
+      ON kb_vectors USING ivfflat (embedding vector_cosine_ops)
+      WITH (lists = 10);
+    `).catch(() => this.logger.debug("IVFFlat index deferred (tabla vacía o sin pgvector)"));
+
+    await this.prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS kb_vectors_fts_idx;`).catch(() => {});
+    await this.prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS kb_vectors_fts_idx
+      ON kb_vectors USING gin (to_tsvector('simple'::regconfig, content));
+    `).catch((e) => this.logger.warn(`FTS index failed: ${(e as Error).message}`));
+
+    this.logger.log("Vector store listo");
   }
 
   /**
@@ -94,6 +101,17 @@ export class VectorStoreService implements OnModuleInit {
     );
   }
 
+  async countVectors(): Promise<number> {
+    try {
+      const rows = await this.prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM kb_vectors
+      `;
+      return Number(rows[0]?.count ?? 0);
+    } catch {
+      return -1;
+    }
+  }
+
   /**
    * Elimina chunks por IDs.
    */
@@ -109,7 +127,7 @@ export class VectorStoreService implements OnModuleInit {
   /**
    * Búsqueda KNN por similitud coseno.
    */
-  knn(opts: { embedding: Float32Array; k: number; category?: string }): Hit[] {
+  knn(_opts: { embedding: Float32Array; k: number; category?: string }): Hit[] {
     // pgvector requiere queries async, pero mantenemos la interfaz sync
     // devolviendo vacío — el caller debe usar knnAsync
     this.logger.warn("knn() sync not supported with pgvector, use knnAsync()");
@@ -163,7 +181,7 @@ export class VectorStoreService implements OnModuleInit {
   /**
    * Full-text search usando tsvector/tsquery de PostgreSQL.
    */
-  fts(opts: { query: string; k: number; category?: string }): Hit[] {
+  fts(_opts: { query: string; k: number; category?: string }): Hit[] {
     this.logger.warn("fts() sync not supported with pgvector, use ftsAsync()");
     return [];
   }
@@ -182,11 +200,13 @@ export class VectorStoreService implements OnModuleInit {
     try {
       let rows: Array<{ chunk_id: number; rank: number }>;
 
+      // 'simple' no aplica stemmer español — más robusto para nombres propios
+      // (FRANCIA, FEDERICO, MARTIN pasan tal cual sin ser rechazados por el lexicón)
       if (opts.category) {
         rows = await this.prisma.$queryRawUnsafe(
-          `SELECT chunk_id, ts_rank(to_tsvector('spanish', content), to_tsquery('spanish', $1)) AS rank
+          `SELECT chunk_id, ts_rank(to_tsvector('simple', content), to_tsquery('simple', $1)) AS rank
            FROM kb_vectors
-           WHERE to_tsvector('spanish', content) @@ to_tsquery('spanish', $1)
+           WHERE to_tsvector('simple', content) @@ to_tsquery('simple', $1)
              AND category = $2
            ORDER BY rank DESC
            LIMIT $3`,
@@ -196,9 +216,9 @@ export class VectorStoreService implements OnModuleInit {
         );
       } else {
         rows = await this.prisma.$queryRawUnsafe(
-          `SELECT chunk_id, ts_rank(to_tsvector('spanish', content), to_tsquery('spanish', $1)) AS rank
+          `SELECT chunk_id, ts_rank(to_tsvector('simple', content), to_tsquery('simple', $1)) AS rank
            FROM kb_vectors
-           WHERE to_tsvector('spanish', content) @@ to_tsquery('spanish', $1)
+           WHERE to_tsvector('simple', content) @@ to_tsquery('simple', $1)
            ORDER BY rank DESC
            LIMIT $2`,
           tsQuery,
@@ -208,7 +228,7 @@ export class VectorStoreService implements OnModuleInit {
 
       return rows.map((r) => ({ chunkId: r.chunk_id, score: r.rank }));
     } catch (e) {
-      this.logger.warn(`ftsAsync failed: ${(e as Error).message}`);
+      this.logger.error(`ftsAsync failed (query="${opts.query}"): ${(e as Error).message}`);
       return [];
     }
   }
@@ -232,7 +252,9 @@ const STOPWORDS_ES = new Set([
 
 /**
  * Convierte query natural a tsquery de PostgreSQL.
- * Usa operador & (AND) entre tokens significativos con prefix matching (:*).
+ * Usa OR (|) entre tokens con prefix matching (:*) para que palabras del usuario
+ * ("decime", "contame") no anulen resultados aunque no estén en el documento.
+ * ts_rank ordena por cobertura: documentos con más matches suben al tope.
  */
 function toTsQuery(raw: string): string {
   const allTokens = raw
@@ -248,6 +270,5 @@ function toTsQuery(raw: string): string {
   const tokens = significant.length > 0 ? significant : allTokens;
   if (!tokens.length) return "";
 
-  // Prefix matching con :* para capturar variaciones
-  return tokens.map((t) => `${t}:*`).join(" & ");
+  return tokens.map((t) => `${t}:*`).join(" | ");
 }

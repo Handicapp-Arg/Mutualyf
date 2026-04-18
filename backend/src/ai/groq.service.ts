@@ -2,6 +2,8 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
 
+const GROQ_TIMEOUT_MS = 15_000;
+
 @Injectable()
 export class GroqService {
   private readonly apiKey: string;
@@ -27,6 +29,9 @@ export class GroqService {
       { role: 'user', content: newMessage },
     ];
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
+
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -40,6 +45,7 @@ export class GroqService {
           max_tokens: maxTokens,
           temperature,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -53,9 +59,10 @@ export class GroqService {
       return data?.choices?.[0]?.message?.content || 'Sin respuesta de Groq.';
     } catch (e) {
       if (e instanceof InternalServerErrorException) throw e;
-      throw new InternalServerErrorException(
-        'Error al consultar Groq: ' + (e instanceof Error ? e.message : e),
-      );
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new InternalServerErrorException('Error al consultar Groq: ' + msg);
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

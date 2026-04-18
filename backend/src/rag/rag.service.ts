@@ -62,10 +62,17 @@ export class RagService {
     chunks: HydratedChunk[],
     intent: Intent,
   ): string {
-    if (intent.kind === "chitchat" || chunks.length === 0) {
+    if (intent.kind === "chitchat") {
       return `${base}
 
-TONO: amable, breve, rioplatense. Si el usuario pide un dato específico (horario, teléfono, dirección, nombre, monto), respondé con la info disponible o derivá al 0800 777 4413 / MiMutuaLyF.`;
+TONO: amable, breve, rioplatense.`;
+    }
+
+    if (chunks.length === 0) {
+      // No hay contexto: NO inventar. Derivar siempre.
+      return `${base}
+
+NOTA IMPORTANTE: No encontraste información específica sobre esta consulta en tu base de conocimiento. Informale al usuario que no tenés ese dato exacto y derivalo al 0800 777 4413 o a la plataforma MiMutuaLyF. NO inventes ni respondas con información que no esté en el contexto.`;
     }
 
     // Token budget: cortar desde el final si excede

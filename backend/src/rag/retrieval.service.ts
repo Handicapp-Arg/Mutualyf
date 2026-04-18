@@ -107,7 +107,7 @@ export class RetrievalService {
     const category = intent.categoryConfident ? intent.category : undefined;
 
     // Vector path es best-effort: si embeddings fallan, seguimos con FTS puro.
-    const ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3, category });
+    let ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3, category });
     let vecHits: Hit[] = [];
     let embeddingsAvailable = true;
     try {
@@ -120,8 +120,23 @@ export class RetrievalService {
       );
     }
 
+    // Fallback sin categoría: si el filtro por categoría no devuelve nada,
+    // reintentamos sin filtro para no perder docs ingresados con otra categoría.
+    if (!ftsHits.length && !vecHits.length && category) {
+      this.logger.debug(`category="${category}" sin hits — reintentando sin filtro`);
+      ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3 });
+      try {
+        const [qEmb] = await this.emb.embed([rewritten], "query");
+        vecHits = await this.vec.knnAsync({ embedding: qEmb, k: k * 3 });
+      } catch { /* ya logueado arriba */ }
+    }
+
     const fused = rrfFuse(vecHits, ftsHits, this.cfg.rrfK).slice(0, k);
     const topScore = fused[0]?.score ?? 0;
+
+    this.logger.debug(
+      `retrieval hits — vec=${vecHits.length} fts=${ftsHits.length} fused=${fused.length} topScore=${topScore.toFixed(4)} query="${rewritten.slice(0, 80)}"`,
+    );
 
     const signals: OfftopicSignals = {
       topVecScore: vecHits[0]?.score ?? 0,

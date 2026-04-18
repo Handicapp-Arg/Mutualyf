@@ -192,6 +192,71 @@ export class IngestionService {
    * (Prisma es la fuente de verdad). Esto resuelve corrupciones de FTS5
    * que impiden DELETE/INSERT en upserts normales.
    */
+  /**
+   * Al arrancar: si kb_vectors está vacío pero hay chunks activos en la DB,
+   * repuebla automáticamente sin borrar datos (no llama recreateIndices).
+   * Evita que cada restart requiera un rebuild manual.
+   */
+  async onModuleInit() {
+    try {
+      const vecRows = await this.prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM kb_vectors
+      `;
+      const vecCount = Number(vecRows[0]?.count ?? 0);
+
+      const chunks = await this.prisma.knowledgeChunk.findMany({
+        where: { doc: { status: "active" } },
+      });
+      if (chunks.length === 0) return;
+
+      // Detectar chunks sin vector en kb_vectors
+      const indexed = await this.prisma.$queryRaw<{ chunk_id: number }[]>`
+        SELECT chunk_id FROM kb_vectors
+      `;
+      const indexedIds = new Set(indexed.map((r) => r.chunk_id));
+      const missing = chunks.filter((c) => !indexedIds.has(c.id));
+
+      if (missing.length === 0) return;
+
+      this.logger.warn(
+        `${missing.length} chunks sin vector (vecCount=${vecCount}) — rellenando al arrancar`,
+      );
+      this.fillMissingVectors(missing).catch((e: Error) =>
+        this.logger.error(`Fill-missing falló: ${e.message}`),
+      );
+    } catch {
+      // La tabla puede no existir aún en el primer arranque
+    }
+  }
+
+  private async fillMissingVectors(
+    chunks: { id: number; category: string; contentClean: string }[],
+  ): Promise<void> {
+    const currentModel = this.emb.model;
+    let done = 0;
+    for (let i = 0; i < chunks.length; i += this.cfg.embedBatchSize) {
+      const batch = chunks.slice(i, i + this.cfg.embedBatchSize);
+      const emb = await this.emb.embed(batch.map((c) => c.contentClean));
+      await Promise.all(
+        batch.map((c, j) =>
+          this.vec.upsertChunk({
+            id: c.id,
+            category: c.category,
+            content: c.contentClean,
+            embedding: emb[j],
+          }),
+        ),
+      );
+      await this.prisma.knowledgeChunk.updateMany({
+        where: { id: { in: batch.map((c) => c.id) } },
+        data: { embModel: currentModel },
+      });
+      done += batch.length;
+    }
+    this.retrieval.invalidateCache();
+    this.logger.log(`fill-missing completado: ${done} vectores insertados`);
+  }
+
   async rebuildIndex(): Promise<{ rebuilt: number }> {
     await this.vec.recreateIndices();
     const chunks = await this.prisma.knowledgeChunk.findMany({

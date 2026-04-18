@@ -171,8 +171,12 @@ export class RouterService {
   }
 
   needsRewrite(msg: string, hasHistory: boolean): boolean {
-    if (!hasHistory) return false;
     const words = msg.trim().split(/\s+/).length;
+    if (!hasHistory) {
+      // Sin historial: reescribir queries cortas que pueden tener apodos o
+      // nombres abreviados (ej: "maxi echeverria" → "Maximiliano Echeverría")
+      return words <= 5;
+    }
     if (words < 6) return true;
     return PRONOUN_RE.test(msg);
   }

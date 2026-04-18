@@ -84,7 +84,8 @@ export class RagConfig {
     this.offtopicWeightConcentration = num("RAG_OFFTOPIC_W_CONC", 0.1);
     this.offtopicVecTarget = num("RAG_OFFTOPIC_VEC_TARGET", 0.55);
     this.offtopicFtsTarget = num("RAG_OFFTOPIC_FTS_TARGET", 5);
-    this.offtopicFtsVeto = num("RAG_OFFTOPIC_FTS_VETO", 2);
+    // ts_rank de PostgreSQL retorna 0..1. El valor anterior (2) nunca se alcanzaba.
+    this.offtopicFtsVeto = num("RAG_OFFTOPIC_FTS_VETO", 0.1);
     this.offtopicShortQueryWords = num("RAG_OFFTOPIC_SHORT_WORDS", 4);
     this.offtopicShortQueryRelax = num("RAG_OFFTOPIC_SHORT_RELAX", 0.6);
     this.offtopicRouterConfidentRelax = num("RAG_OFFTOPIC_ROUTER_RELAX", 0.7);
@@ -105,7 +106,8 @@ export class RagConfig {
     this.lruMax = num("RAG_LRU_MAX", 2000);
     this.lruTtlMs = num("RAG_LRU_TTL_MS", 3_600_000);
 
-    this.rewriterTimeoutMs = num("RAG_REWRITE_TIMEOUT_MS", 300);
+    // 300ms era insuficiente para una API call; se usaba siempre el fallback heurístico.
+    this.rewriterTimeoutMs = num("RAG_REWRITE_TIMEOUT_MS", 2000);
 
     this.enableRewriter = bool("RAG_ENABLE_REWRITER", true);
     this.enableOfftopicGuard = bool("RAG_ENABLE_OFFTOPIC", true);

@@ -22,7 +22,11 @@ export class QueryRewriterService {
       .slice(-4)
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n");
-    const prompt = `Reescribí el mensaje del usuario como pregunta STANDALONE (sin contexto, clara, <= 20 palabras). Devolvé SOLO la pregunta, sin comillas ni explicación.
+    const prompt = `Reescribí el mensaje del usuario como pregunta STANDALONE clara y completa (<= 25 palabras).
+Reglas:
+- Expandí apodos y nombres abreviados al nombre completo (ej: "Maxi" → "Maximiliano", "Caro" → "Carolina", "Fer" → "Fernando").
+- Si hay historial, incorporá el contexto necesario para que la pregunta sea autosuficiente.
+- Devolvé SOLO la pregunta reescrita, sin comillas ni explicación.
 
 HISTORIAL:
 ${last}

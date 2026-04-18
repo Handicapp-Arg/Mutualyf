@@ -9,7 +9,8 @@ import { RagConfig } from "./rag.config";
 
 export type EmbedKind = "query" | "document";
 
-const OLLAMA_TIMEOUT_MS = 5_000;
+// 5s era demasiado poco — Ollama puede tardar más en respuesta fría.
+const OLLAMA_TIMEOUT_MS = 15_000;
 const GEMINI_TIMEOUT_MS = 8_000;
 const MAX_RETRIES = 3;
 

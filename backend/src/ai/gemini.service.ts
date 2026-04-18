@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
 import { buildMedicalOrderPrompt, extractJsonFromResponse, MedicalOrderAnalysis } from './ai.constants';
 
+const GEMINI_TIMEOUT_MS = 20_000;
+
 @Injectable()
 export class GeminiService {
   private readonly apiKey: string;
@@ -31,6 +33,9 @@ export class GeminiService {
       { role: 'user', parts: [{ text: newMessage }] },
     ];
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`,
@@ -41,6 +46,7 @@ export class GeminiService {
             contents,
             generationConfig: { temperature, maxOutputTokens: maxTokens },
           }),
+          signal: controller.signal,
         },
       );
 
@@ -58,6 +64,8 @@ export class GeminiService {
       throw new InternalServerErrorException(
         'Error al consultar Gemini: ' + (e instanceof Error ? e.message : e),
       );
+    } finally {
+      clearTimeout(timer);
     }
   }
 
