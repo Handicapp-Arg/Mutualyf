@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync } from 'fs';
 import { UploadsService } from './uploads.service';
@@ -27,54 +27,33 @@ import { PermissionCode } from '../../auth/constants/permissions.enum';
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
+  // Analyze usa diskStorage porque el OCR lee desde path en disco
   @Public()
   @Post('medical-order/analyze')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
         destination: './uploads/temp',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
+        filename: (_req, file, cb) => {
+          const randomName = Array(32).fill(null).map(() => Math.round(Math.random() * 16).toString(16)).join('');
           cb(null, `temp_${randomName}${extname(file.originalname)}`);
         },
       }),
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
-    })
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
   )
-  async analyzeMedicalOrder(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: any
-  ) {
+  async analyzeMedicalOrder(@UploadedFile() file: Express.Multer.File, @Body() body: any) {
     return this.uploadsService.analyzeFile(file, body.sessionId);
   }
 
-  /**
-   * Subir orden médica con validación completa
-   * Este endpoint se llama DESPUÉS de que el usuario confirme los datos
-   */
+  // Upload confirmado → va a Cloudinary (memoryStorage)
   @Public()
   @Post('medical-order')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/medical-orders',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
-    })
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
   )
   async uploadMedicalOrder(@UploadedFile() file: Express.Multer.File, @Body() body: any) {
     const dto: CreateMedicalOrderDto = {
@@ -88,14 +67,9 @@ export class UploadsController {
       healthInsurance: body.healthInsurance,
       requestedStudies: JSON.parse(body.requestedStudies || '[]'),
     };
-
     return this.uploadsService.createMedicalOrder(dto, file);
   }
 
-  /**
-   * Descargar archivo de orden médica
-   * IMPORTANTE: Esta ruta debe ir ANTES de las rutas genéricas para evitar conflictos
-   */
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders/file/:id')
@@ -106,23 +80,21 @@ export class UploadsController {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    const absolutePath = join(process.cwd(), order.filePath);
+    // Cloudinary URL → redirect
+    if (order.filePath.startsWith('http')) {
+      return res.redirect(order.filePath);
+    }
 
+    // Compatibilidad con archivos locales viejos
+    const absolutePath = join(process.cwd(), order.filePath);
     if (!existsSync(absolutePath)) {
       throw new NotFoundException('Archivo no encontrado en el sistema');
     }
-
-    const contentType = order.fileType || 'application/octet-stream';
-
-    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Type', order.fileType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `inline; filename="${order.fileName}"`);
-
     return res.sendFile(absolutePath);
   }
 
-  /**
-   * Obtener todas las órdenes médicas
-   */
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders')
@@ -130,9 +102,6 @@ export class UploadsController {
     return this.uploadsService.getAllOrders();
   }
 
-  /**
-   * Obtener órdenes por DNI
-   */
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.UPLOADS_READ)
   @Get('medical-orders/dni/:dni')
@@ -140,9 +109,6 @@ export class UploadsController {
     return this.uploadsService.getOrdersByDNI(dni);
   }
 
-  /**
-   * Validar o rechazar orden médica
-   */
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.UPLOADS_VALIDATE)
   @Put('medical-orders/validate')

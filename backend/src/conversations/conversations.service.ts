@@ -8,6 +8,7 @@ import {
 } from '../common/exceptions/business.exception';
 import { EventsGateway } from '../events/events.gateway';
 import { unlink } from 'fs/promises';
+import { CloudinaryService } from '../common/cloudinary.service';
 
 @Injectable()
 export class ConversationsService {
@@ -16,6 +17,7 @@ export class ConversationsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
+    private cloudinary: CloudinaryService,
   ) {}
 
   /**
@@ -253,13 +255,21 @@ export class ConversationsService {
   ) {
     try {
       const cleanDescription = description?.trim().slice(0, 500) || null;
+
+      // Subir a Cloudinary
+      const { url } = await this.cloudinary.uploadBuffer(
+        file.buffer,
+        'mutualyf/chat-attachments',
+        file.originalname,
+      );
+
       const attachment = await this.prisma.chatAttachment.create({
         data: {
           sessionId,
           fileName: file.originalname,
           fileType: file.mimetype,
           fileSize: file.size,
-          filePath: file.path,
+          filePath: url,
           uploadedBy,
           description: cleanDescription,
         },

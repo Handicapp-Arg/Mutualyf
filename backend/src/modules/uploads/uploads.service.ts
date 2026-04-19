@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMedicalOrderDto, ValidateMedicalOrderDto } from './dto/medical-order.dto';
 import { OCRService } from './ocr.service';
+import { CloudinaryService } from '../../common/cloudinary.service';
 
 @Injectable()
 export class UploadsService {
@@ -9,7 +10,8 @@ export class UploadsService {
 
   constructor(
     private prisma: PrismaService,
-    private ocrService: OCRService
+    private ocrService: OCRService,
+    private cloudinary: CloudinaryService,
   ) {}
 
   /**
@@ -180,13 +182,16 @@ export class UploadsService {
     try {
       this.logger.debug(`Creando orden médica para DNI: ${dto.patientDNI}`);
 
-      // Validar archivo
       this.validateFile(file);
-
-      // Validar datos
       this.validateOrderData(dto);
 
-      // Crear en base de datos
+      // Subir a Cloudinary
+      const { url } = await this.cloudinary.uploadBuffer(
+        file.buffer,
+        'mutualyf/medical-orders',
+        file.originalname,
+      );
+
       const order = await this.prisma.medicalOrder.create({
         data: {
           sessionId: dto.sessionId,
@@ -199,7 +204,7 @@ export class UploadsService {
           healthInsurance: dto.healthInsurance || null,
           requestedStudies: JSON.stringify(dto.requestedStudies),
           fileName: file.originalname,
-          filePath: file.path,
+          filePath: url,
           fileSize: file.size,
           fileType: file.mimetype,
           validationStatus: 'pending',

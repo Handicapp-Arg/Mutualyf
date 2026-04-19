@@ -16,8 +16,8 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { memoryStorage } from 'multer';
+import { join } from 'path';
 import { existsSync } from 'fs';
 import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/conversation.dto';
@@ -25,14 +25,6 @@ import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { PermissionCode } from '../auth/constants/permissions.enum';
-
-const chatAttachmentStorage = diskStorage({
-  destination: './uploads/chat-attachments',
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-  },
-});
 
 const CHAT_FILE_LIMITS = {
   fileSize: 10 * 1024 * 1024, // 10MB
@@ -119,7 +111,7 @@ export class ConversationsController {
   @Post('attachment')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileInterceptor('file', { storage: chatAttachmentStorage, limits: CHAT_FILE_LIMITS }),
+    FileInterceptor('file', { storage: memoryStorage(), limits: CHAT_FILE_LIMITS }),
   )
   async uploadAttachment(
     @UploadedFile() file: Express.Multer.File,
@@ -148,7 +140,7 @@ export class ConversationsController {
   @Post('admin-attachment')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileInterceptor('file', { storage: chatAttachmentStorage, limits: CHAT_FILE_LIMITS }),
+    FileInterceptor('file', { storage: memoryStorage(), limits: CHAT_FILE_LIMITS }),
   )
   async uploadAdminAttachment(
     @UploadedFile() file: Express.Multer.File,
@@ -166,11 +158,16 @@ export class ConversationsController {
   async serveAttachment(@Param('id') id: string, @Res() res: Response) {
     const attachment = await this.conversationsService.getAttachmentById(parseInt(id));
 
+    // Cloudinary URL → redirect
+    if (attachment.filePath.startsWith('http')) {
+      return res.redirect(attachment.filePath);
+    }
+
+    // Compatibilidad con archivos locales viejos
     const absolutePath = join(process.cwd(), attachment.filePath);
     if (!existsSync(absolutePath)) {
       throw new NotFoundException('Archivo no encontrado');
     }
-
     res.setHeader('Content-Type', attachment.fileType);
     res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
     return res.sendFile(absolutePath);
