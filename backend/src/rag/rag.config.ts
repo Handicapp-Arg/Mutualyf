@@ -59,9 +59,26 @@ export class RagConfig {
   // --- Query rewriter ---
   readonly rewriterTimeoutMs: number; // RAG_REWRITE_TIMEOUT_MS (default 300)
 
+  // --- Topic classifier (semantic relevance, reemplaza al keyword guard) ---
+  /** score cosine-normalizado (0..1) a partir del cual la query es claramente relevante */
+  readonly topicThresholdHigh: number; // TOPIC_T_HIGH (default 0.72)
+  /** score por debajo del cual es claramente off-topic */
+  readonly topicThresholdLow: number; // TOPIC_T_LOW (default 0.55)
+  /** timeout del LLM judge en zona ambigua */
+  readonly topicLlmJudgeTimeoutMs: number; // TOPIC_LLM_TIMEOUT_MS (default 1500)
+  readonly topicCacheMax: number; // TOPIC_CACHE_MAX (default 5000)
+  readonly topicCacheTtlMs: number; // TOPIC_CACHE_TTL_MS (default 3600000)
+  /** mínimo de chunks activos para construir un centroide válido */
+  readonly topicMinChunksPerCategory: number; // TOPIC_MIN_CHUNKS (default 2)
+  /** cosine crudo (-1..1) mínimo para considerar match de intent (meta/chitchat) */
+  readonly topicIntentThreshold: number; // TOPIC_INTENT_T (default 0.55)
+  /** timeout de la generación LLM de respuestas off-topic dinámicas */
+  readonly offtopicGenTimeoutMs: number; // OFFTOPIC_GEN_TIMEOUT_MS (default 2500)
+
   // --- Toggles ---
   readonly enableRewriter: boolean; // RAG_ENABLE_REWRITER (default true)
   readonly enableOfftopicGuard: boolean; // RAG_ENABLE_OFFTOPIC (default true)
+  readonly enableTopicClassifier: boolean; // RAG_ENABLE_TOPIC_CLASSIFIER (default true)
 
   constructor(cfg: ConfigService) {
     const num = (k: string, d: number) =>
@@ -109,8 +126,18 @@ export class RagConfig {
     // 300ms era insuficiente para una API call; se usaba siempre el fallback heurístico.
     this.rewriterTimeoutMs = num("RAG_REWRITE_TIMEOUT_MS", 2000);
 
+    this.topicThresholdHigh = num("TOPIC_T_HIGH", 0.72);
+    this.topicThresholdLow = num("TOPIC_T_LOW", 0.55);
+    this.topicLlmJudgeTimeoutMs = num("TOPIC_LLM_TIMEOUT_MS", 1500);
+    this.topicCacheMax = num("TOPIC_CACHE_MAX", 5000);
+    this.topicCacheTtlMs = num("TOPIC_CACHE_TTL_MS", 3_600_000);
+    this.topicMinChunksPerCategory = num("TOPIC_MIN_CHUNKS", 2);
+    this.topicIntentThreshold = num("TOPIC_INTENT_T", 0.55);
+    this.offtopicGenTimeoutMs = num("OFFTOPIC_GEN_TIMEOUT_MS", 2500);
+
     this.enableRewriter = bool("RAG_ENABLE_REWRITER", true);
     this.enableOfftopicGuard = bool("RAG_ENABLE_OFFTOPIC", true);
+    this.enableTopicClassifier = bool("RAG_ENABLE_TOPIC_CLASSIFIER", true);
   }
 
   snapshot() {

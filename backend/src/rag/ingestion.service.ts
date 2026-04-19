@@ -14,6 +14,8 @@ import { sanitizeChunk } from "./sanitizer";
 import { Category, CATEGORIES } from "./rag.types";
 import { RagConfig } from "./rag.config";
 import { RetrievalService } from "./retrieval.service";
+import { TopicClassifierService } from "./topic-classifier.service";
+import { OfftopicResponderService } from "./offtopic-responder.service";
 
 @Injectable()
 export class IngestionService {
@@ -26,7 +28,22 @@ export class IngestionService {
     private readonly cfg: RagConfig,
     @Inject(forwardRef(() => RetrievalService))
     private readonly retrieval: RetrievalService,
+    private readonly topic: TopicClassifierService,
+    private readonly offtopicResponder: OfftopicResponderService,
   ) {}
+
+  /**
+   * Invalida todos los caches derivados del estado del KB: retrieval cache,
+   * centroides del clasificador semántico, y lista de capacidades del responder.
+   * Fire-and-forget para el rebuild de centroides (no bloquea la respuesta del ingest).
+   */
+  private invalidateDerived(): void {
+    this.retrieval.invalidateCache();
+    this.offtopicResponder.invalidate();
+    void this.topic.rebuildCentroids();
+    // Si admins agregaron docs en categorías _intent_*, los prototipos cambiaron.
+    void this.topic.rebuildIntentPrototypes();
+  }
 
   async ingestText(input: {
     title: string;
@@ -142,7 +159,7 @@ export class IngestionService {
     this.logger.log(
       `ingested doc=${doc.id} "${input.title}" chunks=${chunkRows.length} tokens=${tokensTotal}`,
     );
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     return { docId: doc.id, chunks: chunkRows.length };
   }
 
@@ -155,7 +172,7 @@ export class IngestionService {
     await this.vec.deleteByChunkIds(doc.chunks.map((c) => c.id));
     // Cascade en Prisma borra los chunks asociados al eliminar el doc.
     await this.prisma.knowledgeDoc.delete({ where: { id: docId } });
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     this.logger.log(`deleted doc=${docId} chunks=${doc.chunks.length}`);
   }
 
@@ -253,7 +270,7 @@ export class IngestionService {
       });
       done += batch.length;
     }
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     this.logger.log(`fill-missing completado: ${done} vectores insertados`);
   }
 
@@ -283,7 +300,7 @@ export class IngestionService {
       });
       done += batch.length;
     }
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     this.logger.log(`rebuilt index with ${done} chunks (model=${currentModel})`);
     return { rebuilt: done };
   }

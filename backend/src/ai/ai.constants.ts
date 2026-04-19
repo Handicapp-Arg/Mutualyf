@@ -1,36 +1,10 @@
 /** Max conversation history messages sent to the LLM */
 export const MAX_HISTORY_MESSAGES = 6;
 
-/** Respuesta estándar para preguntas fuera de tema */
-export const OFF_TOPIC_RESPONSE =
-  'Solo puedo ayudarte con consultas sobre MutuaLyF. ¿En qué te puedo asistir?';
-
-/**
- * Keywords que indican que el mensaje es sobre MutuaLyF o temas de salud/afiliados.
- * Si el mensaje contiene alguna de estas, se envía a Ollama.
- * Si no contiene ninguna Y es suficientemente largo, se rechaza como off-topic.
- */
-export const MUTUALYF_KEYWORDS = [
-  'mutualyf', 'mutua', 'mutual', 'luz y fuerza', 'luz', 'fuerza', 'mimutualyf',
-  'afiliado', 'afiliada', 'socio', 'asociado', 'miembro',
-  'salud', 'medico', 'medica', 'doctor', 'doctora', 'profesional', 'especialista',
-  'consulta', 'consultas', 'turno', 'turnos', 'practica', 'practicas',
-  'receta', 'recetas', 'orden', 'ordenes', 'autorizacion', 'autorizaciones',
-  'medicamento', 'medicamentos', 'remedio', 'remedios', 'farmacia', 'vademecum',
-  'internacion', 'internaciones', 'cirugia', 'quirurgica',
-  'cardiologia', 'pediatria', 'ginecologia', 'odontologia', 'oftalmologia',
-  'nutricion', 'clinica', 'salud mental', 'psicologia', 'psicologo',
-  'cobertura', 'cobertura', 'plan', 'prestador', 'prestadores', 'red',
-  'reintegro', 'reintegros', 'coseguro', 'coseguros', 'pago', 'pagos',
-  'tarjeta', 'credito', 'debito', 'mercado pago', 'bono link',
-  'telefono', '0800', 'whatsapp', 'contacto', 'horario', 'horarios',
-  'atencion', 'sede', 'sedes', 'presencial', 'online', 'plataforma',
-  'tramite', 'tramites', 'solicitud', 'gestion', 'documentacion',
-  'santa fe', 'provincia', 'rosario', 'rafaela', 'venado',
-  'hola', 'buenas', 'gracias', 'chau', 'ayuda', 'necesito', 'quiero',
-  'puedo', 'como', 'cuando', 'donde', 'cuanto',
-  'orden medica', 'subir', 'cargar', 'archivo', 'estudio', 'estudios',
-];
+// El guard off-topic ahora lo maneja RagService (TopicClassifierService +
+// OfftopicDetectorService + OfftopicResponderService). Ya no existen listas
+// hardcodeadas de keywords ni respuestas fijas para off-topic — se derivan
+// semánticamente del KB activo.
 
 /**
  * System prompt BASE (corto) — define rol, tono y reglas generales.

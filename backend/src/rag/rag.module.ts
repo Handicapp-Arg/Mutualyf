@@ -12,6 +12,8 @@ import { RagService } from "./rag.service";
 import { RagMetrics } from "./rag.metrics";
 import { RagConfig } from "./rag.config";
 import { OfftopicDetectorService } from "./offtopic-detector.service";
+import { TopicClassifierService } from "./topic-classifier.service";
+import { OfftopicResponderService } from "./offtopic-responder.service";
 import { RagController } from "./rag.controller";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -28,12 +30,21 @@ const AUTO_REBUILD_MAX_CHUNKS = 500;
     RouterService,
     QueryRewriterService,
     OfftopicDetectorService,
+    TopicClassifierService,
+    OfftopicResponderService,
     RetrievalService,
     IngestionService,
     RagService,
     RagMetrics,
   ],
-  exports: [RagService, RetrievalService, IngestionService, RagConfig],
+  exports: [
+    RagService,
+    RetrievalService,
+    IngestionService,
+    RagConfig,
+    TopicClassifierService,
+    OfftopicResponderService,
+  ],
 })
 export class RagModule implements OnModuleInit {
   private readonly logger = new Logger(RagModule.name);
@@ -42,6 +53,7 @@ export class RagModule implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly ingestion: IngestionService,
     private readonly emb: EmbeddingsService,
+    private readonly topic: TopicClassifierService,
   ) {}
 
   async onModuleInit() {
@@ -54,6 +66,14 @@ export class RagModule implements OnModuleInit {
     // Fire-and-forget para no bloquear el boot. Skipea si hay demasiados chunks
     // (rebuild masivo puede saturar Ollama; en ese caso requerir trigger manual).
     void this.runAutoRebuildBackground();
+
+    // Centroides del clasificador semántico. Fire-and-forget; si falla, el
+    // clasificador cae a modo "empty-kb" y acepta por default (RAG sigue operando).
+    void this.topic.rebuildCentroids();
+
+    // Intent prototypes (meta/chitchat) — necesarios para que "sos una IA?",
+    // "hola", "gracias", etc no se confundan con off-topic.
+    void this.topic.rebuildIntentPrototypes();
   }
 
   private async runAutoRebuildBackground(): Promise<void> {
@@ -84,6 +104,8 @@ export class RagModule implements OnModuleInit {
       this.logger.log(
         `Auto-rebuild done: ${rebuilt} chunks in ${Date.now() - t0}ms`,
       );
+      // Tras rebuild masivo los centroides también quedan stale.
+      await this.topic.rebuildCentroids().catch(() => {});
     } catch (e) {
       this.logger.warn(`Auto-rebuild failed: ${(e as Error).message}`);
     }

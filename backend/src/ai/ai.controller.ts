@@ -8,10 +8,9 @@ import { ChatRequestDto } from './dto/ai.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { AiConfigService } from '../ai-config/ai-config.service';
 import { QuickReplyService } from '../quick-reply/quick-reply.service';
-import { MAX_HISTORY_MESSAGES, MUTUALYF_KEYWORDS, OFF_TOPIC_RESPONSE } from './ai.constants';
+import { MAX_HISTORY_MESSAGES } from './ai.constants';
 import { setupSSE, writeSSEChunked } from './utils/sse.util';
 import { RagService } from '../rag/rag.service';
-import { normalizeText } from '../rag/text-utils';
 
 /** Mensaje de fallback final con datos de contacto reales de MutuaLyF */
 const FALLBACK_RESPONSE =
@@ -54,20 +53,14 @@ export class AiController implements OnModuleInit {
   }
 
   /**
-   * Detecta si un mensaje es claramente off-topic (no relacionado con MutuaLyF).
-   * Solo bloquea mensajes muy largos (>8 palabras) sin ninguna keyword.
-   * Mensajes cortos o con contexto implícito pasan al detector semántico del RAG.
-   */
-  private isOffTopic(message: string): boolean {
-    const normalized = normalizeText(message);
-    const words = normalized.split(/\s+/).filter(Boolean);
-    if (words.length <= 8) return false;
-    return !MUTUALYF_KEYWORDS.some((kw) => normalized.includes(normalizeText(kw)));
-  }
-
-  /**
    * Endpoint unificado — cascada:
-   * QuickReply → OffTopic (keywords) → RAG (retrieval+offtopic semántico) → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
+   * QuickReply → RAG (topic-classifier + retrieval + offtopic semántico) → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
+   *
+   * El guard off-topic lo resuelve íntegramente el RagService:
+   *   - TopicClassifierService: similitud semántica vs centroides del KB (+ LLM judge en zona ambigua)
+   *   - OfftopicDetectorService: multi-señal sobre el retrieval (vec/FTS/overlap/concentración)
+   *   - OfftopicResponderService: respuesta contextual en vez de un string fijo
+   * Ya no hay keyword matching hardcodeado.
    */
   @Post('chat')
   async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
@@ -87,15 +80,7 @@ export class AiController implements OnModuleInit {
         return;
       }
 
-      // 2. Off-topic guard rápido por keywords — rechaza obvio sin IO
-      if (this.isOffTopic(body.newMessage)) {
-        writeSSEChunked(res, OFF_TOPIC_RESPONSE);
-        res.write('data: [DONE]\n\n');
-        res.end();
-        return;
-      }
-
-      // 3. RAG — retrieval híbrido + off-topic semántico + prompt enriquecido con contexto
+      // 2. RAG — clasificador semántico + retrieval híbrido + off-topic contextual
       const rag = await this.ragService.prepare({
         query: body.newMessage,
         history,
@@ -112,7 +97,7 @@ export class AiController implements OnModuleInit {
 
       const { prompt, apiMaxTokens } = this.buildPromptWithLength(rag.systemPrompt, config.maxTokens);
 
-      // 4. Groq (primario) — API externa, rápida
+      // 3. Groq (primario) — API externa, rápida
       try {
         const response = await this.groqService.generateResponse(
           history,
@@ -133,7 +118,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'groq', message });
       }
 
-      // 5. Gemini — API externa, segundo intento
+      // 4. Gemini — API externa, segundo intento
       try {
         this.logger.log('Falling back to Gemini...');
         const response = await this.geminiService.generateResponse(
@@ -155,7 +140,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'gemini', message });
       }
 
-      // 6. Ollama fallback (self-hosted) — streaming con early-stop
+      // 5. Ollama fallback (self-hosted) — streaming con early-stop
       try {
         this.logger.log('Falling back to Ollama streaming...');
         let hasContent = false;
@@ -188,7 +173,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama-stream', message });
       }
 
-      // 7. Ollama retry sin streaming
+      // 6. Ollama retry sin streaming
       try {
         this.logger.log('Retrying Ollama without streaming...');
         const response = await this.ollamaService.generateResponse(
@@ -210,7 +195,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama-retry', message });
       }
 
-      // 8. Fallback final con info de contacto + diagnóstico para la consola del front
+      // 7. Fallback final con info de contacto + diagnóstico para la consola del front
       if (failures.length > 0) {
         res.write(`data: ${JSON.stringify({ warning: 'ai-cascade-failed', failures })}\n\n`);
       }

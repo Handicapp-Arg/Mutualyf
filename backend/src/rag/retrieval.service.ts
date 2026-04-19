@@ -51,6 +51,10 @@ export class RetrievalService {
     query: string;
     history: ChatMsg[];
     sessionId?: string;
+    /** Embedding de la query ya computado aguas arriba (clasificador). Evita doble llamada. */
+    precomputedQueryEmbedding?: Float32Array;
+    /** Metadata del clasificador — sólo para logs estructurados. */
+    topicDebug?: import("./rag.metrics").TopicClassifierDebug;
   }): Promise<RetrievalResult> {
     const t0 = Date.now();
 
@@ -99,6 +103,7 @@ export class RetrievalService {
         chunkIds: [],
         latencyMs: res.latencyMs,
         intent: "chitchat",
+        topic: opts.topicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -112,7 +117,12 @@ export class RetrievalService {
     let vecHits: Hit[] = [];
     let embeddingsAvailable = true;
     try {
-      const [qEmb] = await this.emb.embed([rewritten], "query");
+      // Reusamos el embedding computado por el clasificador si la query no fue
+      // reescrita. Si sí fue reescrita, debemos re-embed sobre el texto nuevo.
+      const sameText = opts.precomputedQueryEmbedding && rewritten === opts.query;
+      const qEmb = sameText
+        ? opts.precomputedQueryEmbedding!
+        : (await this.emb.embed([rewritten], "query"))[0];
       vecHits = await this.vec.knnAsync({ embedding: qEmb, k: k * 3, category });
     } catch (e) {
       embeddingsAvailable = false;
@@ -189,6 +199,7 @@ export class RetrievalService {
         latencyMs: res.latencyMs,
         intent: "offtopic",
         offtopic: offtopicDebug,
+        topic: opts.topicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -220,6 +231,7 @@ export class RetrievalService {
         latencyMs: res.latencyMs,
         intent: "no-context",
         offtopic: offtopicDebug,
+        topic: opts.topicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -245,6 +257,7 @@ export class RetrievalService {
       latencyMs: res.latencyMs,
       intent: "rag",
       offtopic: offtopicDebug,
+      topic: opts.topicDebug,
     });
     this.resultCache.set(cacheKey, res);
     return res;

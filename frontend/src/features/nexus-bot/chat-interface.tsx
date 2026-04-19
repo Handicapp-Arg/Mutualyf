@@ -134,7 +134,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         id: '1',
         role: 'assistant',
         content:
-          '👋 ¡Bienvenido a MutuaLyF! Soy tu asistente virtual.\n\nEstoy aca para ayudarte con informacion sobre servicios, horarios, tramites y mas. Usa los botones o escribime tu consulta.',
+          '¡Hola! Soy MutuaBot, el asistente virtual de MutuaLyF.\n\nPuedo ayudarte con consultas sobre afiliación, especialidades, turnos, recetas, autorizaciones, pagos y trámites. Usá los botones de abajo o escribime tu consulta.',
         timestamp: new Date(),
       },
     ]);

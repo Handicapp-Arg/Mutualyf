@@ -13,6 +13,15 @@ export interface OfftopicDebug {
   routerConfident: boolean;
 }
 
+export interface TopicClassifierDebug {
+  decision: "RELEVANT" | "AMBIGUOUS" | "OFF_TOPIC";
+  score: number;
+  bestCategory: string | null;
+  source: string;
+  latencyMs: number;
+  reason: string;
+}
+
 export interface RetrievalLogEntry {
   sessionId?: string;
   query: string;
@@ -24,6 +33,7 @@ export interface RetrievalLogEntry {
   latencyMs: number;
   intent?: string;
   offtopic?: OfftopicDebug;
+  topic?: TopicClassifierDebug;
 }
 
 @Injectable()
@@ -36,8 +46,11 @@ export class RagMetrics {
     const off = e.offtopic
       ? ` off=${e.offtopic.reason}(conf=${e.offtopic.confidence.toFixed(2)}/thr=${e.offtopic.effectiveThreshold.toFixed(2)} vec=${e.offtopic.topVecScore.toFixed(2)} fts=${e.offtopic.topFtsScore.toFixed(2)} ov=${e.offtopic.overlapRatio.toFixed(2)} con=${e.offtopic.concentration.toFixed(2)} w=${e.offtopic.queryWords} rc=${e.offtopic.routerConfident ? 1 : 0})`
       : "";
+    const topic = e.topic
+      ? ` topic=${e.topic.decision}(src=${e.topic.source} s=${e.topic.score.toFixed(2)} cat=${e.topic.bestCategory ?? "-"} ms=${e.topic.latencyMs} ${e.topic.reason})`
+      : "";
     this.logger.log(
-      `retrieval intent=${e.intent} cat=${e.category ?? "-"} k=${e.topK} top=${e.topScore.toFixed(3)} ms=${e.latencyMs} chunks=[${e.chunkIds.join(",")}]${off} q="${e.query.slice(0, 80)}"`,
+      `retrieval intent=${e.intent} cat=${e.category ?? "-"} k=${e.topK} top=${e.topScore.toFixed(3)} ms=${e.latencyMs} chunks=[${e.chunkIds.join(",")}]${topic}${off} q="${e.query.slice(0, 80)}"`,
     );
     // fire-and-forget persistent log (trunca query y rewritten)
     this.prisma.retrievalLog
