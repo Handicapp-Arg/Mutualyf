@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
-import { buildMedicalOrderPrompt, extractJsonFromResponse, MedicalOrderAnalysis } from './ai.constants';
 
 const GEMINI_TIMEOUT_MS = 20_000;
 
@@ -69,49 +68,4 @@ export class GeminiService {
     }
   }
 
-  /**
-   * Analizar orden médica con IA - Extrae datos estructurados de texto OCR
-   */
-  async analyzeMedicalOrder(ocrText: string): Promise<MedicalOrderAnalysis> {
-    if (!this.apiKey) {
-      throw new InternalServerErrorException('Gemini API key not configured');
-    }
-
-    const prompt = buildMedicalOrderPrompt(ocrText);
-
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 1024,
-            },
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new InternalServerErrorException(`Gemini API error: ${res.status}`);
-      }
-
-      const data = await res.json();
-      const candidates = (data as any)?.candidates;
-      const responseText =
-        candidates && Array.isArray(candidates) && candidates[0]?.content?.parts?.[0]?.text
-          ? candidates[0].content.parts[0].text
-          : '{}';
-
-      return extractJsonFromResponse(responseText);
-    } catch (e) {
-      throw new InternalServerErrorException(
-        'Error al analizar orden médica con Gemini: ' +
-          (e instanceof Error ? e.message : e)
-      );
-    }
-  }
 }

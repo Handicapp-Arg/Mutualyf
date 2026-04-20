@@ -23,37 +23,13 @@ export class VectorStoreService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    // Extensiones — errores aquí no deben bloquear la creación de la tabla
-    await this.prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector;`).catch((e) => {
-      this.logger.warn(`vector extension: ${(e as Error).message}`);
-    });
-    await this.prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS unaccent;`).catch(() => {
-      this.logger.warn("unaccent extension not available");
-    });
+    // La tabla kb_vectors es creada por Prisma (está en el schema).
+    // Aquí solo creamos los índices que Prisma no soporta nativamente.
+    await this.createIndexes();
+    this.logger.log("Vector store listo");
+  }
 
-    // Tabla — siempre se crea, independientemente de las extensiones
-    try {
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS kb_vectors (
-          chunk_id INTEGER PRIMARY KEY,
-          embedding vector(${EMBEDDING_DIM}),
-          content TEXT NOT NULL DEFAULT '',
-          category TEXT NOT NULL DEFAULT ''
-        );
-      `);
-    } catch {
-      // pgvector no disponible — tabla sin columna embedding
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS kb_vectors (
-          chunk_id INTEGER PRIMARY KEY,
-          content TEXT NOT NULL DEFAULT '',
-          category TEXT NOT NULL DEFAULT ''
-        );
-      `);
-      this.logger.warn("kb_vectors creada sin columna embedding (pgvector no disponible)");
-    }
-
-    // Índices — fallos no críticos
+  private async createIndexes(): Promise<void> {
     await this.prisma.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS kb_vectors_embedding_idx
       ON kb_vectors USING ivfflat (embedding vector_cosine_ops)
@@ -65,17 +41,12 @@ export class VectorStoreService implements OnModuleInit {
       CREATE INDEX IF NOT EXISTS kb_vectors_fts_idx
       ON kb_vectors USING gin (to_tsvector('simple'::regconfig, content));
     `).catch((e) => this.logger.warn(`FTS index failed: ${(e as Error).message}`));
-
-    this.logger.log("Vector store listo");
   }
 
-  /**
-   * Recrea las tablas de vectores desde cero.
-   */
   async recreateIndices(): Promise<void> {
-    await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS kb_vectors;`);
-    await this.onModuleInit();
-    this.logger.warn("Recreated kb_vectors (data wiped)");
+    await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE kb_vectors;`);
+    await this.createIndexes();
+    this.logger.warn("kb_vectors vaciada y índices recreados");
   }
 
   /**

@@ -7,7 +7,6 @@ import { UsersModule } from './users/users.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { AppController } from './app.controller';
-import { UploadsModule } from './modules/uploads/uploads.module';
 import { EventsModule } from './events/events.module';
 import { validateEnv } from './config/validation';
 import { AuthModule } from './auth/auth.module';
@@ -51,7 +50,6 @@ import { RagModule } from './rag/rag.module';
     UsersModule,
     ConversationsModule,
     SessionsModule,
-    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

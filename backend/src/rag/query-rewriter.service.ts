@@ -22,11 +22,24 @@ export class QueryRewriterService {
       .slice(-4)
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n");
-    const prompt = `Reescribí el mensaje del usuario como pregunta STANDALONE clara y completa (<= 25 palabras).
-Reglas:
-- Expandí apodos y nombres abreviados al nombre completo (ej: "Maxi" → "Maximiliano", "Caro" → "Carolina", "Fer" → "Fernando").
-- Si hay historial, incorporá el contexto necesario para que la pregunta sea autosuficiente.
-- Devolvé SOLO la pregunta reescrita, sin comillas ni explicación.
+    const prompt = `Reescribí el mensaje del usuario como pregunta STANDALONE clara y completa (<= 40 palabras) para el sistema de búsqueda de una mutual de salud.
+
+REGLAS:
+1. Si hay historial, incorporá el contexto necesario para que la pregunta sea autosuficiente.
+2. Expandí apodos y nombres abreviados al nombre completo (ej: "Maxi" → "Maximiliano").
+3. Si el mensaje describe síntomas o dolencias físicas/mentales, reescribí incluyendo la especialidad médica que los trata. Ejemplos:
+   - "me duele el pecho" → "dolor en el pecho, busco cardiólogo o cardiología"
+   - "problemas en la rodilla" → "dolor de rodilla, busco traumatólogo"
+   - "me mareo mucho" → "mareos y vértigo, busco neurólogo o médico clínico"
+   - "me siento triste, con ansiedad" → "ansiedad o depresión, busco psicólogo o psiquiatra"
+   - "dolor de cabeza fuerte" → "cefalea o migraña, busco neurólogo o clínico"
+   - "problema con la vista" → "problema visual, busco oftalmólogo"
+   - "fiebre alta" → "fiebre, busco médico clínico o pediatra"
+   - "caries o dolor de muela" → "dolor dental o caries, busco odontólogo"
+   - "embarazada, control" → "control de embarazo, busco obstetra o ginecólogo"
+   - "presión alta" → "hipertensión arterial, busco cardiólogo o clínico"
+4. Si pide listar profesionales o especialidades, usá "todos los" o "lista de" en la reescritura.
+5. Devolvé SOLO la pregunta reescrita, sin comillas, sin explicación.
 
 HISTORIAL:
 ${last}

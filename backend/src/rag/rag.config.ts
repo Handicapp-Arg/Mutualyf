@@ -75,6 +75,22 @@ export class RagConfig {
   /** timeout de la generación LLM de respuestas off-topic dinámicas */
   readonly offtopicGenTimeoutMs: number; // OFFTOPIC_GEN_TIMEOUT_MS (default 2500)
 
+  // --- Semantic chunker ---
+  readonly chunkerSegmentChars: number; // RAG_CHUNKER_SEGMENT_CHARS (default 6000)
+  readonly chunkerSegmentOverlapLines: number; // RAG_CHUNKER_OVERLAP_LINES — líneas del segmento anterior que se repiten al inicio del siguiente (default 3)
+  readonly chunkerTimeoutMs: number; // RAG_CHUNKER_TIMEOUT_MS (default 15000)
+  readonly chunkerMinFactChars: number; // RAG_CHUNKER_MIN_FACT_CHARS (default 15)
+  readonly chunkerMaxFactChars: number; // RAG_CHUNKER_MAX_FACT_CHARS (default 1200)
+
+  // --- Enrichment (pre-chunker, solo si se detectan problemas de calidad) ---
+  readonly enableEnrichment: boolean; // RAG_ENABLE_ENRICHMENT (default true)
+  readonly enrichmentTimeoutMs: number; // RAG_ENRICHMENT_TIMEOUT_MS (default 25000)
+  readonly enrichmentMaxTokens: number; // RAG_ENRICHMENT_MAX_TOKENS (default 2048)
+  readonly enrichmentPipeRatio: number; // RAG_ENRICHMENT_PIPE_RATIO — fracción de líneas con pipes para activar (default 0.15)
+  readonly enrichmentNoiseRatio: number; // RAG_ENRICHMENT_NOISE_RATIO — fracción de chars no-estándar para activar (default 0.03)
+  readonly enrichmentFlatRatio: number; // RAG_ENRICHMENT_FLAT_RATIO — fracción de líneas cortas para activar (default 0.60)
+  readonly enrichmentFlatMinLines: number; // RAG_ENRICHMENT_FLAT_MIN_LINES — mínimo de líneas para aplicar flat-list check (default 5)
+
   // --- Toggles ---
   readonly enableRewriter: boolean; // RAG_ENABLE_REWRITER (default true)
   readonly enableOfftopicGuard: boolean; // RAG_ENABLE_OFFTOPIC (default true)
@@ -90,9 +106,9 @@ export class RagConfig {
     };
 
     this.rrfK = num("RAG_RRF_K", 60);
-    this.kSmall = num("RAG_K_SMALL", 2);
-    this.kMedium = num("RAG_K_MEDIUM", 4);
-    this.kLarge = num("RAG_K_LARGE", 6);
+    this.kSmall = num("RAG_K_SMALL", 3);
+    this.kMedium = num("RAG_K_MEDIUM", 6);
+    this.kLarge = num("RAG_K_LARGE", 12);
 
     this.offtopicBaseThreshold = num("RAG_OFFTOPIC_BASE", 0.25);
     this.offtopicWeightVec = num("RAG_OFFTOPIC_W_VEC", 0.4);
@@ -108,7 +124,7 @@ export class RagConfig {
     this.offtopicRouterConfidentRelax = num("RAG_OFFTOPIC_ROUTER_RELAX", 0.7);
     this.offtopicOverlapTopN = num("RAG_OFFTOPIC_OVERLAP_N", 5);
 
-    this.contextTokenBudget = num("RAG_CONTEXT_TOKEN_BUDGET", 1200);
+    this.contextTokenBudget = num("RAG_CONTEXT_TOKEN_BUDGET", 3500);
     this.maxHistoryMessages = num("RAG_MAX_HISTORY", 6);
 
     this.chunkSize = num("RAG_CHUNK_SIZE", 500);
@@ -134,6 +150,20 @@ export class RagConfig {
     this.topicMinChunksPerCategory = num("TOPIC_MIN_CHUNKS", 2);
     this.topicIntentThreshold = num("TOPIC_INTENT_T", 0.55);
     this.offtopicGenTimeoutMs = num("OFFTOPIC_GEN_TIMEOUT_MS", 2500);
+
+    this.chunkerSegmentChars = num("RAG_CHUNKER_SEGMENT_CHARS", 6_000);
+    this.chunkerSegmentOverlapLines = num("RAG_CHUNKER_OVERLAP_LINES", 3);
+    this.chunkerTimeoutMs = num("RAG_CHUNKER_TIMEOUT_MS", 15_000);
+    this.chunkerMinFactChars = num("RAG_CHUNKER_MIN_FACT_CHARS", 15);
+    this.chunkerMaxFactChars = num("RAG_CHUNKER_MAX_FACT_CHARS", 1_200);
+
+    this.enableEnrichment = bool("RAG_ENABLE_ENRICHMENT", true);
+    this.enrichmentTimeoutMs = num("RAG_ENRICHMENT_TIMEOUT_MS", 25_000);
+    this.enrichmentMaxTokens = num("RAG_ENRICHMENT_MAX_TOKENS", 2_048);
+    this.enrichmentPipeRatio = num("RAG_ENRICHMENT_PIPE_RATIO", 0.15);
+    this.enrichmentNoiseRatio = num("RAG_ENRICHMENT_NOISE_RATIO", 0.03);
+    this.enrichmentFlatRatio = num("RAG_ENRICHMENT_FLAT_RATIO", 0.60);
+    this.enrichmentFlatMinLines = num("RAG_ENRICHMENT_FLAT_MIN_LINES", 5);
 
     this.enableRewriter = bool("RAG_ENABLE_REWRITER", true);
     this.enableOfftopicGuard = bool("RAG_ENABLE_OFFTOPIC", true);
