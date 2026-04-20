@@ -74,7 +74,7 @@ export class RagController {
 
     // 2. Intent
     const intent = this.router.classify(rewritten);
-    const k = this.router.dynamicK(rewritten);
+    const k = this.router.dynamicK(rewritten, intent);
     const category = intent.categoryConfident ? intent.category : undefined;
 
     // 3. FTS

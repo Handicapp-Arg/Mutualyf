@@ -14,6 +14,7 @@ import { RagConfig } from "./rag.config";
 import { OfftopicDetectorService } from "./offtopic-detector.service";
 import { TopicClassifierService } from "./topic-classifier.service";
 import { OfftopicResponderService } from "./offtopic-responder.service";
+import { SemanticChunkerService } from "./semantic-chunker.service";
 import { RagController } from "./rag.controller";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -31,6 +32,7 @@ const AUTO_REBUILD_MAX_CHUNKS = 500;
     OfftopicDetectorService,
     TopicClassifierService,
     OfftopicResponderService,
+    SemanticChunkerService,
     RetrievalService,
     IngestionService,
     RagService,

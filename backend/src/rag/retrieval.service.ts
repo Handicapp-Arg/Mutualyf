@@ -109,7 +109,7 @@ export class RetrievalService {
       return res;
     }
 
-    const k = this.router.dynamicK(rewritten);
+    const k = this.router.dynamicK(rewritten, intent);
     const category = intent.categoryConfident ? intent.category : undefined;
 
     // Vector path es best-effort: si embeddings fallan, seguimos con FTS puro.

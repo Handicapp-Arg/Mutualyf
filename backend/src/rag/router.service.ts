@@ -176,9 +176,18 @@ export class RouterService {
     return PRONOUN_RE.test(msg);
   }
 
-  dynamicK(query: string): number {
+  dynamicK(query: string, intent?: Intent): number {
     const words = query.trim().split(/\s+/).length;
     const clauses = (query.match(/[,;]|\s+y\s+|\s+o\s+/g) || []).length;
+
+    // Queries tipo "catálogo": listar profesionales, horarios, especialidades.
+    // Un solo chunk rara vez alcanza — la info está distribuida en varias filas
+    // que pueden caer en chunks distintos. Subir k asegura cubrir el grupo.
+    const isCatalogQuery =
+      intent?.category === "services" ||
+      /\b(quien(es)?|cual(es)?|nombres?|lista(me)?|enumer|todos los|todas las|profesional|doctor|medico|medica)\b/i.test(query);
+    if (isCatalogQuery) return this.cfg.kLarge;
+
     if (words < 6) return this.cfg.kSmall;
     if (clauses >= 2 || words > 18) return this.cfg.kLarge;
     return this.cfg.kMedium;

@@ -9,13 +9,14 @@ import { createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmbeddingsService } from "./embeddings.service";
 import { VectorStoreService } from "./vector-store.service";
-import { chunkText, estimateTokens } from "./chunker";
+import { estimateTokens } from "./chunker";
 import { sanitizeChunk } from "./sanitizer";
 import { Category, CATEGORIES } from "./rag.types";
 import { RagConfig } from "./rag.config";
 import { RetrievalService } from "./retrieval.service";
 import { TopicClassifierService } from "./topic-classifier.service";
 import { OfftopicResponderService } from "./offtopic-responder.service";
+import { SemanticChunkerService } from "./semantic-chunker.service";
 
 @Injectable()
 export class IngestionService {
@@ -30,6 +31,7 @@ export class IngestionService {
     private readonly retrieval: RetrievalService,
     private readonly topic: TopicClassifierService,
     private readonly offtopicResponder: OfftopicResponderService,
+    private readonly semanticChunker: SemanticChunkerService,
   ) {}
 
   /**
@@ -61,15 +63,15 @@ export class IngestionService {
         `Invalid category. Allowed: ${CATEGORIES.join(", ")}`,
       );
     }
-    const cleanContent = input.content.trim();
-    if (cleanContent.length < 40) {
+    const trimmed = input.content.trim();
+    if (trimmed.length < 40) {
       throw new BadRequestException("Content too short (min 40 chars)");
     }
-    if (cleanContent.length > 2_000_000) {
+    if (trimmed.length > 2_000_000) {
       throw new BadRequestException("Content too large (max 2MB)");
     }
 
-    const hash = createHash("sha256").update(cleanContent).digest("hex");
+    const hash = createHash("sha256").update(trimmed).digest("hex");
 
     // Dedup por hash, pero ignora "orphans" (docs sin chunks de ingestas previas
     // que fallaron a mitad de camino). Si encontramos un orphan con el mismo hash,
@@ -105,10 +107,14 @@ export class IngestionService {
     });
     const version = (prevVersion?.version ?? 0) + 1;
 
-    const rawChunks = chunkText(cleanContent, {
-      chunkSize: this.cfg.chunkSize,
-      chunkOverlap: this.cfg.chunkOverlap,
-    });
+    const rawChunks = await this.semanticChunker.split(
+      trimmed,
+      input.category,
+      input.title,
+    );
+    if (rawChunks.length === 0) {
+      throw new BadRequestException("No se pudieron extraer hechos del documento");
+    }
     const tokensTotal = rawChunks.reduce((s, c) => s + estimateTokens(c), 0);
 
     // Doc + chunks en una sola operacion atomica (nested write).
