@@ -202,18 +202,6 @@ export class IngestionService {
     });
   }
 
-  /**
-   * Rebuilds the vector+FTS index from existing chunks in DB.
-   * Útil si cambió el modelo de embedding o el índice se corrompió.
-   * Tira abajo las tablas FTS5/vec0 y las repuebla desde KnowledgeChunk
-   * (Prisma es la fuente de verdad). Esto resuelve corrupciones de FTS5
-   * que impiden DELETE/INSERT en upserts normales.
-   */
-  /**
-   * Al arrancar: si kb_vectors está vacío pero hay chunks activos en la DB,
-   * repuebla automáticamente sin borrar datos (no llama recreateIndices).
-   * Evita que cada restart requiera un rebuild manual.
-   */
   async onModuleInit() {
     try {
       const vecRows = await this.prisma.$queryRaw<[{ count: bigint }]>`

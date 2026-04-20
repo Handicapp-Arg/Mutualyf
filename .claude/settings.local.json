@@ -7,7 +7,11 @@
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(npx vite *)",
       "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@mutualyf.com\",\"password\":\"123456\"}')",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(find C:\\\\Users\\\\Alejo Maros\\\\desktop\\\\Desarollos\\\\app-mutualyf\\\\app\\\\backend\\\\src *)",
+      "Bash(grep *)",
+      "Bash(find \"C:\\\\Users\\\\Alejo Maros\\\\desktop\\\\Desarollos\\\\app-mutualyf\\\\app\\\\backend\\\\src\" -name \"*.ts\" -exec grep -l \"interface\\\\|type.*=\" {} \\\\;)",
+      "Bash(find . -name \"*.ts\" -exec grep -l \"ws-jwt\\\\|WsJwt\\\\|LoginDto\" {} \\\\;)"
     ]
   }
 }

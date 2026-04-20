@@ -3,8 +3,6 @@ import * as Tesseract from 'tesseract.js';
 const pdfParse = require('pdf-parse');
 import sharp from 'sharp';
 import * as fs from 'fs/promises';
-import { OllamaService } from '../../ai/ollama.service';
-import { GeminiService } from '../../ai/gemini.service';
 
 export interface OCRResult {
   text: string;
@@ -28,11 +26,6 @@ export interface ExtractedMedicalData {
 @Injectable()
 export class OCRService {
   private readonly logger = new Logger(OCRService.name);
-
-  constructor(
-    private readonly ollamaService: OllamaService,
-    private readonly geminiService: GeminiService
-  ) {}
 
   /**
    * Extraer texto de PDF

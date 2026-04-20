@@ -1,6 +1,6 @@
 import { Module, OnModuleInit, Logger } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
-import { GroqService } from "../ai/groq.service";
+import { GroqModule } from "../ai/groq.module";
 import { ConfigModule } from "@nestjs/config";
 import { VectorStoreService } from "./vector-store.service";
 import { EmbeddingsService } from "./embeddings.service";
@@ -20,11 +20,10 @@ import { PrismaService } from "../prisma/prisma.service";
 const AUTO_REBUILD_MAX_CHUNKS = 500;
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, GroqModule],
   controllers: [RagController],
   providers: [
     RagConfig,
-    GroqService,
     VectorStoreService,
     EmbeddingsService,
     RouterService,
@@ -62,17 +61,8 @@ export class RagModule implements OnModuleInit {
     });
     this.logger.log(`KB has ${count} active docs`);
 
-    // Auto-rebuild si hay chunks indexados con embModel viejo (típico tras bumpear modelVersion).
-    // Fire-and-forget para no bloquear el boot. Skipea si hay demasiados chunks
-    // (rebuild masivo puede saturar Ollama; en ese caso requerir trigger manual).
     void this.runAutoRebuildBackground();
-
-    // Centroides del clasificador semántico. Fire-and-forget; si falla, el
-    // clasificador cae a modo "empty-kb" y acepta por default (RAG sigue operando).
     void this.topic.rebuildCentroids();
-
-    // Intent prototypes (meta/chitchat) — necesarios para que "sos una IA?",
-    // "hola", "gracias", etc no se confundan con off-topic.
     void this.topic.rebuildIntentPrototypes();
   }
 
@@ -104,7 +94,6 @@ export class RagModule implements OnModuleInit {
       this.logger.log(
         `Auto-rebuild done: ${rebuilt} chunks in ${Date.now() - t0}ms`,
       );
-      // Tras rebuild masivo los centroides también quedan stale.
       await this.topic.rebuildCentroids().catch(() => {});
     } catch (e) {
       this.logger.warn(`Auto-rebuild failed: ${(e as Error).message}`);
