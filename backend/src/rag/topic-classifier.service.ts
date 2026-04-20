@@ -422,10 +422,12 @@ Clasificá la consulta del usuario en UNA sola palabra:
 
 - META: pregunta sobre el bot mismo (quién sos, sos una IA, sos humano, qué podés hacer, cómo te llamás, quién te creó, ayuda en general).
 - CHITCHAT: saludo, agradecimiento, despedida o acknowledgement (hola, buen día, buenas, gracias, chau, ok, dale, perfecto, todo bien).
-- DOMAIN: consulta sobre MutuaLyF (afiliación, salud, cobertura, turnos, prestadores, especialidades, recetas, órdenes, autorizaciones, reintegros, pagos, coseguros, farmacia, trámites, sedes, contacto, MiMutuaLyF, reclamos).
-- OFFTOPIC: claramente otro dominio (programación, recetas de cocina, entretenimiento, política, clima, deportes, otras obras sociales).
+- DOMAIN: consulta sobre MutuaLyF. Incluye: afiliación, salud, cobertura, turnos, horarios, prestadores, especialidades, médicos, bioquímicos, bioquimico, laboratorio, análisis clínicos, odontología, farmacia, recetas, órdenes médicas, autorizaciones, reintegros, pagos, coseguros, trámites, sedes, contacto, MiMutuaLyF, reclamos, cartilla, profesionales de salud, clínicas, centros de salud, consultas médicas, especialistas. También si la consulta menciona a un profesional de salud por nombre o profesión, un síntoma o enfermedad, o pide información de algún servicio de salud.
+- OFFTOPIC: claramente otro dominio sin relación con salud ni la mutual (programación, recetas de cocina, entretenimiento, política, clima, deportes, otras obras sociales, preguntas de cultura general).
 
-Ante duda entre DOMAIN y OFFTOPIC, respondé DOMAIN. Sin puntuación, sin comillas, sin explicación: SÓLO la palabra.`;
+IMPORTANTE: Ante cualquier duda entre DOMAIN y OFFTOPIC, SIEMPRE respondé DOMAIN. Si la consulta menciona algo relacionado con salud, profesionales médicos o servicios de la mutual, es DOMAIN.
+
+Sin puntuación, sin comillas, sin explicación: SÓLO la palabra.`;
 
     try {
       const raw = await Promise.race([

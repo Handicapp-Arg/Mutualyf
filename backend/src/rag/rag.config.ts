@@ -126,8 +126,8 @@ export class RagConfig {
     // 300ms era insuficiente para una API call; se usaba siempre el fallback heurístico.
     this.rewriterTimeoutMs = num("RAG_REWRITE_TIMEOUT_MS", 2000);
 
-    this.topicThresholdHigh = num("TOPIC_T_HIGH", 0.72);
-    this.topicThresholdLow = num("TOPIC_T_LOW", 0.55);
+    this.topicThresholdHigh = num("TOPIC_T_HIGH", 0.60);
+    this.topicThresholdLow = num("TOPIC_T_LOW", 0.45);
     this.topicLlmJudgeTimeoutMs = num("TOPIC_LLM_TIMEOUT_MS", 1500);
     this.topicCacheMax = num("TOPIC_CACHE_MAX", 5000);
     this.topicCacheTtlMs = num("TOPIC_CACHE_TTL_MS", 3_600_000);
