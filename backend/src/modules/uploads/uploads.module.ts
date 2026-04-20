@@ -3,14 +3,12 @@ import { UploadsController } from './uploads.controller';
 import { UploadsService } from './uploads.service';
 import { OCRService } from './ocr.service';
 import { PrismaModule } from '../../prisma/prisma.module';
-import { OllamaService } from '../../ai/ollama.service';
-import { GeminiService } from '../../ai/gemini.service';
-import { CloudinaryService } from '../../common/cloudinary.service';
+import { CloudinaryModule } from '../../common/cloudinary.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, CloudinaryModule],
   controllers: [UploadsController],
-  providers: [UploadsService, OCRService, OllamaService, GeminiService, CloudinaryService],
+  providers: [UploadsService, OCRService],
   exports: [UploadsService],
 })
 export class UploadsModule {}

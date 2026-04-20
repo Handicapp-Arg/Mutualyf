@@ -220,7 +220,13 @@ export class TopicClassifierService {
         `centroids rebuilt in ${Date.now() - t0}ms — ${next.length} categories: ` +
           next.map((c) => `${c.category}(${c.chunkCount})`).join(", "),
       );
-    } catch (e) {
+    } catch (e: any) {
+      // 42P01 = table does not exist (kb_vectors not yet created by VectorStoreService)
+      if (e?.code === '42P01' || e?.message?.includes('42P01') || e?.message?.includes('kb_vectors')) {
+        this.centroids = [];
+        this.logger.warn('rebuildCentroids: kb_vectors not ready yet — classifier runs in empty-KB mode');
+        return;
+      }
       this.logger.error(`rebuildCentroids failed: ${(e as Error).message}`);
     }
   }
