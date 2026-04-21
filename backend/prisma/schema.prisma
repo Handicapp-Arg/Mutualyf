@@ -158,14 +158,19 @@ model ChatAttachment {
 // ==========================================
 
 model AiConfig {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @default("default")
-  systemPrompt  String   @map("system_prompt") @db.Text
-  temperature   Float    @default(0.7)
-  maxTokens     Int      @default(800) @map("max_tokens")
-  quickButtons  String   @default("[]") @map("quick_buttons") // JSON array de {icon, label, prompt}
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  updatedBy     String?  @map("updated_by")
+  id               Int      @id @default(autoincrement())
+  key              String   @unique @default("default")
+  botName          String   @default("MutuaBot") @map("bot_name")
+  orgName          String   @default("MutuaLyF") @map("org_name") @db.Text
+  contactPhone     String   @default("") @map("contact_phone")
+  tone             String   @default("") @db.Text
+  specialtyMapping String   @default("") @map("specialty_mapping") @db.Text
+  customRules      String   @default("") @map("custom_rules") @db.Text
+  temperature      Float    @default(0.7)
+  maxTokens        Int      @default(800) @map("max_tokens")
+  quickButtons     String   @default("[]") @map("quick_buttons")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  updatedBy        String?  @map("updated_by")
 
   @@map("ai_configs")
 }

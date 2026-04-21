@@ -32,6 +32,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [showHumanOffer, setShowHumanOffer] = useState(false);
   const [humanHandoffDone, setHumanHandoffDone] = useState(false);
+  const [humanPending, setHumanPending] = useState(false);
   const chatService = useRef(new ChatAIService());
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
@@ -51,6 +52,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       clearAdminMessages();
     }
   }, [adminMessages, clearAdminMessages]);
+
+  // Cuando el admin se conecta, el pedido ya fue atendido
+  useEffect(() => {
+    if (adminActive) setHumanPending(false);
+  }, [adminActive]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -430,6 +436,20 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
       {/* Mensajes */}
       <div className="scrollbar-hide relative z-10 flex h-full max-h-full min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4">
+
+        {/* Chip sticky de espera — aparece en el tope del scroll, no molesta */}
+        {humanPending && !adminActive && (
+          <div className="sticky top-0 z-10 mb-3 flex justify-center">
+            <div className="flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 shadow-sm ring-1 ring-amber-200">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+              </span>
+              <span className="text-xs font-medium text-amber-700">Asesor en camino…</span>
+            </div>
+          </div>
+        )}
+
         {messages.map((message) => (
           <ChatMessageBubble
             key={message.id}
@@ -444,7 +464,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           <HumanHandoffOffer
             sessionId={backendService.current['sessionId'] as string}
             userName={userName || 'Anónimo'}
-            onAccepted={() => { setHumanHandoffDone(true); setShowHumanOffer(false); }}
+            onAccepted={() => { setHumanHandoffDone(true); setShowHumanOffer(false); setHumanPending(true); }}
             onDismissed={() => setShowHumanOffer(false)}
           />
         )}

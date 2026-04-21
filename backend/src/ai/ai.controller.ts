@@ -42,7 +42,7 @@ export class AiController implements OnModuleInit {
 
   async onModuleInit() {
     const config = this.aiConfigService.getConfig();
-    this.ollamaService.warmup(config.systemPrompt).catch(() => {});
+    this.ollamaService.warmup(this.aiConfigService.assemblePrompt()).catch(() => {});
   }
 
   /**
@@ -93,7 +93,7 @@ export class AiController implements OnModuleInit {
       const rag = await this.ragService.prepare({
         query: body.newMessage,
         history,
-        basePrompt: config.systemPrompt,
+        basePrompt: this.aiConfigService.assemblePrompt(),
         sessionId: body.sessionId,
       });
 
@@ -209,7 +209,7 @@ export class AiController implements OnModuleInit {
   @Post('ollama')
   async ollama(@Body() body: ChatRequestDto, @Res() res: Response) {
     const config = this.aiConfigService.getConfig();
-    const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
+    const { prompt, apiMaxTokens } = this.buildPromptWithLength(this.aiConfigService.assemblePrompt(), config.maxTokens);
     setupSSE(res);
 
     try {
@@ -232,7 +232,7 @@ export class AiController implements OnModuleInit {
   @Post('grok')
   async grok(@Body() body: ChatRequestDto) {
     const config = this.aiConfigService.getConfig();
-    const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
+    const { prompt, apiMaxTokens } = this.buildPromptWithLength(this.aiConfigService.assemblePrompt(), config.maxTokens);
     const response = await this.groqService.generateResponse(
       (body.history || []).slice(-MAX_HISTORY_MESSAGES),
       body.newMessage,
@@ -246,7 +246,7 @@ export class AiController implements OnModuleInit {
   @Post('gemini')
   async gemini(@Body() body: ChatRequestDto) {
     const config = this.aiConfigService.getConfig();
-    const { prompt, apiMaxTokens } = this.buildPromptWithLength(config.systemPrompt, config.maxTokens);
+    const { prompt, apiMaxTokens } = this.buildPromptWithLength(this.aiConfigService.assemblePrompt(), config.maxTokens);
     const response = await this.geminiService.generateResponse(
       (body.history || []).slice(-MAX_HISTORY_MESSAGES),
       body.newMessage,

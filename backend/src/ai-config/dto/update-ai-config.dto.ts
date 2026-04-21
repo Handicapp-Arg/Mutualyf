@@ -3,7 +3,27 @@ import { IsOptional, IsString, IsNumber, Min, Max, IsInt } from 'class-validator
 export class UpdateAiConfigDto {
   @IsOptional()
   @IsString()
-  systemPrompt?: string;
+  botName?: string;
+
+  @IsOptional()
+  @IsString()
+  orgName?: string;
+
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  tone?: string;
+
+  @IsOptional()
+  @IsString()
+  specialtyMapping?: string;
+
+  @IsOptional()
+  @IsString()
+  customRules?: string;
 
   @IsOptional()
   @IsNumber()
@@ -19,5 +39,5 @@ export class UpdateAiConfigDto {
 
   @IsOptional()
   @IsString()
-  quickButtons?: string; // JSON string de [{icon, label, prompt}]
+  quickButtons?: string;
 }

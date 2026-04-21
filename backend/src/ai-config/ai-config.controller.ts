@@ -5,6 +5,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { PermissionCode } from '../auth/constants/permissions.enum';
+import { RAG_GROUNDING } from '../ai/ai.constants';
 
 @Controller('ai-config')
 export class AiConfigController {
@@ -27,6 +28,16 @@ export class AiConfigController {
   @Get()
   async getConfig() {
     return this.aiConfigService.getConfig();
+  }
+
+  /** Devuelve el prompt final ensamblado tal como lo recibe el LLM (sin los chunks RAG) */
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PermissionCode.AI_CONFIG_MANAGE)
+  @Get('preview-prompt')
+  async previewPrompt() {
+    const assembled = this.aiConfigService.assemblePrompt();
+    const full = `${assembled}${RAG_GROUNDING}`;
+    return { prompt: full, chars: full.length };
   }
 
   @UseGuards(PermissionsGuard)
