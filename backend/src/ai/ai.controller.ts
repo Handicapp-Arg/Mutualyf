@@ -2,7 +2,7 @@ import { Controller, Post, Body, Res, Logger, OnModuleInit } from '@nestjs/commo
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { GeminiService } from './gemini.service';
-import { GroqService, RateLimitError } from './groq.service';
+import { GroqService } from './groq.service';
 import { XAIService } from './xai.service';
 import { OllamaService } from './ollama.service';
 import { ChatRequestDto } from './dto/ai.dto';
@@ -17,11 +17,18 @@ import { RagService } from '../rag/rag.service';
 const FALLBACK_RESPONSE =
   'Estamos teniendo dificultades técnicas en este momento. Para asistencia inmediata podés contactarnos:\n\n📞 0800 777 4413 (Lunes a viernes de 07:30 a 19:30 hs)\n💻 Plataforma MiMutuaLyF (disponible 24hs)\n\nDisculpá las molestias, intentá de nuevo en unos segundos.';
 
+/** Turnos consecutivos sin contexto antes de ofrecer asesor humano */
+const UNRESOLVED_THRESHOLD = 2;
+
 @Public()
 @Throttle({ default: { ttl: 60000, limit: 20 } })
 @Controller('ai')
 export class AiController implements OnModuleInit {
   private readonly logger = new Logger(AiController.name);
+  /** Turnos consecutivos sin chunks por sessionId */
+  private readonly unresolvedCounts = new Map<string, number>();
+  /** Sesiones a las que ya se les ofreció asesor (no repetir) */
+  private readonly offeredSessions = new Set<string>();
 
   constructor(
     private readonly groqService: GroqService,
@@ -43,6 +50,12 @@ export class AiController implements OnModuleInit {
    * El maxTokens configurado se traduce a una guía para la IA,
    * y el límite real de la API se aumenta para dar margen a terminar oraciones.
    */
+  private endSSE(res: Response, suggestHuman = false) {
+    if (suggestHuman) res.write(`data: ${JSON.stringify({ suggestHuman: true })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+  }
+
   private buildPromptWithLength(basePrompt: string, maxTokens: number): {
     prompt: string;
     apiMaxTokens: number;
@@ -81,7 +94,7 @@ export class AiController implements OnModuleInit {
         query: body.newMessage,
         history,
         basePrompt: config.systemPrompt,
-        sessionId: (body as any).sessionId,
+        sessionId: body.sessionId,
       });
 
       if (rag.shortCircuit) {
@@ -91,14 +104,32 @@ export class AiController implements OnModuleInit {
         return;
       }
 
+      // Rastrear turnos sin contexto para ofrecer asesor humano
+      const sessionId = body.sessionId;
+      const topScore = rag.retrieval?.topScore ?? 0;
+      const chunksFound = (rag.retrieval?.chunks?.length ?? 0) > 0 && topScore >= 0.30;
+      let suggestHuman = false;
+      if (sessionId) {
+        if (chunksFound) {
+          this.unresolvedCounts.delete(sessionId);
+        } else {
+          const prev = this.unresolvedCounts.get(sessionId) ?? 0;
+          const next = prev + 1;
+          this.unresolvedCounts.set(sessionId, next);
+          if (next >= UNRESOLVED_THRESHOLD && !this.offeredSessions.has(sessionId)) {
+            suggestHuman = true;
+            this.offeredSessions.add(sessionId);
+          }
+        }
+      }
+
       const { prompt, apiMaxTokens } = this.buildPromptWithLength(rag.systemPrompt, config.maxTokens);
       const args = [history, body.newMessage, prompt, config.temperature, apiMaxTokens] as const;
 
       // 3. Groq — primario, pool de 2 keys (failover interno entre key1/key2)
       try {
         writeSSEChunked(res, await this.groqService.generateResponse(...args));
-        res.write('data: [DONE]\n\n');
-        res.end();
+        this.endSSE(res, suggestHuman);
         return;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -110,8 +141,7 @@ export class AiController implements OnModuleInit {
       if (this.geminiService.available) {
         try {
           writeSSEChunked(res, await this.geminiService.generateResponse(...args));
-          res.write('data: [DONE]\n\n');
-          res.end();
+          this.endSSE(res, suggestHuman);
           return;
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -124,8 +154,7 @@ export class AiController implements OnModuleInit {
       if (this.xaiService.available) {
         try {
           writeSSEChunked(res, await this.xaiService.generateResponse(...args));
-          res.write('data: [DONE]\n\n');
-          res.end();
+          this.endSSE(res, suggestHuman);
           return;
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -146,15 +175,13 @@ export class AiController implements OnModuleInit {
           if (accumulated.includes('\n---') || accumulated.includes('\n\n\n')) break;
         }
         if (hasContent) {
-          res.write('data: [DONE]\n\n');
-          res.end();
+          this.endSSE(res, suggestHuman);
           return;
         }
         const response = await this.ollamaService.generateResponse(...args);
         if (response && response !== 'Sin respuesta de Ollama.') {
           writeSSEChunked(res, response);
-          res.write('data: [DONE]\n\n');
-          res.end();
+          this.endSSE(res, suggestHuman);
           return;
         }
       } catch (e) {

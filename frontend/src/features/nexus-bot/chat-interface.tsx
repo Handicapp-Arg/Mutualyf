@@ -6,6 +6,7 @@ import { ChatHeader } from './components/chat-header';
 import { ChatMessageBubble } from './components/chat-message-bubble';
 import { TypingIndicator } from './components/typing-indicator';
 import { ChatInput } from './components/chat-input';
+import { HumanHandoffOffer } from './components/human-handoff-offer';
 import type { ChatMessage } from '@/types';
 import { BACKEND_URL } from '@/lib/constants';
 
@@ -29,6 +30,8 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const attachInputRef = useRef<HTMLInputElement>(null);
   const [pendingChatAttachment, setPendingChatAttachment] = useState<File | null>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [showHumanOffer, setShowHumanOffer] = useState(false);
+  const [humanHandoffDone, setHumanHandoffDone] = useState(false);
   const chatService = useRef(new ChatAIService());
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
@@ -155,7 +158,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       let assistantContent = '';
       let isFirstChunk = true;
 
-      for await (const chunk of chatService.current.sendMessage(promptText)) {
+      const sessionId = backendService.current['sessionId'] as string;
+      for await (const chunk of chatService.current.sendMessage(promptText, {
+        sessionId,
+        onSuggestHuman: () => setShowHumanOffer(true),
+      })) {
         if (isFirstChunk) {
           setIsLoading(false);
           isFirstChunk = false;
@@ -433,6 +440,14 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           />
         ))}
         {isLoading && <TypingIndicator />}
+        {showHumanOffer && !humanHandoffDone && (
+          <HumanHandoffOffer
+            sessionId={backendService.current['sessionId'] as string}
+            userName={userName || 'Anónimo'}
+            onAccepted={() => { setHumanHandoffDone(true); setShowHumanOffer(false); }}
+            onDismissed={() => setShowHumanOffer(false)}
+          />
+        )}
         <div ref={messagesEndRef} />
       </div>
 

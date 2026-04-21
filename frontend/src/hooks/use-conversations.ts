@@ -19,6 +19,7 @@ export function useConversations() {
   const [adminMessage, setAdminMessage] = useState('');
   const [isSendingAdmin, setIsSendingAdmin] = useState(false);
   const [isSendingAdminFile, setIsSendingAdminFile] = useState(false);
+  const [humanRequests, setHumanRequests] = useState<Array<{ sessionId: string; userName: string | null; timestamp: string }>>([]);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveSessionIds = new Set(liveSessions.map((s) => s.sessionId));
@@ -62,9 +63,21 @@ export function useConversations() {
     setLiveSessions(sessions);
   }, []);
 
+  const handleHumanRequested = useCallback((data: { sessionId: string; userName: string | null; timestamp: string }) => {
+    setHumanRequests((prev) => {
+      if (prev.some((r) => r.sessionId === data.sessionId)) return prev;
+      return [data, ...prev];
+    });
+  }, []);
+
+  const dismissHumanRequest = useCallback((sessionId: string) => {
+    setHumanRequests((prev) => prev.filter((r) => r.sessionId !== sessionId));
+  }, []);
+
   useAdminSocket({
     onConversationUpserted: handleConversationUpserted,
     onLiveSessions: handleLiveSessions,
+    onHumanRequested: handleHumanRequested,
   });
 
   // Auto-scroll mensajes admin
@@ -165,6 +178,7 @@ export function useConversations() {
     selectedConversation, setSelectedConversation,
     adminChatSessionId, adminMessage, setAdminMessage,
     isSendingAdmin, isSendingAdminFile, adminMessagesEndRef,
+    humanRequests, dismissHumanRequest,
     joinChat, leaveChat, sendAdminMessage, sendAdminAttachment, loadData,
   };
 }

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import {
   MessageSquare, FileText, TrendingUp, Download, Trash2, Radio,
-  LogIn, LogOut, SendHorizontal, Paperclip, Loader2,
+  LogIn, LogOut, SendHorizontal, Paperclip, Loader2, UserRound, X,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
@@ -23,6 +23,7 @@ export function Conversations() {
     selectedConversation, setSelectedConversation,
     adminChatSessionId, adminMessage, setAdminMessage,
     isSendingAdmin, isSendingAdminFile, adminMessagesEndRef,
+    humanRequests, dismissHumanRequest,
     joinChat, leaveChat, sendAdminMessage, sendAdminAttachment, loadData,
   } = useConversations();
 
@@ -83,6 +84,46 @@ export function Conversations() {
               )}
             </div>
           </div>
+
+          {/* Solicitudes de asesor humano */}
+          {humanRequests.length > 0 && (
+            <div className="mx-6 mt-4 space-y-2">
+              {humanRequests.map((req) => {
+                const conv = conversations.find((c) => c.sessionId === req.sessionId);
+                return (
+                  <div key={req.sessionId}
+                    className="flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-amber-100 p-2">
+                        <UserRound size={16} className="text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-amber-800">
+                          {req.userName || 'Anónimo'} solicita un asesor
+                        </p>
+                        <p className="text-xs text-amber-600">
+                          {new Date(req.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {conv && canTakeover && (
+                        <button
+                          onClick={() => { joinChat(req.sessionId); dismissHumanRequest(req.sessionId); }}
+                          className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600">
+                          <LogIn size={12} />Atender
+                        </button>
+                      )}
+                      <button onClick={() => dismissHumanRequest(req.sessionId)}
+                        className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-100 hover:text-amber-600">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Stats cards */}
           <div className="px-6 pt-6">

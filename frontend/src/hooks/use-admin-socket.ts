@@ -2,9 +2,16 @@ import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/stores/auth.store';
 
+interface HumanRequestedPayload {
+  sessionId: string;
+  userName: string | null;
+  timestamp: string;
+}
+
 interface AdminSocketHandlers {
   onConversationUpserted?: (conversation: any) => void;
   onLiveSessions?: (sessions: any[]) => void;
+  onHumanRequested?: (data: HumanRequestedPayload) => void;
 }
 
 /**
@@ -14,6 +21,7 @@ interface AdminSocketHandlers {
  * Eventos escuchados:
  *  - `conversation.upserted` → cada vez que una conversación se crea/actualiza
  *  - `session.live`          → snapshot del array de sesiones en vivo
+ *  - `human.requested`       → usuario solicitó un asesor humano
  *
  * El socket se conecta una sola vez por mount y se desconecta en cleanup.
  * Los handlers se almacenan en un ref para poder mutarlos sin reconectar.
@@ -58,6 +66,10 @@ export function useAdminSocket(handlers: AdminSocketHandlers): Socket | null {
 
     socket.on('session.live', (sessions: any[]) => {
       handlersRef.current.onLiveSessions?.(sessions);
+    });
+
+    socket.on('human.requested', (data: HumanRequestedPayload) => {
+      handlersRef.current.onHumanRequested?.(data);
     });
 
     return () => {

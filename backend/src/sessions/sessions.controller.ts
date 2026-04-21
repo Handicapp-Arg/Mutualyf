@@ -48,6 +48,13 @@ export class SessionsController {
     return this.sessionsService.endSession(body.sessionId);
   }
 
+  @Public()
+  @Post('request-human')
+  @HttpCode(HttpStatus.OK)
+  async requestHuman(@Body() body: { sessionId: string; userName?: string }) {
+    return this.sessionsService.requestHuman(body.sessionId, body.userName ?? null);
+  }
+
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PermissionCode.SESSIONS_LIVE)
   @Get('live/list')
