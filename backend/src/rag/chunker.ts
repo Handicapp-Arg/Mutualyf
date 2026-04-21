@@ -1,15 +1,20 @@
 /**
- * Recursive text splitter — aproximación simple y efectiva para RAG.
- * Divide jerárquicamente por \n\n → \n → ". " → " ", con overlap.
- * tokens estimados como chars/4 (heurística estándar es:en/español).
+ * Chunker con respeto de límites de línea.
+ *
+ * Estrategia:
+ *   1. Agrupa párrafos (doble salto) sin exceder targetChars.
+ *   2. Si un párrafo es muy grande, lo parte línea a línea — nunca en mitad de línea.
+ *   3. Overlap siempre basado en líneas completas del chunk anterior,
+ *      no en caracteres, para evitar registros cortados a mitad.
  */
 export interface ChunkOptions {
-  chunkSize: number; // tokens objetivo
-  chunkOverlap: number; // tokens de overlap
+  chunkSize: number;    // tokens objetivo por chunk
+  chunkOverlap: number; // tokens de overlap (usado para estimar líneas de overlap)
 }
 
 const DEFAULT_OPTS: ChunkOptions = { chunkSize: 500, chunkOverlap: 80 };
 const CHARS_PER_TOKEN = 4;
+const CHARS_PER_LINE_AVG = 80; // estimación para convertir tokens de overlap a líneas
 
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / CHARS_PER_TOKEN);
@@ -22,51 +27,81 @@ export function chunkText(
   const { chunkSize, chunkOverlap } = { ...DEFAULT_OPTS, ...opts };
   const targetChars = chunkSize * CHARS_PER_TOKEN;
   const overlapChars = chunkOverlap * CHARS_PER_TOKEN;
+  const overlapLineCount = Math.max(1, Math.round(overlapChars / CHARS_PER_LINE_AVG));
 
   const text = raw.replace(/\r\n/g, "\n").trim();
   if (!text) return [];
   if (text.length <= targetChars) return [text];
 
-  const separators = ["\n\n", "\n", ". ", " "];
-  const pieces = splitRecursive(text, separators, targetChars);
+  // Fase 1: dividir respetando siempre límites de línea completa
+  const blocks = splitAtLineBoundaries(text, targetChars);
+  if (blocks.length <= 1) return blocks.filter((c) => c.trim().length > 20);
 
-  const chunks: string[] = [];
-  let current = "";
-  for (const p of pieces) {
-    if (current.length + p.length + 1 <= targetChars) {
-      current += (current ? " " : "") + p;
-    } else {
-      if (current) chunks.push(current);
-      if (overlapChars > 0 && current.length > overlapChars) {
-        const tail = current.slice(-overlapChars);
-        current = tail + " " + p;
-      } else {
-        current = p;
-      }
-    }
+  // Fase 2: overlap con líneas completas del bloque anterior
+  // Garantiza que cada chunk arranque con contexto completo (no registros cortados)
+  const result: string[] = [blocks[0]];
+  for (let i = 1; i < blocks.length; i++) {
+    const prevLines = blocks[i - 1]
+      .split("\n")
+      .filter((l) => l.trim().length > 0);
+    const tailLines = prevLines.slice(-overlapLineCount);
+    const tail = tailLines.join("\n");
+    result.push(tail ? `${tail}\n${blocks[i]}` : blocks[i]);
   }
-  if (current) chunks.push(current);
-  return chunks.map((c) => c.trim()).filter((c) => c.length > 20);
+
+  return result.map((c) => c.trim()).filter((c) => c.length > 20);
 }
 
-function splitRecursive(
-  text: string,
-  seps: string[],
-  target: number,
-): string[] {
-  if (text.length <= target) return [text];
-  if (seps.length === 0) {
-    const out: string[] = [];
-    for (let i = 0; i < text.length; i += target)
-      out.push(text.slice(i, i + target));
-    return out;
+/**
+ * Divide texto en bloques respetando siempre límites de línea completa.
+ * Primero intenta agrupar párrafos (doble salto); si un párrafo supera el
+ * límite, lo parte línea a línea. Nunca corta en mitad de una línea.
+ */
+function splitAtLineBoundaries(text: string, targetChars: number): string[] {
+  const paragraphs = text.split(/\n{2,}/);
+  const segments: string[] = [];
+  let buf = "";
+
+  for (const para of paragraphs) {
+    const sep = buf ? "\n\n" : "";
+
+    if (para.length > targetChars) {
+      if (buf) { segments.push(buf); buf = ""; }
+      segments.push(...splitByLines(para, targetChars));
+      continue;
+    }
+
+    if (buf.length + sep.length + para.length <= targetChars) {
+      buf += sep + para;
+    } else {
+      if (buf) segments.push(buf);
+      buf = para;
+    }
   }
-  const [sep, ...rest] = seps;
-  const parts = text.split(sep);
-  const out: string[] = [];
-  for (const p of parts) {
-    if (p.length <= target) out.push(p);
-    else out.push(...splitRecursive(p, rest, target));
+  if (buf) segments.push(buf);
+  return segments;
+}
+
+/**
+ * Parte un bloque largo línea a línea sin exceder targetChars.
+ * Si una línea individual supera el límite, la incluye igual
+ * (no cortamos en mitad de línea en ningún caso).
+ */
+function splitByLines(text: string, targetChars: number): string[] {
+  const lines = text.split("\n");
+  const segments: string[] = [];
+  let buf = "";
+
+  for (const line of lines) {
+    const sep = buf ? "\n" : "";
+
+    if (buf.length + sep.length + line.length <= targetChars) {
+      buf += sep + line;
+    } else {
+      if (buf) segments.push(buf);
+      buf = line;
+    }
   }
-  return out;
+  if (buf) segments.push(buf);
+  return segments;
 }
