@@ -88,6 +88,28 @@ export class VectorStoreService implements OnModuleInit {
   }
 
   /**
+   * Inserta el chunk solo con contenido (sin embedding), para que FTS funcione
+   * aunque el proveedor de embeddings esté caído.
+   */
+  async upsertChunkFtsOnly(c: {
+    id: number;
+    category: string;
+    content: string;
+  }): Promise<void> {
+    const contentFts = normalizeText(c.content);
+    await this.prisma.$executeRawUnsafe(
+      `INSERT INTO kb_vectors (chunk_id, content, category)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (chunk_id) DO UPDATE SET
+         content = EXCLUDED.content,
+         category = EXCLUDED.category`,
+      c.id,
+      contentFts,
+      c.category,
+    );
+  }
+
+  /**
    * Elimina chunks por IDs.
    */
   async deleteByChunkIds(ids: number[]): Promise<void> {

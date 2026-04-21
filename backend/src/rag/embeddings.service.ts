@@ -10,8 +10,7 @@ import { normalizeText } from "./text-utils";
 
 export type EmbedKind = "query" | "document";
 
-// 5s era demasiado poco — Ollama puede tardar más en respuesta fría.
-const OLLAMA_TIMEOUT_MS = 15_000;
+const OLLAMA_TIMEOUT_MS = 30_000;
 const GEMINI_TIMEOUT_MS = 8_000;
 const MAX_RETRIES = 3;
 

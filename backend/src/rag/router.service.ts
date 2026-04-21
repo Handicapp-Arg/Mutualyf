@@ -191,7 +191,7 @@ export class RouterService {
     const isCatalogQuery =
       intent?.category === "services" ||
       MEDICAL_SYMPTOMS_RE.test(query) ||
-      /\b(quien(es)?|cual(es)?|nombres?|lista(me)?|enumer|todos los|todas las|profesional|doctor|medico|medica)\b/i.test(query);
+      /\b(quien(es)?|cual(es)?|nombres?|lista(me)?|enumer|todos los|todas las|profesional|doctor|medico|medica|planilla|agenda|horario|urologia|urol[oó]log|radiolog|cardiolog|neurol|traumatol|ginecolog|pediatr|odontolog|oftalm|dermatol|psicolog|clinica|fonoaudiolog|nutrici|kinesi|bioquimic)\b/i.test(query);
     if (isCatalogQuery) return this.cfg.kLarge;
 
     if (words < 6) return this.cfg.kSmall;

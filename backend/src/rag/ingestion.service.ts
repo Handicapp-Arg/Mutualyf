@@ -147,19 +147,32 @@ export class IngestionService {
     const chunkRows = doc.chunks;
 
     // Embed en batches + insert vectorial
+    // Si embeddings fallan, igualmente insertamos en kb_vectors sin vector
+    // para que FTS funcione y el bot tenga contexto.
     for (let i = 0; i < chunkRows.length; i += this.cfg.embedBatchSize) {
       const batch = chunkRows.slice(i, i + this.cfg.embedBatchSize);
-      const embeddings = await this.emb.embed(batch.map((c) => c.contentClean));
-      await Promise.all(
-        batch.map((c, j) =>
-          this.vec.upsertChunk({
-            id: c.id,
-            category: c.category,
-            content: c.contentClean,
-            embedding: embeddings[j],
-          }),
-        ),
-      );
+      try {
+        const embeddings = await this.emb.embed(batch.map((c) => c.contentClean));
+        await Promise.all(
+          batch.map((c, j) =>
+            this.vec.upsertChunk({
+              id: c.id,
+              category: c.category,
+              content: c.contentClean,
+              embedding: embeddings[j],
+            }),
+          ),
+        );
+      } catch (embErr) {
+        this.logger.warn(
+          `embed falló para batch ${i}-${i + batch.length} de "${input.title}": ${(embErr as Error).message} — insertando solo FTS`,
+        );
+        await Promise.all(
+          batch.map((c) =>
+            this.vec.upsertChunkFtsOnly({ id: c.id, category: c.category, content: c.contentClean }),
+          ),
+        );
+      }
     }
 
     this.logger.log(
@@ -247,25 +260,36 @@ export class IngestionService {
     let done = 0;
     for (let i = 0; i < chunks.length; i += this.cfg.embedBatchSize) {
       const batch = chunks.slice(i, i + this.cfg.embedBatchSize);
-      const emb = await this.emb.embed(batch.map((c) => c.contentClean));
-      await Promise.all(
-        batch.map((c, j) =>
-          this.vec.upsertChunk({
-            id: c.id,
-            category: c.category,
-            content: c.contentClean,
-            embedding: emb[j],
-          }),
-        ),
-      );
-      await this.prisma.knowledgeChunk.updateMany({
-        where: { id: { in: batch.map((c) => c.id) } },
-        data: { embModel: currentModel },
-      });
+      try {
+        const emb = await this.emb.embed(batch.map((c) => c.contentClean));
+        await Promise.all(
+          batch.map((c, j) =>
+            this.vec.upsertChunk({
+              id: c.id,
+              category: c.category,
+              content: c.contentClean,
+              embedding: emb[j],
+            }),
+          ),
+        );
+        await this.prisma.knowledgeChunk.updateMany({
+          where: { id: { in: batch.map((c) => c.id) } },
+          data: { embModel: currentModel },
+        });
+      } catch (embErr) {
+        this.logger.warn(
+          `fillMissing embed falló batch ${i}: ${(embErr as Error).message} — insertando solo FTS`,
+        );
+        await Promise.all(
+          batch.map((c) =>
+            this.vec.upsertChunkFtsOnly({ id: c.id, category: c.category, content: c.contentClean }),
+          ),
+        );
+      }
       done += batch.length;
     }
     this.invalidateDerived();
-    this.logger.log(`fill-missing completado: ${done} vectores insertados`);
+    this.logger.log(`fill-missing completado: ${done} chunks procesados`);
   }
 
   async rebuildIndex(): Promise<{ rebuilt: number }> {
@@ -277,21 +301,32 @@ export class IngestionService {
     const currentModel = this.emb.model;
     for (let i = 0; i < chunks.length; i += this.cfg.embedBatchSize) {
       const batch = chunks.slice(i, i + this.cfg.embedBatchSize);
-      const emb = await this.emb.embed(batch.map((c) => c.contentClean));
-      await Promise.all(
-        batch.map((c, j) =>
-          this.vec.upsertChunk({
-            id: c.id,
-            category: c.category,
-            content: c.contentClean,
-            embedding: emb[j],
-          }),
-        ),
-      );
-      await this.prisma.knowledgeChunk.updateMany({
-        where: { id: { in: batch.map((c) => c.id) } },
-        data: { embModel: currentModel },
-      });
+      try {
+        const emb = await this.emb.embed(batch.map((c) => c.contentClean));
+        await Promise.all(
+          batch.map((c, j) =>
+            this.vec.upsertChunk({
+              id: c.id,
+              category: c.category,
+              content: c.contentClean,
+              embedding: emb[j],
+            }),
+          ),
+        );
+        await this.prisma.knowledgeChunk.updateMany({
+          where: { id: { in: batch.map((c) => c.id) } },
+          data: { embModel: currentModel },
+        });
+      } catch (embErr) {
+        this.logger.warn(
+          `rebuildIndex embed falló batch ${i}: ${(embErr as Error).message} — insertando solo FTS`,
+        );
+        await Promise.all(
+          batch.map((c) =>
+            this.vec.upsertChunkFtsOnly({ id: c.id, category: c.category, content: c.contentClean }),
+          ),
+        );
+      }
       done += batch.length;
     }
     this.invalidateDerived();
