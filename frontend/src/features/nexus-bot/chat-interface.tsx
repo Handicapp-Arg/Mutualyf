@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatAIService } from '@/services/chat-ai.service';
 import { BackendAPIService } from '@/services/backend-api.service';
-import { MedicalOrderFormOCR, MedicalOrderData } from './medical-order-form-ocr';
 import { useChatSocket } from '@/hooks/use-chat-socket';
 import { ChatHeader } from './components/chat-header';
 import { ChatMessageBubble } from './components/chat-message-bubble';
 import { TypingIndicator } from './components/typing-indicator';
 import { ChatInput } from './components/chat-input';
+import { HumanHandoffOffer } from './components/human-handoff-offer';
 import type { ChatMessage } from '@/types';
 import { BACKEND_URL } from '@/lib/constants';
 
@@ -22,21 +22,16 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ onClose }: ChatInterfaceProps) {
   const [quickButtons, setQuickButtons] = useState<QuickButton[]>([]);
-  const [selectedEstudio, setSelectedEstudio] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [_isUploading, setIsUploading] = useState(false);
-  const [userName, setUserName] = useState<string>('');
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [analyzedData, setAnalyzedData] = useState<any>(null);
-  const [showOrderForm, setShowOrderForm] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [userName] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const attachInputRef = useRef<HTMLInputElement>(null);
   const [pendingChatAttachment, setPendingChatAttachment] = useState<File | null>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [showHumanOffer, setShowHumanOffer] = useState(false);
+  const [humanHandoffDone, setHumanHandoffDone] = useState(false);
   const chatService = useRef(new ChatAIService());
   const backendService = useRef(new BackendAPIService());
   const isSaving = useRef(false);
@@ -134,7 +129,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         id: '1',
         role: 'assistant',
         content:
-          '👋 ¡Bienvenido a MutuaLyF! Soy tu asistente virtual.\n\nEstoy aca para ayudarte con informacion sobre servicios, horarios, tramites y mas. Usa los botones o escribime tu consulta.',
+          '¡Hola! Soy MutuaBot, el asistente virtual de MutuaLyF.\n\nPuedo ayudarte con consultas sobre afiliación, especialidades, turnos, recetas, autorizaciones, pagos y trámites. Usá los botones de abajo o escribime tu consulta.',
         timestamp: new Date(),
       },
     ]);
@@ -163,7 +158,11 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
       let assistantContent = '';
       let isFirstChunk = true;
 
-      for await (const chunk of chatService.current.sendMessage(promptText)) {
+      const sessionId = backendService.current['sessionId'] as string;
+      for await (const chunk of chatService.current.sendMessage(promptText, {
+        sessionId,
+        onSuggestHuman: () => setShowHumanOffer(true),
+      })) {
         if (isFirstChunk) {
           setIsLoading(false);
           isFirstChunk = false;
@@ -208,35 +207,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
   const handleOptionClick = (optionValue: string, optionLabel: string) => {
     if (isLoading) return;
-
-    // Subir orden médica - caso especial local
-    let estudio = '';
-    if (optionValue.startsWith('subir_orden|')) {
-      estudio = optionValue.split('|')[1] || '';
-      optionValue = 'subir_orden';
-    }
-
-    if (optionValue === 'subir_orden') {
-      fileInputRef.current?.click();
-      setSelectedEstudio(estudio);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'user',
-          content: optionLabel,
-          timestamp: new Date(),
-        },
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content:
-            'Perfecto. Selecciona el archivo de tu orden medica (imagen o PDF) para que pueda analizarla.',
-          timestamp: new Date(),
-        },
-      ]);
-      return;
-    }
 
     // Si el admin esta controlando, no llamar a la IA
     if (adminActiveRef.current) {
@@ -287,131 +257,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
 
     await sendToAI(text, text);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content:
-            '❌ Formato de archivo no valido. Solo se permiten archivos PDF, JPG y PNG.',
-          timestamp: new Date(),
-        },
-      ]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content:
-            '❌ El archivo es demasiado grande. El tamano maximo permitido es 5MB.',
-          timestamp: new Date(),
-        },
-      ]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: `__ANALYZING_ORDER__:${file.name}`,
-        timestamp: new Date(),
-      },
-    ]);
-
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + Math.random() * 15;
-      });
-    }, 200);
-
-    try {
-      const result = await backendService.current.analyzeMedicalOrder(file);
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (result.success && result.data) {
-        setPendingFile(file);
-        setAnalyzedData(result.data);
-        setShowOrderForm(true);
-
-        const detectionRate = result.data.detectionRate || 0;
-        setMessages((prev) => {
-          const filtered = prev.filter(
-            (m) => !m.content.startsWith('__ANALYZING_ORDER__')
-          );
-          return [
-            ...filtered,
-            {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: `✅ Analisis completado! Detecte ${detectionRate}% de los campos automaticamente. \n\nPor favor, verifica y corrige los datos si es necesario.`,
-              timestamp: new Date(),
-            },
-          ];
-        });
-      } else {
-        setMessages((prev) => {
-          const filtered = prev.filter(
-            (m) => !m.content.startsWith('__ANALYZING_ORDER__')
-          );
-          return [
-            ...filtered,
-            {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: `❌ ${result.message || 'No pude analizar el archivo correctamente'}. Por favor, intenta con otra imagen o PDF mas claro.`,
-              timestamp: new Date(),
-            },
-          ];
-        });
-      }
-    } catch (error) {
-      console.error('Error analyzing file:', error);
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => !m.content.startsWith('__ANALYZING_ORDER__'));
-        return [
-          ...filtered,
-          {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content:
-              '❌ Hubo un error al analizar el archivo. Por favor, intenta nuevamente.',
-            timestamp: new Date(),
-          },
-        ];
-      });
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
   };
 
   /** Maneja la selección de un archivo adjunto para el chat */
@@ -522,81 +367,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
     }
   };
 
-  const handleOrderSubmit = async (orderData: MedicalOrderData) => {
-    if (!pendingFile) return;
-
-    setIsUploading(true);
-    setShowOrderForm(false);
-
-    if (orderData.patientName) {
-      const fullName = orderData.patientName.trim();
-      setUserName(fullName);
-    }
-
-    try {
-      const result = await backendService.current.uploadMedicalOrder(
-        pendingFile,
-        orderData
-      );
-
-      if (result.success) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `✅ ¡Orden registrada exitosamente!\n\nNumero de orden: #${result.orderId}\nSolicitud para: ${orderData.requestedStudies.join(', ')}\n\nPodes hacer seguimiento desde la plataforma MiMutuaLyF o llamando al 0800 777 4413.\n\n¿Necesitas algo mas?`,
-            timestamp: new Date(),
-          },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `❌ ${result.message || 'Hubo un error al procesar tu orden'}. Por favor, verifica los datos e intenta nuevamente.`,
-            timestamp: new Date(),
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: '❌ No pudimos procesar tu archivo. Por favor, intenta nuevamente.',
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setIsUploading(false);
-      setPendingFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleOrderCancel = () => {
-    setShowOrderForm(false);
-    setPendingFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: 'Carga de orden cancelada. ¿En que mas puedo ayudarte?',
-        timestamp: new Date(),
-      },
-    ]);
-  };
-
   const handleClose = async () => {
     if (isSaving.current) {
       onClose();
@@ -664,13 +434,20 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
           <ChatMessageBubble
             key={message.id}
             message={message}
-            uploadProgress={uploadProgress}
             isLoading={isLoading}
             onOptionClick={handleOptionClick}
             cleanMarkdown={cleanMarkdown}
           />
         ))}
         {isLoading && <TypingIndicator />}
+        {showHumanOffer && !humanHandoffDone && (
+          <HumanHandoffOffer
+            sessionId={backendService.current['sessionId'] as string}
+            userName={userName || 'Anónimo'}
+            onAccepted={() => { setHumanHandoffDone(true); setShowHumanOffer(false); }}
+            onDismissed={() => setShowHumanOffer(false)}
+          />
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -679,8 +456,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         isLoading={isLoading}
         onInputChange={setInputText}
         onSubmit={handleSubmit}
-        onFileUpload={handleFileUpload}
-        fileInputRef={fileInputRef}
         pendingAttachment={pendingChatAttachment}
         onClearAttachment={() => setPendingChatAttachment(null)}
         onAttachClick={() => attachInputRef.current?.click()}
@@ -689,17 +464,6 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
         onConfirmAttachment={handleConfirmAttachment}
         isUploadingAttachment={isUploadingAttachment}
       />
-
-      {showOrderForm && pendingFile && analyzedData && (
-        <MedicalOrderFormOCR
-          file={pendingFile}
-          sessionId={backendService.current['sessionId']}
-          analyzedData={analyzedData}
-          estudio={selectedEstudio}
-          onSubmit={handleOrderSubmit}
-          onCancel={handleOrderCancel}
-        />
-      )}
     </div>
   );
 }

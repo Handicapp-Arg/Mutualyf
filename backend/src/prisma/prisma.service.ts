@@ -14,14 +14,23 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     try {
+      // Conectar primero para poder crear las extensiones antes de db push.
+      // pgvector debe existir antes de que Prisma intente crear la columna vector(768).
+      await this.$connect();
+
+      for (const ext of ['vector', 'unaccent']) {
+        await this.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS ${ext};`).catch((e) => {
+          this.logger.warn(`Extensión ${ext} no disponible: ${(e as Error).message}`);
+        });
+      }
+
       this.logger.log('Sincronizando schema con la base de datos...');
       execSync('npx prisma db push --skip-generate --accept-data-loss', {
         stdio: 'inherit',
         timeout: 30_000,
       });
-      await this.$connect();
     } catch (error) {
-      this.logger.error('Error al conectar con la base de datos:', error);
+      this.logger.error('Error al inicializar la base de datos:', error);
       throw error;
     }
   }

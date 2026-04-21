@@ -18,6 +18,8 @@ export function useConversations() {
   const [adminChatSessionId, setAdminChatSessionId] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState('');
   const [isSendingAdmin, setIsSendingAdmin] = useState(false);
+  const [isSendingAdminFile, setIsSendingAdminFile] = useState(false);
+  const [humanRequests, setHumanRequests] = useState<Array<{ sessionId: string; userName: string | null; timestamp: string }>>([]);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveSessionIds = new Set(liveSessions.map((s) => s.sessionId));
@@ -61,9 +63,21 @@ export function useConversations() {
     setLiveSessions(sessions);
   }, []);
 
+  const handleHumanRequested = useCallback((data: { sessionId: string; userName: string | null; timestamp: string }) => {
+    setHumanRequests((prev) => {
+      if (prev.some((r) => r.sessionId === data.sessionId)) return prev;
+      return [data, ...prev];
+    });
+  }, []);
+
+  const dismissHumanRequest = useCallback((sessionId: string) => {
+    setHumanRequests((prev) => prev.filter((r) => r.sessionId !== sessionId));
+  }, []);
+
   useAdminSocket({
     onConversationUpserted: handleConversationUpserted,
     onLiveSessions: handleLiveSessions,
+    onHumanRequested: handleHumanRequested,
   });
 
   // Auto-scroll mensajes admin
@@ -141,11 +155,30 @@ export function useConversations() {
     }
   };
 
+  const sendAdminAttachment = async (file: File, caption?: string) => {
+    if (!adminChatSessionId || isSendingAdminFile) return;
+    setIsSendingAdminFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sessionId', adminChatSessionId);
+      if (caption?.trim()) formData.append('caption', caption.trim());
+      await apiClient.post('/conversations/admin-attachment', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    } catch (err) {
+      console.error('Error al enviar archivo:', err);
+    } finally {
+      setIsSendingAdminFile(false);
+    }
+  };
+
   return {
     conversations, uploads, stats, isLoading, liveSessions, liveSessionIds,
     selectedConversation, setSelectedConversation,
     adminChatSessionId, adminMessage, setAdminMessage,
-    isSendingAdmin, adminMessagesEndRef,
-    joinChat, leaveChat, sendAdminMessage, loadData,
+    isSendingAdmin, isSendingAdminFile, adminMessagesEndRef,
+    humanRequests, dismissHumanRequest,
+    joinChat, leaveChat, sendAdminMessage, sendAdminAttachment, loadData,
   };
 }

@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateAiConfigDto } from './dto/update-ai-config.dto';
-import { BASE_SYSTEM_PROMPT } from '../ai/ai.constants';
 
 export interface AiConfigData {
   systemPrompt: string;
@@ -20,22 +19,8 @@ export class AiConfigService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    try {
-      await this.loadFromDb();
-      this.logger.log('AI config loaded into memory cache');
-    } catch (error) {
-      this.logger.warn(
-        'Could not load AI config from DB, using defaults. Run prisma migrate deploy to create the table.',
-      );
-      this.cachedConfig = {
-        systemPrompt: BASE_SYSTEM_PROMPT,
-        temperature: 0.7,
-        maxTokens: 800,
-        quickButtons: '[]',
-        updatedAt: new Date(),
-        updatedBy: null,
-      };
-    }
+    await this.loadFromDb();
+    this.logger.log('AI config loaded into memory cache');
   }
 
   getConfig(): AiConfigData {
@@ -71,17 +56,10 @@ export class AiConfigService implements OnModuleInit {
     let row = await this.prisma.aiConfig.findUnique({ where: { key: 'default' } });
 
     if (!row) {
-      // Primera vez: sembrar fila con valores iniciales. El admin los edita después.
-      row = await this.prisma.aiConfig.create({
-        data: {
-          key: 'default',
-          systemPrompt: BASE_SYSTEM_PROMPT,
-          temperature: 0.7,
-          maxTokens: 800,
-          quickButtons: '[]',
-        },
-      });
-      this.logger.log('AiConfig row created with initial values');
+      throw new Error(
+        'No existe configuración del bot en la base de datos. ' +
+        'Creá el prompt desde el portal en /portal/ai-config antes de arrancar el servidor.',
+      );
     }
 
     this.cachedConfig = {

@@ -1,6 +1,6 @@
 import { Module, OnModuleInit, Logger } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
-import { GroqService } from "../ai/groq.service";
+import { GroqModule } from "../ai/groq.module";
 import { ConfigModule } from "@nestjs/config";
 import { VectorStoreService } from "./vector-store.service";
 import { EmbeddingsService } from "./embeddings.service";
@@ -12,28 +12,40 @@ import { RagService } from "./rag.service";
 import { RagMetrics } from "./rag.metrics";
 import { RagConfig } from "./rag.config";
 import { OfftopicDetectorService } from "./offtopic-detector.service";
+import { TopicClassifierService } from "./topic-classifier.service";
+import { OfftopicResponderService } from "./offtopic-responder.service";
+import { SemanticChunkerService } from "./semantic-chunker.service";
 import { RagController } from "./rag.controller";
 import { PrismaService } from "../prisma/prisma.service";
 
 const AUTO_REBUILD_MAX_CHUNKS = 500;
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, GroqModule],
   controllers: [RagController],
   providers: [
     RagConfig,
-    GroqService,
     VectorStoreService,
     EmbeddingsService,
     RouterService,
     QueryRewriterService,
     OfftopicDetectorService,
+    TopicClassifierService,
+    OfftopicResponderService,
+    SemanticChunkerService,
     RetrievalService,
     IngestionService,
     RagService,
     RagMetrics,
   ],
-  exports: [RagService, RetrievalService, IngestionService, RagConfig],
+  exports: [
+    RagService,
+    RetrievalService,
+    IngestionService,
+    RagConfig,
+    TopicClassifierService,
+    OfftopicResponderService,
+  ],
 })
 export class RagModule implements OnModuleInit {
   private readonly logger = new Logger(RagModule.name);
@@ -42,6 +54,7 @@ export class RagModule implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly ingestion: IngestionService,
     private readonly emb: EmbeddingsService,
+    private readonly topic: TopicClassifierService,
   ) {}
 
   async onModuleInit() {
@@ -50,10 +63,9 @@ export class RagModule implements OnModuleInit {
     });
     this.logger.log(`KB has ${count} active docs`);
 
-    // Auto-rebuild si hay chunks indexados con embModel viejo (típico tras bumpear modelVersion).
-    // Fire-and-forget para no bloquear el boot. Skipea si hay demasiados chunks
-    // (rebuild masivo puede saturar Ollama; en ese caso requerir trigger manual).
     void this.runAutoRebuildBackground();
+    void this.topic.rebuildCentroids();
+    void this.topic.rebuildIntentPrototypes();
   }
 
   private async runAutoRebuildBackground(): Promise<void> {
@@ -84,6 +96,7 @@ export class RagModule implements OnModuleInit {
       this.logger.log(
         `Auto-rebuild done: ${rebuilt} chunks in ${Date.now() - t0}ms`,
       );
+      await this.topic.rebuildCentroids().catch(() => {});
     } catch (e) {
       this.logger.warn(`Auto-rebuild failed: ${(e as Error).message}`);
     }

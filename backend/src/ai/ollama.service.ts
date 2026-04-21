@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
-import { buildMedicalOrderPrompt, extractJsonFromResponse, MedicalOrderAnalysis } from './ai.constants';
 
 @Injectable()
 export class OllamaService {
@@ -104,35 +103,6 @@ export class OllamaService {
       } catch {
         // ignorar
       }
-    }
-  }
-
-  async analyzeMedicalOrder(ocrText: string): Promise<MedicalOrderAnalysis> {
-    const prompt = buildMedicalOrderPrompt(ocrText);
-
-    try {
-      const res = await fetch(`${this.ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.ollamaModel,
-          prompt,
-          stream: false,
-          options: { temperature: 0.1, num_predict: 512, num_ctx: this.numCtx },
-        }),
-      });
-
-      if (!res.ok) {
-        throw new InternalServerErrorException(`Ollama API error: ${res.status}`);
-      }
-
-      const data: any = await res.json();
-      return extractJsonFromResponse(data.response || '{}');
-    } catch (e) {
-      if (e instanceof InternalServerErrorException) throw e;
-      throw new InternalServerErrorException(
-        'Error al analizar orden médica con Ollama: ' + (e instanceof Error ? e.message : e),
-      );
     }
   }
 

@@ -103,29 +103,11 @@ export class AppController {
     try {
       this.logger.warn('Iniciando borrado de toda la base de datos...');
 
-      // Borrar en orden correcto para respetar las relaciones
-  const beforeCount = await this.prisma.medicalOrder.count();
-  this.logger.log(`Órdenes médicas antes de borrar: ${beforeCount}`);
-  const deletedMedicalOrders = await this.prisma.medicalOrder.deleteMany();
-  const afterCount = await this.prisma.medicalOrder.count();
-  this.logger.log(`Órdenes médicas después de borrar: ${afterCount}`);
-      const deletedConversations = await this.prisma.conversation.deleteMany();
-      const deletedSessions = await this.prisma.userSession.deleteMany();
-      const deletedUsers = await this.prisma.userIdentity.deleteMany();
-
-      // Eliminar todos los archivos de medical-orders
-      const fs = require('fs');
-      const path = require('path');
-      const medicalOrdersDir = path.join(__dirname, '../../uploads/medical-orders');
-      if (fs.existsSync(medicalOrdersDir)) {
-        fs.readdirSync(medicalOrdersDir).forEach(file => {
-          try {
-            fs.unlinkSync(path.join(medicalOrdersDir, file));
-          } catch (err) {
-            this.logger.warn(`No se pudo eliminar archivo: ${file}`);
-          }
-        });
-      }
+      const [deletedConversations, deletedSessions, deletedUsers] = await Promise.all([
+        this.prisma.conversation.deleteMany(),
+        this.prisma.userSession.deleteMany(),
+        this.prisma.userIdentity.deleteMany(),
+      ]);
 
       this.logger.log('Base de datos limpiada exitosamente');
 
@@ -133,15 +115,10 @@ export class AppController {
         success: true,
         message: 'Base de datos limpiada exitosamente',
         data: {
-          deletedMedicalOrders: deletedMedicalOrders.count,
           deletedConversations: deletedConversations.count,
           deletedSessions: deletedSessions.count,
           deletedUsers: deletedUsers.count,
-          total:
-            deletedMedicalOrders.count +
-            deletedConversations.count +
-            deletedSessions.count +
-            deletedUsers.count,
+          total: deletedConversations.count + deletedSessions.count + deletedUsers.count,
         },
         timestamp: new Date().toISOString(),
       };

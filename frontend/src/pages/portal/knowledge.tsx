@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BookOpen, Upload, RefreshCw, FileText, Loader2,
-  Plus, Pencil, Trash2, X, Save, ToggleLeft, ToggleRight, Zap,
-  ChevronRight, Hash, Tag, Calendar, Layers, Cpu, FolderUp,
+  Plus, Pencil, Trash2, X, Save, ToggleLeft, ToggleRight,
+  ChevronRight, Tag, Calendar, Layers,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
@@ -40,38 +40,35 @@ export function Knowledge() {
 
   return (
     <PortalLayout>
-      <div className="p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-black text-slate-800">Base de Conocimiento</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Todo lo que el asistente sabe para responder consultas
-          </p>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+        <div>
+          <h1 className="text-lg font-bold text-slate-800">Base de Conocimiento</h1>
         </div>
+      </div>
 
+      <div className="p-6">
         {/* Tabs */}
         <div className="mb-6 flex gap-1 rounded-lg bg-slate-100 p-1">
           <button
             onClick={() => setTab('documents')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
+            className={`flex flex-1 items-center justify-center rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
               tab === 'documents'
                 ? 'bg-white text-corporate shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <BookOpen size={16} />
             Documentos
           </button>
           <button
             onClick={() => setTab('quick-replies')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
+            className={`flex flex-1 items-center justify-center rounded-md px-4 py-2.5 text-sm font-bold transition-colors ${
               tab === 'quick-replies'
                 ? 'bg-white text-corporate shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            <Zap size={16} />
-            Respuestas rapidas
+            Respuestas rápidas
           </button>
         </div>
 
@@ -90,7 +87,6 @@ function DocumentsTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
-  const [isIngestingFolder, setIsIngestingFolder] = useState(false);
 
   const [mode, setMode] = useState<'text' | 'file'>('file');
   const [title, setTitle] = useState('');
@@ -162,30 +158,6 @@ function DocumentsTab() {
     }
   };
 
-  const handleIngestFolder = async () => {
-    if (!window.confirm(
-      'Cargar todos los .md/.pdf/.txt de prisma/data/knowledge/<categoria>/ del servidor?\n\n' +
-      'Cada archivo se indexa como un documento. Los duplicados (mismo titulo + categoria) se omiten.'
-    )) return;
-    setIsIngestingFolder(true);
-    try {
-      const res = await apiClient.post('/admin/rag/ingest-folder', {});
-      const { total, ingested, skipped, failed } = res.data ?? {};
-      alert(
-        `Ingesta completada:\n` +
-        `- Total: ${total}\n` +
-        `- Indexados: ${ingested}\n` +
-        `- Omitidos: ${skipped}\n` +
-        `- Fallidos: ${failed}`
-      );
-      await loadDocs();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al cargar carpeta');
-    } finally {
-      setIsIngestingFolder(false);
-    }
-  };
-
   const handleRebuild = async () => {
     if (!window.confirm('¿Reconstruir el indice? Puede tardar unos segundos.')) return;
     setIsRebuilding(true);
@@ -208,175 +180,188 @@ function DocumentsTab() {
 
   return (
     <>
-      {/* Info + acciones */}
-      <div className="mb-4 flex items-start justify-between">
-        <p className="text-xs text-slate-400">
-          Documentos que el bot consulta cuando un usuario hace una pregunta. Podes agregar texto o subir archivos PDF/TXT.
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <button onClick={loadDocs} disabled={isLoading}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            Refrescar
-          </button>
-          <button onClick={handleIngestFolder} disabled={isIngestingFolder}
-            className="flex items-center gap-1.5 rounded-lg border border-corporate/30 bg-corporate/5 px-3 py-2 text-xs font-bold text-corporate hover:bg-corporate/10 disabled:opacity-50"
-            title="Indexar todos los archivos de prisma/data/knowledge/<categoria>/">
-            {isIngestingFolder ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />}
-            Cargar carpeta
-          </button>
-          <button onClick={handleRebuild} disabled={isRebuilding}
-            className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-100 disabled:opacity-50">
-            {isRebuilding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Re-indexar
-          </button>
-        </div>
-      </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Formulario */}
-        <div className="rounded-xl border bg-white p-6">
-          <h2 className="mb-4 text-base font-black text-slate-800">Agregar contenido</h2>
-
-          <div className="mb-4 flex rounded-lg bg-slate-100 p-1">
-            <button onClick={() => setMode('text')}
-              className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'text' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
-              Texto
-            </button>
-            <button onClick={() => setMode('file')}
-              className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'file' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
-              Archivo
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">Titulo</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Horarios de atencion"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
-                disabled={isUploading} />
+        {/* Card: Agregar contenido */}
+        <div className="rounded-xl border bg-white">
+          <div className="flex items-center gap-3 border-b px-5 py-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+              <Plus size={15} className="text-corporate" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-600">Categoria</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate"
-                disabled={isUploading}>
-                {RAG_CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
-                ))}
-              </select>
+              <p className="text-sm font-bold text-slate-800">Agregar contenido</p>
+              <p className="text-xs text-slate-400">PDF, TXT o texto libre</p>
             </div>
-
-            {mode === 'text' ? (
-              <>
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-600">Contenido</label>
-                  <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)}
-                    placeholder="Escribi la informacion que el bot debe saber..."
-                    rows={8} disabled={isUploading}
-                    className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:outline-none focus:ring-1 focus:ring-corporate" />
-                </div>
-                <button onClick={handleCreateText}
-                  disabled={isUploading || !title.trim() || !textContent.trim()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white hover:bg-corporate/90 disabled:opacity-50">
-                  {isUploading ? <><Loader2 size={16} className="animate-spin" /> Procesando...</>
-                    : <><BookOpen size={16} /> Agregar documento</>}
-                </button>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-600">Archivo (PDF, TXT, MD)</label>
-                  <input type="file" ref={fileInputRef}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }}
-                    accept=".pdf,.txt,.md,.markdown" className="hidden" />
-                  <div onClick={() => fileInputRef.current?.click()}
-                    className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-6 text-center hover:border-corporate hover:bg-slate-50">
-                    {file ? (
-                      <div className="flex items-center gap-2">
-                        <FileText size={18} className="text-corporate" />
-                        <span className="text-sm font-medium text-slate-700">{file.name}</span>
-                        <span className="text-xs text-slate-400">({(file.size / 1024).toFixed(0)} KB)</span>
-                      </div>
-                    ) : (
-                      <><Upload size={24} className="text-slate-400" /><p className="text-xs text-slate-500">Click para seleccionar</p></>
-                    )}
-                  </div>
-                </div>
-                <button onClick={handleUploadFile} disabled={isUploading || !file}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white hover:bg-corporate/90 disabled:opacity-50">
-                  {isUploading ? <><Loader2 size={16} className="animate-spin" /> Subiendo...</>
-                    : <><Upload size={16} /> Subir archivo</>}
-                </button>
-              </>
-            )}
           </div>
-        </div>
 
-        {/* Lista de documentos */}
-        <div className="rounded-xl border bg-white p-6 xl:col-span-2">
-          <h2 className="mb-4 text-base font-black text-slate-800">
-            Documentos indexados
-            {!isLoading && (
-              <span className="ml-2 text-sm font-medium text-slate-400">
-                ({docs.filter((d) => d.status === 'active').length} activos)
-              </span>
-            )}
-          </h2>
+          <div className="p-5">
+            <div className="mb-4 flex rounded-lg bg-slate-100 p-1">
+              <button onClick={() => setMode('text')}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'text' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
+                Texto libre
+              </button>
+              <button onClick={() => setMode('file')}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-bold transition-colors ${mode === 'file' ? 'bg-white text-corporate shadow-sm' : 'text-slate-500'}`}>
+                Archivo
+              </button>
+            </div>
 
-          {isLoading ? (
-            <div className="flex h-40 items-center justify-center">
-              <Loader2 size={24} className="animate-spin text-corporate" />
-            </div>
-          ) : docs.length === 0 ? (
-            <div className="flex h-40 flex-col items-center justify-center gap-2 text-slate-400">
-              <BookOpen size={32} />
-              <p className="text-sm">No hay documentos cargados</p>
-              <p className="text-xs">Agrega contenido para que el bot responda mejor</p>
-            </div>
-          ) : (
             <div className="space-y-3">
-              {docs.map((doc) => (
-                <button
-                  key={doc.id}
-                  onClick={() => setDetailDocId(doc.id)}
-                  className={`group flex w-full items-start justify-between rounded-lg border p-4 text-left transition-colors hover:border-corporate hover:bg-slate-50 ${
-                    doc.status === 'active' ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-sm font-bold text-slate-700">{doc.title}</h3>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        doc.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'
-                      }`}>
-                        {doc.status === 'active' ? 'Activo' : 'Archivado'}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                      <span className="rounded bg-corporate/10 px-1.5 py-0.5 font-medium text-corporate">
-                        {getCategoryLabel(doc.category)}
-                      </span>
-                      <span>{doc._count.chunks} fragmentos</span>
-                      <span>{formatTokens(doc.tokensTotal)} tokens</span>
-                      <span>{formatDate(doc.createdAt)}</span>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Título</label>
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ej: Horarios de atención"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20"
+                  disabled={isUploading} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Categoría</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20"
+                  disabled={isUploading}>
+                  {RAG_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {mode === 'text' ? (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Contenido</label>
+                    <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)}
+                      placeholder="Escribí la información que el bot debe conocer..."
+                      rows={7} disabled={isUploading}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-corporate focus:bg-white focus:outline-none focus:ring-1 focus:ring-corporate/20" />
+                  </div>
+                  <button onClick={handleCreateText}
+                    disabled={isUploading || !title.trim() || !textContent.trim()}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-40">
+                    {isUploading ? <><Loader2 size={15} className="animate-spin" />Procesando...</>
+                      : <><BookOpen size={15} />Agregar documento</>}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Archivo (PDF, TXT, MD)</label>
+                    <input type="file" ref={fileInputRef}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }}
+                      accept=".pdf,.txt,.md,.markdown" className="hidden" />
+                    <div onClick={() => fileInputRef.current?.click()}
+                      className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-4 py-8 text-center transition-colors hover:border-corporate hover:bg-slate-50">
+                      {file ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <FileText size={22} className="text-corporate" />
+                          <span className="text-sm font-semibold text-slate-700">{file.name}</span>
+                          <span className="text-xs text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload size={22} className="text-slate-300" />
+                          <p className="text-xs font-medium text-slate-500">Hacé click para seleccionar</p>
+                          <p className="text-[10px] text-slate-400">PDF · TXT · MD</p>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="ml-3 flex shrink-0 items-center gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }}
-                      className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100"
-                      title="Eliminar documento"
-                    >
-                      <Trash2 size={12} /> Eliminar
-                    </button>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-corporate" />
-                  </div>
-                </button>
-              ))}
+                  <button onClick={handleUploadFile} disabled={isUploading || !file}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-corporate px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-corporate/90 disabled:opacity-40">
+                    {isUploading ? <><Loader2 size={15} className="animate-spin" />Subiendo...</>
+                      : <><Upload size={15} />Subir archivo</>}
+                  </button>
+                </>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Card: Documentos indexados */}
+        <div className="rounded-xl border bg-white xl:col-span-2">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-corporate/10">
+                <FileText size={15} className="text-corporate" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  Documentos indexados
+                  {!isLoading && (
+                    <span className="ml-2 font-normal text-slate-400">
+                      ({docs.filter((d) => d.status === 'active').length} activos)
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400">El bot consulta estos archivos para responder</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={loadDocs} disabled={isLoading}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 disabled:opacity-50">
+                <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+                Refrescar
+              </button>
+              <button onClick={handleRebuild} disabled={isRebuilding}
+                className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-100 disabled:opacity-50">
+                {isRebuilding ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Re-indexar
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5">
+            {isLoading ? (
+              <div className="flex h-48 items-center justify-center">
+                <Loader2 size={24} className="animate-spin text-corporate" />
+              </div>
+            ) : docs.length === 0 ? (
+              <div className="flex h-48 flex-col items-center justify-center gap-3 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                  <BookOpen size={22} className="text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-600">Sin documentos aún</p>
+                  <p className="mt-0.5 text-xs text-slate-400">Agregá contenido para que el bot pueda responder consultas</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {docs.map((doc) => (
+                  <button key={doc.id} onClick={() => setDetailDocId(doc.id)}
+                    className={`group flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors hover:border-corporate/40 hover:bg-slate-50 ${
+                      doc.status === 'active' ? 'border-slate-200' : 'border-slate-100 opacity-50'
+                    }`}>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        doc.status === 'active' ? 'bg-green-50' : 'bg-slate-100'
+                      }`}>
+                        <FileText size={14} className={doc.status === 'active' ? 'text-green-600' : 'text-slate-400'} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-700">{doc.title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                          <span className="rounded bg-corporate/10 px-1.5 py-0.5 font-medium text-corporate">
+                            {getCategoryLabel(doc.category)}
+                          </span>
+                          <span>{doc._count.chunks} fragmentos</span>
+                          <span>{formatTokens(doc.tokensTotal)} tokens</span>
+                          <span>{formatDate(doc.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-3 flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(doc.id, doc.title); }}
+                        className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-100">
+                        <Trash2 size={12} />
+                      </button>
+                      <ChevronRight size={15} className="text-slate-300 transition-colors group-hover:text-corporate" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -417,13 +402,17 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
-          <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 p-5">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <h2 className="truncate text-lg font-black text-slate-800">
               {doc?.title || 'Cargando...'}
             </h2>
             {doc && (
-              <p className="mt-0.5 truncate text-xs text-slate-500">{doc.source}</p>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                doc.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {doc.status === 'active' ? 'Activo' : 'Archivado'}
+              </span>
             )}
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -442,22 +431,14 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
           ) : doc ? (
             <>
               {/* Metadata */}
-              <div className="grid grid-cols-2 gap-4 border-b border-slate-100 bg-slate-50 p-5 sm:grid-cols-4">
-                <Meta icon={Tag} label="Categoria" value={getCategoryLabel(doc.category)} />
+              <div className="grid grid-cols-3 gap-4 border-b border-slate-100 bg-slate-50 p-5">
+                <Meta icon={Tag} label="Categoría" value={getCategoryLabel(doc.category)} />
                 <Meta icon={Layers} label="Fragmentos" value={String(doc.chunks.length)} />
-                <Meta icon={Hash} label="Tokens totales" value={String(doc.tokensTotal)} />
                 <Meta icon={Calendar} label="Creado" value={formatDate(doc.createdAt)} />
-                <Meta icon={Tag} label="Estado" value={doc.status === 'active' ? 'Activo' : 'Archivado'} />
-                <Meta icon={Hash} label="Version" value={`v${doc.version}`} />
-                <Meta icon={Cpu} label="Modelo embed" value={doc.chunks[0]?.embModel ?? '-'} />
-                <Meta icon={Hash} label="Hash" value={doc.hash.slice(0, 12) + '...'} mono />
               </div>
 
               {/* Chunks */}
               <div className="p-5">
-                <h3 className="mb-3 text-sm font-bold text-slate-700">
-                  Fragmentos ({doc.chunks.length})
-                </h3>
                 {doc.chunks.length === 0 ? (
                   <p className="text-center text-xs text-slate-400">Este documento no tiene fragmentos indexados.</p>
                 ) : (
@@ -468,10 +449,7 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
                           <span className="text-xs font-bold text-slate-600">
                             Fragmento #{chunk.ord + 1}
                           </span>
-                          <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                            <span>id: {chunk.id}</span>
-                            <span>{chunk.tokens} tokens</span>
-                          </div>
+                          <span className="text-[10px] text-slate-400">{chunk.tokens} tokens</span>
                         </div>
                         <pre className="whitespace-pre-wrap break-words px-3 py-3 text-xs leading-relaxed text-slate-700">
                           {chunk.content}
@@ -489,18 +467,14 @@ function DocDetailModal({ docId, onClose }: { docId: number; onClose: () => void
   );
 }
 
-function Meta({
-  icon: Icon, label, value, mono = false,
-}: { icon: React.ElementType; label: string; value: string; mono?: boolean }) {
+function Meta({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
     <div>
       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-400">
         <Icon size={10} />
         {label}
       </div>
-      <div className={`mt-0.5 truncate text-xs font-semibold text-slate-700 ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </div>
+      <div className="mt-0.5 truncate text-xs font-semibold text-slate-700">{value}</div>
     </div>
   );
 }

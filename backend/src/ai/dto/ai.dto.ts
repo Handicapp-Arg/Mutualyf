@@ -26,4 +26,8 @@ export class ChatRequestDto {
   @IsString()
   @IsOptional()
   systemPrompt?: string;
+
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
 }

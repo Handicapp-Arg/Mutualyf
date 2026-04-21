@@ -1,6 +1,7 @@
+import { useRef } from 'react';
 import {
   MessageSquare, FileText, TrendingUp, Download, Trash2, Radio,
-  LogIn, LogOut, SendHorizontal,
+  LogIn, LogOut, SendHorizontal, Paperclip, Loader2, UserRound, X,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
@@ -15,13 +16,23 @@ export function Conversations() {
   const canDelete = hasPermission('conversations:delete');
   const canTakeover = hasPermission('conversations:takeover');
 
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
+
   const {
     conversations, stats, isLoading, liveSessions, liveSessionIds,
     selectedConversation, setSelectedConversation,
     adminChatSessionId, adminMessage, setAdminMessage,
-    isSendingAdmin, adminMessagesEndRef,
-    joinChat, leaveChat, sendAdminMessage, loadData,
+    isSendingAdmin, isSendingAdminFile, adminMessagesEndRef,
+    humanRequests, dismissHumanRequest,
+    joinChat, leaveChat, sendAdminMessage, sendAdminAttachment, loadData,
   } = useConversations();
+
+  const handleAdminFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    sendAdminAttachment(file);
+    e.target.value = '';
+  };
 
   const downloadCSV = () => {
     const csv = [
@@ -73,6 +84,46 @@ export function Conversations() {
               )}
             </div>
           </div>
+
+          {/* Solicitudes de asesor humano */}
+          {humanRequests.length > 0 && (
+            <div className="mx-6 mt-4 space-y-2">
+              {humanRequests.map((req) => {
+                const conv = conversations.find((c) => c.sessionId === req.sessionId);
+                return (
+                  <div key={req.sessionId}
+                    className="flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-amber-100 p-2">
+                        <UserRound size={16} className="text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-amber-800">
+                          {req.userName || 'Anónimo'} solicita un asesor
+                        </p>
+                        <p className="text-xs text-amber-600">
+                          {new Date(req.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {conv && canTakeover && (
+                        <button
+                          onClick={() => { joinChat(req.sessionId); dismissHumanRequest(req.sessionId); }}
+                          className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600">
+                          <LogIn size={12} />Atender
+                        </button>
+                      )}
+                      <button onClick={() => dismissHumanRequest(req.sessionId)}
+                        className="rounded-lg p-1.5 text-amber-400 hover:bg-amber-100 hover:text-amber-600">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Stats cards */}
           <div className="px-6 pt-6">
@@ -220,6 +271,25 @@ export function Conversations() {
                   </div>
                   {adminChatSessionId === selectedConversation.sessionId && canTakeover && (
                     <div className="mt-4 flex items-center gap-2 border-t pt-4">
+                      <input
+                        type="file"
+                        ref={adminFileInputRef}
+                        onChange={handleAdminFileChange}
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => adminFileInputRef.current?.click()}
+                        disabled={isSendingAdminFile}
+                        title="Adjuntar archivo"
+                        className="rounded-lg border border-slate-200 p-2 text-slate-400 hover:border-corporate/30 hover:text-corporate disabled:opacity-40"
+                      >
+                        {isSendingAdminFile
+                          ? <Loader2 size={18} className="animate-spin" />
+                          : <Paperclip size={18} />
+                        }
+                      </button>
                       <input type="text" value={adminMessage}
                         onChange={(e) => setAdminMessage(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && sendAdminMessage()}

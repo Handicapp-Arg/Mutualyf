@@ -252,6 +252,12 @@ export class SessionsService implements OnModuleInit, OnModuleDestroy {
     return { message: 'ok', data: { sessionId, lastSeen: new Date() } };
   }
 
+  async requestHuman(sessionId: string, userName: string | null) {
+    this.events.emitHumanRequested(sessionId, userName);
+    this.logger.log(`Usuario solicitó asesor humano: ${sessionId} (${userName ?? 'Anónimo'})`);
+    return { message: 'ok' };
+  }
+
   async endSession(sessionId: string) {
     try {
       this.presence.delete(sessionId);

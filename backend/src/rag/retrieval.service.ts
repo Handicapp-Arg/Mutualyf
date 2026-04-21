@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { LRUCache } from "lru-cache";
 import { createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
+import { normalizeText } from "./text-utils";
 import { EmbeddingsService } from "./embeddings.service";
 import { VectorStoreService } from "./vector-store.service";
 import { RouterService } from "./router.service";
@@ -50,6 +51,10 @@ export class RetrievalService {
     query: string;
     history: ChatMsg[];
     sessionId?: string;
+    /** Embedding de la query ya computado aguas arriba (clasificador). Evita doble llamada. */
+    precomputedQueryEmbedding?: Float32Array;
+    /** Metadata del clasificador — sólo para logs estructurados. */
+    topicDebug?: import("./rag.metrics").TopicClassifierDebug;
   }): Promise<RetrievalResult> {
     const t0 = Date.now();
 
@@ -98,20 +103,26 @@ export class RetrievalService {
         chunkIds: [],
         latencyMs: res.latencyMs,
         intent: "chitchat",
+        topic: opts.topicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
     }
 
-    const k = this.router.dynamicK(rewritten);
+    const k = this.router.dynamicK(rewritten, intent);
     const category = intent.categoryConfident ? intent.category : undefined;
 
     // Vector path es best-effort: si embeddings fallan, seguimos con FTS puro.
-    const ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3, category });
+    let ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3, category });
     let vecHits: Hit[] = [];
     let embeddingsAvailable = true;
     try {
-      const [qEmb] = await this.emb.embed([rewritten], "query");
+      // Reusamos el embedding computado por el clasificador si la query no fue
+      // reescrita. Si sí fue reescrita, debemos re-embed sobre el texto nuevo.
+      const sameText = opts.precomputedQueryEmbedding && rewritten === opts.query;
+      const qEmb = sameText
+        ? opts.precomputedQueryEmbedding!
+        : (await this.emb.embed([rewritten], "query"))[0];
       vecHits = await this.vec.knnAsync({ embedding: qEmb, k: k * 3, category });
     } catch (e) {
       embeddingsAvailable = false;
@@ -120,8 +131,23 @@ export class RetrievalService {
       );
     }
 
+    // Fallback sin categoría: si el filtro por categoría no devuelve nada,
+    // reintentamos sin filtro para no perder docs ingresados con otra categoría.
+    if (!ftsHits.length && !vecHits.length && category) {
+      this.logger.debug(`category="${category}" sin hits — reintentando sin filtro`);
+      ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3 });
+      try {
+        const [qEmb] = await this.emb.embed([rewritten], "query");
+        vecHits = await this.vec.knnAsync({ embedding: qEmb, k: k * 3 });
+      } catch { /* ya logueado arriba */ }
+    }
+
     const fused = rrfFuse(vecHits, ftsHits, this.cfg.rrfK).slice(0, k);
     const topScore = fused[0]?.score ?? 0;
+
+    this.logger.debug(
+      `retrieval hits — vec=${vecHits.length} fts=${ftsHits.length} fused=${fused.length} topScore=${topScore.toFixed(4)} query="${rewritten.slice(0, 80)}"`,
+    );
 
     const signals: OfftopicSignals = {
       topVecScore: vecHits[0]?.score ?? 0,
@@ -173,6 +199,7 @@ export class RetrievalService {
         latencyMs: res.latencyMs,
         intent: "offtopic",
         offtopic: offtopicDebug,
+        topic: opts.topicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -204,6 +231,7 @@ export class RetrievalService {
         latencyMs: res.latencyMs,
         intent: "no-context",
         offtopic: offtopicDebug,
+        topic: opts.topicDebug,
       });
       this.resultCache.set(cacheKey, res);
       return res;
@@ -229,6 +257,7 @@ export class RetrievalService {
       latencyMs: res.latencyMs,
       intent: "rag",
       offtopic: offtopicDebug,
+      topic: opts.topicDebug,
     });
     this.resultCache.set(cacheKey, res);
     return res;
@@ -248,7 +277,7 @@ export class RetrievalService {
       .map((m) => `${m.role}:${m.content.slice(0, 200)}`)
       .join("|");
     return createHash("sha1")
-      .update(`${query.trim().toLowerCase()}::${tail}`)
+      .update(`${normalizeText(query)}::${tail}`)
       .digest("hex");
   }
 

@@ -1,16 +1,17 @@
 import { Module } from '@nestjs/common';
 import { AiController } from './ai.controller';
 import { GeminiService } from './gemini.service';
+import { XAIService } from './xai.service';
 import { OllamaService } from './ollama.service';
-import { GroqService } from './groq.service';
+import { GroqModule } from './groq.module';
 import { AiConfigModule } from '../ai-config/ai-config.module';
 import { QuickReplyModule } from '../quick-reply/quick-reply.module';
 import { RagModule } from '../rag/rag.module';
 
 @Module({
-  imports: [AiConfigModule, QuickReplyModule, RagModule],
+  imports: [AiConfigModule, QuickReplyModule, RagModule, GroqModule],
   controllers: [AiController],
-  providers: [GeminiService, OllamaService, GroqService],
-  exports: [OllamaService, GeminiService],
+  providers: [GeminiService, XAIService, OllamaService],
+  exports: [OllamaService, GeminiService, XAIService],
 })
 export class AiModule {}

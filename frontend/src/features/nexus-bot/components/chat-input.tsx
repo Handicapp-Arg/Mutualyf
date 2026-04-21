@@ -6,8 +6,6 @@ interface ChatInputProps {
   isLoading: boolean;
   onInputChange: (text: string) => void;
   onSubmit: (e: FormEvent) => void;
-  onFileUpload: (e: ChangeEvent<HTMLInputElement>) => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
   pendingAttachment?: File | null;
   onClearAttachment?: () => void;
   onAttachClick?: () => void;
@@ -22,8 +20,6 @@ export function ChatInput({
   isLoading,
   onInputChange,
   onSubmit,
-  onFileUpload,
-  fileInputRef,
   pendingAttachment,
   onClearAttachment,
   onAttachClick,
@@ -121,15 +117,6 @@ export function ChatInput({
         )}
 
         <div className="flex items-end gap-2">
-          {/* Input oculto para órdenes médicas (flujo existente) */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={onFileUpload}
-            accept="image/*,.pdf"
-            className="hidden"
-          />
-
           {/* Input oculto para attachments del chat */}
           {attachInputRef && (
             <input

@@ -3,12 +3,13 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { GeminiService } from './gemini.service';
 import { GroqService } from './groq.service';
+import { XAIService } from './xai.service';
 import { OllamaService } from './ollama.service';
 import { ChatRequestDto } from './dto/ai.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { AiConfigService } from '../ai-config/ai-config.service';
 import { QuickReplyService } from '../quick-reply/quick-reply.service';
-import { MAX_HISTORY_MESSAGES, MUTUALYF_KEYWORDS, OFF_TOPIC_RESPONSE } from './ai.constants';
+import { MAX_HISTORY_MESSAGES } from './ai.constants';
 import { setupSSE, writeSSEChunked } from './utils/sse.util';
 import { RagService } from '../rag/rag.service';
 
@@ -16,15 +17,23 @@ import { RagService } from '../rag/rag.service';
 const FALLBACK_RESPONSE =
   'Estamos teniendo dificultades técnicas en este momento. Para asistencia inmediata podés contactarnos:\n\n📞 0800 777 4413 (Lunes a viernes de 07:30 a 19:30 hs)\n💻 Plataforma MiMutuaLyF (disponible 24hs)\n\nDisculpá las molestias, intentá de nuevo en unos segundos.';
 
+/** Turnos consecutivos sin contexto antes de ofrecer asesor humano */
+const UNRESOLVED_THRESHOLD = 2;
+
 @Public()
 @Throttle({ default: { ttl: 60000, limit: 20 } })
 @Controller('ai')
 export class AiController implements OnModuleInit {
   private readonly logger = new Logger(AiController.name);
+  /** Turnos consecutivos sin chunks por sessionId */
+  private readonly unresolvedCounts = new Map<string, number>();
+  /** Sesiones a las que ya se les ofreció asesor (no repetir) */
+  private readonly offeredSessions = new Set<string>();
 
   constructor(
-    private readonly geminiService: GeminiService,
     private readonly groqService: GroqService,
+    private readonly xaiService: XAIService,
+    private readonly geminiService: GeminiService,
     private readonly ollamaService: OllamaService,
     private readonly aiConfigService: AiConfigService,
     private readonly quickReplyService: QuickReplyService,
@@ -41,6 +50,12 @@ export class AiController implements OnModuleInit {
    * El maxTokens configurado se traduce a una guía para la IA,
    * y el límite real de la API se aumenta para dar margen a terminar oraciones.
    */
+  private endSSE(res: Response, suggestHuman = false) {
+    if (suggestHuman) res.write(`data: ${JSON.stringify({ suggestHuman: true })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+  }
+
   private buildPromptWithLength(basePrompt: string, maxTokens: number): {
     prompt: string;
     apiMaxTokens: number;
@@ -53,25 +68,8 @@ export class AiController implements OnModuleInit {
   }
 
   /**
-   * Detecta si un mensaje es claramente off-topic (no relacionado con MutuaLyF).
-   * Mensajes cortos (<=3 palabras) se dejan pasar a Ollama por ambigüedad.
-   * Mensajes largos sin ninguna keyword se rechazan inmediatamente.
-   */
-  private isOffTopic(message: string): boolean {
-    const normalized = message
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-    const words = normalized.split(/\s+/).filter(Boolean);
-    if (words.length <= 3) return false;
-
-    return !MUTUALYF_KEYWORDS.some((kw) => normalized.includes(kw));
-  }
-
-  /**
-   * Endpoint unificado — cascada:
-   * QuickReply → OffTopic (keywords) → RAG (retrieval+offtopic semántico) → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
+   * Cascada de providers: QuickReply → RAG → Groq (key1+key2) → xAI → Gemini → Ollama → Fallback
+   * Cada provider lanza RateLimitError en 429/timeout para pasar al siguiente.
    */
   @Post('chat')
   async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
@@ -82,7 +80,7 @@ export class AiController implements OnModuleInit {
     const failures: Array<{ stage: string; message: string }> = [];
 
     try {
-      // 1. Quick reply — instantáneo, 0ms, sin IA
+      // 1. Quick reply — sin IA, instantáneo
       const quickReply = this.quickReplyService.match(body.newMessage);
       if (quickReply) {
         writeSSEChunked(res, quickReply);
@@ -91,20 +89,12 @@ export class AiController implements OnModuleInit {
         return;
       }
 
-      // 2. Off-topic guard rápido por keywords — rechaza obvio sin IO
-      if (this.isOffTopic(body.newMessage)) {
-        writeSSEChunked(res, OFF_TOPIC_RESPONSE);
-        res.write('data: [DONE]\n\n');
-        res.end();
-        return;
-      }
-
-      // 3. RAG — retrieval híbrido + off-topic semántico + prompt enriquecido con contexto
+      // 2. RAG — clasificador semántico + retrieval + off-topic contextual
       const rag = await this.ragService.prepare({
         query: body.newMessage,
         history,
         basePrompt: config.systemPrompt,
-        sessionId: (body as any).sessionId,
+        sessionId: body.sessionId,
       });
 
       if (rag.shortCircuit) {
@@ -114,107 +104,93 @@ export class AiController implements OnModuleInit {
         return;
       }
 
+      // Rastrear turnos sin contexto para ofrecer asesor humano
+      const sessionId = body.sessionId;
+      const topScore = rag.retrieval?.topScore ?? 0;
+      const chunksFound = (rag.retrieval?.chunks?.length ?? 0) > 0 && topScore >= 0.30;
+      let suggestHuman = false;
+      if (sessionId) {
+        if (chunksFound) {
+          this.unresolvedCounts.delete(sessionId);
+        } else {
+          const prev = this.unresolvedCounts.get(sessionId) ?? 0;
+          const next = prev + 1;
+          this.unresolvedCounts.set(sessionId, next);
+          if (next >= UNRESOLVED_THRESHOLD && !this.offeredSessions.has(sessionId)) {
+            suggestHuman = true;
+            this.offeredSessions.add(sessionId);
+          }
+        }
+      }
+
       const { prompt, apiMaxTokens } = this.buildPromptWithLength(rag.systemPrompt, config.maxTokens);
+      const args = [history, body.newMessage, prompt, config.temperature, apiMaxTokens] as const;
 
-      // 4. Groq (primario) — API externa, rápida
+      // 3. Groq — primario, pool de 2 keys (failover interno entre key1/key2)
       try {
-        const response = await this.groqService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
-        if (response) {
-          writeSSEChunked(res, response);
-          res.write('data: [DONE]\n\n');
-          res.end();
-          return;
-        }
+        writeSSEChunked(res, await this.groqService.generateResponse(...args));
+        this.endSSE(res, suggestHuman);
+        return;
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Groq failed: ${message}`);
-        failures.push({ stage: 'groq', message });
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Groq agotado: ${msg}`);
+        failures.push({ stage: 'groq', message: msg });
       }
 
-      // 5. Gemini — API externa, segundo intento
-      try {
-        this.logger.log('Falling back to Gemini...');
-        const response = await this.geminiService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
-        if (response) {
-          writeSSEChunked(res, response);
-          res.write('data: [DONE]\n\n');
-          res.end();
+      // 4. Gemini — segundo provider, cuota muy generosa (1M tokens/min free)
+      if (this.geminiService.available) {
+        try {
+          writeSSEChunked(res, await this.geminiService.generateResponse(...args));
+          this.endSSE(res, suggestHuman);
           return;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`Gemini agotado: ${msg}`);
+          failures.push({ stage: 'gemini', message: msg });
         }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Gemini failed: ${message}`);
-        failures.push({ stage: 'gemini', message });
       }
 
-      // 6. Ollama fallback (self-hosted) — streaming con early-stop
+      // 5. xAI (Grok) — tercer provider, cuota independiente
+      if (this.xaiService.available) {
+        try {
+          writeSSEChunked(res, await this.xaiService.generateResponse(...args));
+          this.endSSE(res, suggestHuman);
+          return;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`xAI agotado: ${msg}`);
+          failures.push({ stage: 'xai', message: msg });
+        }
+      }
+
+      // 6. Ollama — local, sin límite de tokens
       try {
-        this.logger.log('Falling back to Ollama streaming...');
+        this.logger.log('Fallback a Ollama...');
         let hasContent = false;
         let accumulated = '';
-        for await (const chunk of this.ollamaService.generateResponseStream(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        )) {
+        for await (const chunk of this.ollamaService.generateResponseStream(...args)) {
           hasContent = true;
           accumulated += chunk;
           res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-
-          // Early stop: detección de basura de phi3
-          if (accumulated.includes('\n---') || accumulated.includes('\n\n\n')) {
-            break;
-          }
+          if (accumulated.includes('\n---') || accumulated.includes('\n\n\n')) break;
         }
-
         if (hasContent) {
-          res.write('data: [DONE]\n\n');
-          res.end();
+          this.endSSE(res, suggestHuman);
           return;
         }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Ollama streaming failed: ${message}`);
-        failures.push({ stage: 'ollama-stream', message });
-      }
-
-      // 7. Ollama retry sin streaming
-      try {
-        this.logger.log('Retrying Ollama without streaming...');
-        const response = await this.ollamaService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
+        const response = await this.ollamaService.generateResponse(...args);
         if (response && response !== 'Sin respuesta de Ollama.') {
           writeSSEChunked(res, response);
-          res.write('data: [DONE]\n\n');
-          res.end();
+          this.endSSE(res, suggestHuman);
           return;
         }
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Ollama retry failed: ${message}`);
-        failures.push({ stage: 'ollama-retry', message });
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Ollama falló: ${msg}`);
+        failures.push({ stage: 'ollama', message: msg });
       }
 
-      // 8. Fallback final con info de contacto + diagnóstico para la consola del front
+      // 7. Fallback final
       if (failures.length > 0) {
         res.write(`data: ${JSON.stringify({ warning: 'ai-cascade-failed', failures })}\n\n`);
       }

@@ -11,8 +11,8 @@ export function ProtectedRoute({ requiredPermissions, requireAny = false }: Prot
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-corporate" />
       </div>
     );
   }
@@ -28,10 +28,10 @@ export function ProtectedRoute({ requiredPermissions, requireAny = false }: Prot
 
     if (!hasAccess) {
       return (
-        <div className="flex h-screen flex-col items-center justify-center bg-gray-950 text-white">
-          <h1 className="text-4xl font-bold">403</h1>
-          <p className="mt-2 text-gray-400">No tiene permisos para acceder a esta sección</p>
-          <a href="/portal" className="mt-4 text-cyan-400 hover:underline">
+        <div className="flex h-screen flex-col items-center justify-center bg-slate-50 text-slate-700">
+          <h1 className="text-4xl font-bold text-slate-800">403</h1>
+          <p className="mt-2 text-slate-500">No tenés permisos para acceder a esta sección</p>
+          <a href="/portal" className="mt-4 text-corporate hover:underline">
             Volver al portal
           </a>
         </div>

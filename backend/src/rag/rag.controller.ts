@@ -16,7 +16,10 @@ import { Throttle } from "@nestjs/throttler";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { IngestionService } from "./ingestion.service";
 import { EmbeddingsService } from "./embeddings.service";
-import { EMBEDDING_DIM } from "./vector-store.service";
+import { VectorStoreService, EMBEDDING_DIM } from "./vector-store.service";
+import { RetrievalService } from "./retrieval.service";
+import { QueryRewriterService } from "./query-rewriter.service";
+import { RouterService } from "./router.service";
 import { CATEGORIES } from "./rag.types";
 import { RagConfig } from "./rag.config";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
@@ -43,12 +46,66 @@ export class RagController {
   constructor(
     private readonly ingestion: IngestionService,
     private readonly emb: EmbeddingsService,
+    private readonly vec: VectorStoreService,
+    private readonly retrieval: RetrievalService,
+    private readonly rewriter: QueryRewriterService,
+    private readonly router: RouterService,
     private readonly cfg: RagConfig,
   ) {}
 
   @Get("config")
   config() {
     return this.cfg.snapshot();
+  }
+
+  /**
+   * Diagnóstico completo del pipeline RAG para una query.
+   * POST /admin/rag/diagnose  { "query": "horarios de Francia Federico" }
+   * Muestra: rewrite, intent, FTS hits, KNN hits, chunks encontrados.
+   */
+  @Post("diagnose")
+  async diagnose(@Body() body: { query: string }) {
+    if (!body?.query) throw new BadRequestException("query requerida");
+
+    const t0 = Date.now();
+
+    // 1. Rewrite
+    const rewritten = await this.rewriter.rewrite([], body.query);
+
+    // 2. Intent
+    const intent = this.router.classify(rewritten);
+    const k = this.router.dynamicK(rewritten, intent);
+    const category = intent.categoryConfident ? intent.category : undefined;
+
+    // 3. FTS
+    const ftsHits = await this.vec.ftsAsync({ query: rewritten, k: k * 3, category });
+
+    // 4. KNN
+    let vecHits: any[] = [];
+    let embError: string | null = null;
+    let embDim = 0;
+    try {
+      const [qEmb] = await this.emb.embed([rewritten], "query");
+      embDim = qEmb.length;
+      vecHits = await this.vec.knnAsync({ embedding: qEmb, k: k * 3, category });
+    } catch (e) {
+      embError = (e as Error).message;
+    }
+
+    // 5. Conteo en kb_vectors vía FTS con query vacía (match-all)
+    const totalVectors = await this.vec.countVectors();
+
+    return {
+      query: body.query,
+      rewritten,
+      intent,
+      k,
+      category,
+      totalVectorsInDB: totalVectors,
+      fts: { hits: ftsHits.length, topScore: ftsHits[0]?.score ?? 0, results: ftsHits.slice(0, 3) },
+      knn: { hits: vecHits.length, topScore: vecHits[0]?.score ?? 0, embDim, embError, results: vecHits.slice(0, 3) },
+      latencyMs: Date.now() - t0,
+    };
   }
 
   @Get("health")

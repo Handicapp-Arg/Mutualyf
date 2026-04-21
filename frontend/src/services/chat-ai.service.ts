@@ -13,7 +13,10 @@ import { BACKEND_URL } from '@/lib/constants';
 export class ChatAIService {
   private history: AIChatMessage[] = [];
 
-  async *sendMessage(userMessage: string): AsyncGenerator<string, void, unknown> {
+  async *sendMessage(
+    userMessage: string,
+    opts?: { sessionId?: string; onSuggestHuman?: () => void },
+  ): AsyncGenerator<string, void, unknown> {
     this.history.push({ role: 'user', content: userMessage });
 
     const response = await fetch(`${BACKEND_URL}/ai/chat`, {
@@ -22,6 +25,7 @@ export class ChatAIService {
       body: JSON.stringify({
         history: this.history.slice(0, -1),
         newMessage: userMessage,
+        ...(opts?.sessionId ? { sessionId: opts.sessionId } : {}),
       }),
     });
 
@@ -60,6 +64,10 @@ export class ChatAIService {
             for (const f of parsed.failures || []) {
               console.warn(`  · ${f.stage}: ${f.message}`);
             }
+            continue;
+          }
+          if (parsed.suggestHuman) {
+            opts?.onSuggestHuman?.();
             continue;
           }
           if (parsed.content) {

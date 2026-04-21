@@ -9,11 +9,14 @@ import { createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmbeddingsService } from "./embeddings.service";
 import { VectorStoreService } from "./vector-store.service";
-import { chunkText, estimateTokens } from "./chunker";
+import { estimateTokens } from "./chunker";
 import { sanitizeChunk } from "./sanitizer";
 import { Category, CATEGORIES } from "./rag.types";
 import { RagConfig } from "./rag.config";
 import { RetrievalService } from "./retrieval.service";
+import { TopicClassifierService } from "./topic-classifier.service";
+import { OfftopicResponderService } from "./offtopic-responder.service";
+import { SemanticChunkerService } from "./semantic-chunker.service";
 
 @Injectable()
 export class IngestionService {
@@ -26,7 +29,23 @@ export class IngestionService {
     private readonly cfg: RagConfig,
     @Inject(forwardRef(() => RetrievalService))
     private readonly retrieval: RetrievalService,
+    private readonly topic: TopicClassifierService,
+    private readonly offtopicResponder: OfftopicResponderService,
+    private readonly semanticChunker: SemanticChunkerService,
   ) {}
+
+  /**
+   * Invalida todos los caches derivados del estado del KB: retrieval cache,
+   * centroides del clasificador semántico, y lista de capacidades del responder.
+   * Fire-and-forget para el rebuild de centroides (no bloquea la respuesta del ingest).
+   */
+  private invalidateDerived(): void {
+    this.retrieval.invalidateCache();
+    this.offtopicResponder.invalidate();
+    void this.topic.rebuildCentroids();
+    // Si admins agregaron docs en categorías _intent_*, los prototipos cambiaron.
+    void this.topic.rebuildIntentPrototypes();
+  }
 
   async ingestText(input: {
     title: string;
@@ -44,15 +63,15 @@ export class IngestionService {
         `Invalid category. Allowed: ${CATEGORIES.join(", ")}`,
       );
     }
-    const cleanContent = input.content.trim();
-    if (cleanContent.length < 40) {
+    const trimmed = input.content.trim();
+    if (trimmed.length < 40) {
       throw new BadRequestException("Content too short (min 40 chars)");
     }
-    if (cleanContent.length > 2_000_000) {
+    if (trimmed.length > 2_000_000) {
       throw new BadRequestException("Content too large (max 2MB)");
     }
 
-    const hash = createHash("sha256").update(cleanContent).digest("hex");
+    const hash = createHash("sha256").update(trimmed).digest("hex");
 
     // Dedup por hash, pero ignora "orphans" (docs sin chunks de ingestas previas
     // que fallaron a mitad de camino). Si encontramos un orphan con el mismo hash,
@@ -88,10 +107,14 @@ export class IngestionService {
     });
     const version = (prevVersion?.version ?? 0) + 1;
 
-    const rawChunks = chunkText(cleanContent, {
-      chunkSize: this.cfg.chunkSize,
-      chunkOverlap: this.cfg.chunkOverlap,
-    });
+    const rawChunks = await this.semanticChunker.split(
+      trimmed,
+      input.category,
+      input.title,
+    );
+    if (rawChunks.length === 0) {
+      throw new BadRequestException("No se pudieron extraer hechos del documento");
+    }
     const tokensTotal = rawChunks.reduce((s, c) => s + estimateTokens(c), 0);
 
     // Doc + chunks en una sola operacion atomica (nested write).
@@ -142,7 +165,7 @@ export class IngestionService {
     this.logger.log(
       `ingested doc=${doc.id} "${input.title}" chunks=${chunkRows.length} tokens=${tokensTotal}`,
     );
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     return { docId: doc.id, chunks: chunkRows.length };
   }
 
@@ -155,7 +178,7 @@ export class IngestionService {
     await this.vec.deleteByChunkIds(doc.chunks.map((c) => c.id));
     // Cascade en Prisma borra los chunks asociados al eliminar el doc.
     await this.prisma.knowledgeDoc.delete({ where: { id: docId } });
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     this.logger.log(`deleted doc=${docId} chunks=${doc.chunks.length}`);
   }
 
@@ -185,13 +208,66 @@ export class IngestionService {
     });
   }
 
-  /**
-   * Rebuilds the vector+FTS index from existing chunks in DB.
-   * Útil si cambió el modelo de embedding o el índice se corrompió.
-   * Tira abajo las tablas FTS5/vec0 y las repuebla desde KnowledgeChunk
-   * (Prisma es la fuente de verdad). Esto resuelve corrupciones de FTS5
-   * que impiden DELETE/INSERT en upserts normales.
-   */
+  async onModuleInit() {
+    try {
+      const vecRows = await this.prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM kb_vectors
+      `;
+      const vecCount = Number(vecRows[0]?.count ?? 0);
+
+      const chunks = await this.prisma.knowledgeChunk.findMany({
+        where: { doc: { status: "active" } },
+      });
+      if (chunks.length === 0) return;
+
+      // Detectar chunks sin vector en kb_vectors
+      const indexed = await this.prisma.$queryRaw<{ chunk_id: number }[]>`
+        SELECT chunk_id FROM kb_vectors
+      `;
+      const indexedIds = new Set(indexed.map((r) => r.chunk_id));
+      const missing = chunks.filter((c) => !indexedIds.has(c.id));
+
+      if (missing.length === 0) return;
+
+      this.logger.warn(
+        `${missing.length} chunks sin vector (vecCount=${vecCount}) — rellenando al arrancar`,
+      );
+      this.fillMissingVectors(missing).catch((e: Error) =>
+        this.logger.error(`Fill-missing falló: ${e.message}`),
+      );
+    } catch {
+      // La tabla puede no existir aún en el primer arranque
+    }
+  }
+
+  private async fillMissingVectors(
+    chunks: { id: number; category: string; contentClean: string }[],
+  ): Promise<void> {
+    const currentModel = this.emb.model;
+    let done = 0;
+    for (let i = 0; i < chunks.length; i += this.cfg.embedBatchSize) {
+      const batch = chunks.slice(i, i + this.cfg.embedBatchSize);
+      const emb = await this.emb.embed(batch.map((c) => c.contentClean));
+      await Promise.all(
+        batch.map((c, j) =>
+          this.vec.upsertChunk({
+            id: c.id,
+            category: c.category,
+            content: c.contentClean,
+            embedding: emb[j],
+          }),
+        ),
+      );
+      await this.prisma.knowledgeChunk.updateMany({
+        where: { id: { in: batch.map((c) => c.id) } },
+        data: { embModel: currentModel },
+      });
+      done += batch.length;
+    }
+    this.invalidateDerived();
+    this.logger.log(`fill-missing completado: ${done} vectores insertados`);
+  }
+
   async rebuildIndex(): Promise<{ rebuilt: number }> {
     await this.vec.recreateIndices();
     const chunks = await this.prisma.knowledgeChunk.findMany({
@@ -218,7 +294,7 @@ export class IngestionService {
       });
       done += batch.length;
     }
-    this.retrieval.invalidateCache();
+    this.invalidateDerived();
     this.logger.log(`rebuilt index with ${done} chunks (model=${currentModel})`);
     return { rebuilt: done };
   }

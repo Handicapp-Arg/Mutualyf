@@ -79,4 +79,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitAdminTakeover(sessionId: string, active: boolean): void {
     this.server?.emit('admin.takeover', { sessionId, active });
   }
+
+  emitHumanRequested(sessionId: string, userName: string | null): void {
+    this.server?.emit('human.requested', { sessionId, userName, timestamp: new Date().toISOString() });
+  }
 }

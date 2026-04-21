@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { Hit } from "./rag.types";
+import { normalizeText, normalizeForFts } from "./text-utils";
 
 export const EMBEDDING_DIM = 768;
 
@@ -22,52 +23,30 @@ export class VectorStoreService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    try {
-      // Crear extensión pgvector si no existe
-      await this.prisma.$executeRawUnsafe(
-        `CREATE EXTENSION IF NOT EXISTS vector;`,
-      );
-
-      // Crear tabla de vectores si no existe
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS kb_vectors (
-          chunk_id INTEGER PRIMARY KEY,
-          embedding vector(${EMBEDDING_DIM}),
-          content TEXT NOT NULL DEFAULT '',
-          category TEXT NOT NULL DEFAULT ''
-        );
-      `);
-
-      // Crear índice IVFFlat para búsqueda rápida (si hay suficientes filas)
-      await this.prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS kb_vectors_embedding_idx
-        ON kb_vectors USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 10);
-      `).catch(() => {
-        // IVFFlat requiere al menos 1 fila para crear el índice,
-        // si falla lo ignoramos y se creará después
-        this.logger.debug("IVFFlat index deferred (table may be empty)");
-      });
-
-      // Crear índice GIN para full-text search
-      await this.prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS kb_vectors_fts_idx
-        ON kb_vectors USING gin (to_tsvector('spanish', content));
-      `);
-
-      this.logger.log("Vector store ready (pgvector + tsvector)");
-    } catch (e) {
-      this.logger.error(`Vector store init failed: ${(e as Error).message}`);
-    }
+    // La tabla kb_vectors es creada por Prisma (está en el schema).
+    // Aquí solo creamos los índices que Prisma no soporta nativamente.
+    await this.createIndexes();
+    this.logger.log("Vector store listo");
   }
 
-  /**
-   * Recrea las tablas de vectores desde cero.
-   */
+  private async createIndexes(): Promise<void> {
+    await this.prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS kb_vectors_embedding_idx
+      ON kb_vectors USING ivfflat (embedding vector_cosine_ops)
+      WITH (lists = 10);
+    `).catch(() => this.logger.debug("IVFFlat index deferred (tabla vacía o sin pgvector)"));
+
+    await this.prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS kb_vectors_fts_idx;`).catch(() => {});
+    await this.prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS kb_vectors_fts_idx
+      ON kb_vectors USING gin (to_tsvector('simple'::regconfig, content));
+    `).catch((e) => this.logger.warn(`FTS index failed: ${(e as Error).message}`));
+  }
+
   async recreateIndices(): Promise<void> {
-    await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS kb_vectors;`);
-    await this.onModuleInit();
-    this.logger.warn("Recreated kb_vectors (data wiped)");
+    await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE kb_vectors;`);
+    await this.createIndexes();
+    this.logger.warn("kb_vectors vaciada y índices recreados");
   }
 
   /**
@@ -80,6 +59,9 @@ export class VectorStoreService implements OnModuleInit {
     embedding: Float32Array;
   }): Promise<void> {
     const embStr = `[${Array.from(c.embedding).join(",")}]`;
+    // Normalizar acentos para FTS: "cardiología" → "cardiologia"
+    // El embedding usa el texto original (mejor semántica); FTS usa sin acentos.
+    const contentFts = normalizeText(c.content);
     await this.prisma.$executeRawUnsafe(
       `INSERT INTO kb_vectors (chunk_id, embedding, content, category)
        VALUES ($1, $2::vector, $3, $4)
@@ -89,9 +71,20 @@ export class VectorStoreService implements OnModuleInit {
          category = EXCLUDED.category`,
       c.id,
       embStr,
-      c.content,
+      contentFts,
       c.category,
     );
+  }
+
+  async countVectors(): Promise<number> {
+    try {
+      const rows = await this.prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM kb_vectors
+      `;
+      return Number(rows[0]?.count ?? 0);
+    } catch {
+      return -1;
+    }
   }
 
   /**
@@ -109,7 +102,7 @@ export class VectorStoreService implements OnModuleInit {
   /**
    * Búsqueda KNN por similitud coseno.
    */
-  knn(opts: { embedding: Float32Array; k: number; category?: string }): Hit[] {
+  knn(_opts: { embedding: Float32Array; k: number; category?: string }): Hit[] {
     // pgvector requiere queries async, pero mantenemos la interfaz sync
     // devolviendo vacío — el caller debe usar knnAsync
     this.logger.warn("knn() sync not supported with pgvector, use knnAsync()");
@@ -163,7 +156,7 @@ export class VectorStoreService implements OnModuleInit {
   /**
    * Full-text search usando tsvector/tsquery de PostgreSQL.
    */
-  fts(opts: { query: string; k: number; category?: string }): Hit[] {
+  fts(_opts: { query: string; k: number; category?: string }): Hit[] {
     this.logger.warn("fts() sync not supported with pgvector, use ftsAsync()");
     return [];
   }
@@ -182,11 +175,13 @@ export class VectorStoreService implements OnModuleInit {
     try {
       let rows: Array<{ chunk_id: number; rank: number }>;
 
+      // 'simple' no aplica stemmer español — más robusto para nombres propios
+      // (FRANCIA, FEDERICO, MARTIN pasan tal cual sin ser rechazados por el lexicón)
       if (opts.category) {
         rows = await this.prisma.$queryRawUnsafe(
-          `SELECT chunk_id, ts_rank(to_tsvector('spanish', content), to_tsquery('spanish', $1)) AS rank
+          `SELECT chunk_id, ts_rank(to_tsvector('simple', content), to_tsquery('simple', $1)) AS rank
            FROM kb_vectors
-           WHERE to_tsvector('spanish', content) @@ to_tsquery('spanish', $1)
+           WHERE to_tsvector('simple', content) @@ to_tsquery('simple', $1)
              AND category = $2
            ORDER BY rank DESC
            LIMIT $3`,
@@ -196,9 +191,9 @@ export class VectorStoreService implements OnModuleInit {
         );
       } else {
         rows = await this.prisma.$queryRawUnsafe(
-          `SELECT chunk_id, ts_rank(to_tsvector('spanish', content), to_tsquery('spanish', $1)) AS rank
+          `SELECT chunk_id, ts_rank(to_tsvector('simple', content), to_tsquery('simple', $1)) AS rank
            FROM kb_vectors
-           WHERE to_tsvector('spanish', content) @@ to_tsquery('spanish', $1)
+           WHERE to_tsvector('simple', content) @@ to_tsquery('simple', $1)
            ORDER BY rank DESC
            LIMIT $2`,
           tsQuery,
@@ -208,7 +203,7 @@ export class VectorStoreService implements OnModuleInit {
 
       return rows.map((r) => ({ chunkId: r.chunk_id, score: r.rank }));
     } catch (e) {
-      this.logger.warn(`ftsAsync failed: ${(e as Error).message}`);
+      this.logger.error(`ftsAsync failed (query="${opts.query}"): ${(e as Error).message}`);
       return [];
     }
   }
@@ -232,14 +227,12 @@ const STOPWORDS_ES = new Set([
 
 /**
  * Convierte query natural a tsquery de PostgreSQL.
- * Usa operador & (AND) entre tokens significativos con prefix matching (:*).
+ * Usa OR (|) entre tokens con prefix matching (:*) para que palabras del usuario
+ * ("decime", "contame") no anulen resultados aunque no estén en el documento.
+ * ts_rank ordena por cobertura: documentos con más matches suben al tope.
  */
 function toTsQuery(raw: string): string {
-  const allTokens = raw
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
+  const allTokens = normalizeForFts(raw)
     .split(/\s+/)
     .filter((t) => t.length >= 2)
     .slice(0, 12);
@@ -248,6 +241,16 @@ function toTsQuery(raw: string): string {
   const tokens = significant.length > 0 ? significant : allTokens;
   if (!tokens.length) return "";
 
-  // Prefix matching con :* para capturar variaciones
-  return tokens.map((t) => `${t}:*`).join(" & ");
+  // Expande plurales españoles para que FTS matchee en ambas direcciones:
+  // "especialidades" → también busca "especialidad:*"
+  // "cardiologos"   → también busca "cardiologo:*"
+  const expanded = new Set<string>();
+  for (const t of tokens) {
+    expanded.add(t);
+    if (t.endsWith("es") && t.length > 5) expanded.add(t.slice(0, -2));
+    else if (t.endsWith("s") && t.length > 4) expanded.add(t.slice(0, -1));
+  }
+
+  return [...expanded].map((t) => `${t}:*`).join(" | ");
 }
+

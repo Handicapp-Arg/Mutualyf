@@ -67,7 +67,7 @@ export function useChatSocket({ sessionId, userName }: UseChatSocketOptions) {
           role: 'assistant',
           content: data.active
             ? 'Un agente humano se ha conectado a la conversación. A partir de ahora te asistirá directamente.'
-            : 'El agente humano ha dejado la conversación. Soy Nexus nuevamente, tu asistente virtual. ¿En qué puedo ayudarte?',
+            : 'El agente humano ha dejado la conversación. Soy MutuaBot nuevamente, tu asistente virtual. ¿En qué puedo ayudarte?',
           timestamp: new Date(),
         },
       ]);
