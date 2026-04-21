@@ -5,8 +5,6 @@ import { Public } from '../auth/decorators/public.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { PermissionCode } from '../auth/constants/permissions.enum';
-import { RAG_GROUNDING } from '../ai/ai.constants';
-
 @Controller('ai-config')
 export class AiConfigController {
   constructor(private readonly aiConfigService: AiConfigService) {}
@@ -36,7 +34,8 @@ export class AiConfigController {
   @Get('preview-prompt')
   async previewPrompt() {
     const assembled = this.aiConfigService.assemblePrompt();
-    const full = `${assembled}${RAG_GROUNDING}`;
+    const grounding = this.aiConfigService.getConfig().ragGrounding;
+    const full = grounding.trim() ? `${assembled}\n\n${grounding}` : assembled;
     return { prompt: full, chars: full.length };
   }
 

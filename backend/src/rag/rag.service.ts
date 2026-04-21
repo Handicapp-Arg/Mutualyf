@@ -6,8 +6,6 @@ import { escapeXmlAttr } from "./sanitizer";
 import { TopicClassifierService, TopicResult } from "./topic-classifier.service";
 import { OfftopicResponderService } from "./offtopic-responder.service";
 import { TopicClassifierDebug } from "./rag.metrics";
-import { RAG_GROUNDING } from "../ai/ai.constants";
-
 @Injectable()
 export class RagService {
   private readonly logger = new Logger(RagService.name);
@@ -23,6 +21,7 @@ export class RagService {
     query: string;
     history: ChatMsg[];
     basePrompt: string;
+    ragGrounding: string;
     sessionId?: string;
   }): Promise<{
     systemPrompt: string;
@@ -68,6 +67,7 @@ export class RagService {
       const systemPrompt = this.buildConversationalPrompt(
         opts.basePrompt,
         topic.intentKind,
+        opts.ragGrounding,
       );
       return { systemPrompt, retrieval: null, topic };
     }
@@ -109,13 +109,13 @@ export class RagService {
       opts.basePrompt,
       retrieval.chunks,
       retrieval.intent,
+      opts.ragGrounding,
     );
     return { systemPrompt, retrieval, topic };
   }
 
-  /** Combina el prompt del admin con las reglas técnicas de grounding. */
-  private withGrounding(adminPrompt: string): string {
-    return `${adminPrompt}${RAG_GROUNDING}`;
+  private withGrounding(adminPrompt: string, ragGrounding: string): string {
+    return ragGrounding.trim() ? `${adminPrompt}\n\n${ragGrounding}` : adminPrompt;
   }
 
   /**
@@ -123,8 +123,8 @@ export class RagService {
    * describe al bot; acá ajustamos el tono para que NUNCA diga "no puedo
    * ayudarte" frente a un saludo y siempre se identifique en primera persona.
    */
-  private buildConversationalPrompt(base: string, intentKind: "meta" | "chitchat"): string {
-    const grounded = this.withGrounding(base);
+  private buildConversationalPrompt(base: string, intentKind: "meta" | "chitchat", ragGrounding: string): string {
+    const grounded = this.withGrounding(base, ragGrounding);
     if (intentKind === "meta") {
       return `${grounded}
 
@@ -148,8 +148,9 @@ NOTA DE ESTE TURNO — Saludo, agradecimiento o despedida:
     base: string,
     chunks: HydratedChunk[],
     intent: Intent,
+    ragGrounding: string,
   ): string {
-    const grounded = this.withGrounding(base);
+    const grounded = this.withGrounding(base, ragGrounding);
 
     if (intent.kind === "chitchat") {
       return `${grounded}

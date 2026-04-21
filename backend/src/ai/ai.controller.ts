@@ -94,6 +94,7 @@ export class AiController implements OnModuleInit {
         query: body.newMessage,
         history,
         basePrompt: this.aiConfigService.assemblePrompt(),
+        ragGrounding: this.aiConfigService.getConfig().ragGrounding,
         sessionId: body.sessionId,
       });
 

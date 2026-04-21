@@ -10,6 +10,7 @@ interface AiConfigFields {
   tone: string;
   specialtyMapping: string;
   customRules: string;
+  ragGrounding: string;
   temperature: number;
   maxTokens: number;
   updatedAt: string | null;
@@ -25,6 +26,7 @@ const EMPTY_FORM: FormState = {
   tone: '',
   specialtyMapping: '',
   customRules: '',
+  ragGrounding: '',
   temperature: 0.7,
   maxTokens: 800,
 };
@@ -37,6 +39,7 @@ function formFromConfig(c: AiConfigFields): FormState {
     tone: c.tone,
     specialtyMapping: c.specialtyMapping,
     customRules: c.customRules,
+    ragGrounding: c.ragGrounding,
     temperature: c.temperature,
     maxTokens: c.maxTokens,
   };
@@ -238,6 +241,22 @@ export function AiConfig() {
                   rows={4}
                   placeholder={"- No agendás turnos directamente — indicá la vía concreta (app MiMutuaLyF).\n- Las recetas son exclusivamente digitales."}
                   className={textareaCls}
+                />
+              </Field>
+            </Section>
+
+            {/* Reglas de grounding RAG */}
+            <Section icon={<FileText size={16} className="text-corporate" />} title="Reglas de veracidad (grounding)">
+              <Field
+                label="Qué puede y no puede hacer el bot con la información recuperada"
+                hint="Se aplican en cada consulta junto con el contexto RAG. Determinan si el bot puede inventar datos, cómo manejar la falta de información, etc."
+              >
+                <textarea
+                  value={form.ragGrounding}
+                  onChange={set('ragGrounding')}
+                  rows={7}
+                  placeholder={"- Respondé SOLO con información que aparezca explícitamente en el contexto.\n- Está PROHIBIDO inventar datos concretos: emails, horarios, precios.\n- Si el dato no está: decilo brevemente y ofrecé lo relacionado.\n- NUNCA menciones 'el contexto' ni los documentos — presentá los datos como propios."}
+                  className={textareaCls + ' font-mono text-xs'}
                 />
               </Field>
             </Section>

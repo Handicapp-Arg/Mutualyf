@@ -26,6 +26,10 @@ export class UpdateAiConfigDto {
   customRules?: string;
 
   @IsOptional()
+  @IsString()
+  ragGrounding?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(2)

@@ -9,6 +9,7 @@ export interface AiConfigFields {
   tone: string;
   specialtyMapping: string;
   customRules: string;
+  ragGrounding: string;
   temperature: number;
   maxTokens: number;
   quickButtons: string;
@@ -73,6 +74,7 @@ export class AiConfigService implements OnModuleInit {
         ...(dto.tone !== undefined && { tone: dto.tone }),
         ...(dto.specialtyMapping !== undefined && { specialtyMapping: dto.specialtyMapping }),
         ...(dto.customRules !== undefined && { customRules: dto.customRules }),
+        ...(dto.ragGrounding !== undefined && { ragGrounding: dto.ragGrounding }),
         ...(dto.temperature !== undefined && { temperature: dto.temperature }),
         ...(dto.maxTokens !== undefined && { maxTokens: dto.maxTokens }),
         ...(dto.quickButtons !== undefined && { quickButtons: dto.quickButtons }),
@@ -114,6 +116,13 @@ export class AiConfigService implements OnModuleInit {
             '- No agendás turnos directamente — indicá la vía concreta (app MiMutuaLyF o el canal que aparezca en el contexto).',
             '- Las recetas y órdenes médicas son exclusivamente digitales.',
           ].join('\n'),
+          ragGrounding: [
+            '- Respondé SOLO con información que aparezca EXPLÍCITAMENTE en el contexto de cada consulta.',
+            '- Está PROHIBIDO inventar o inferir datos concretos: emails, horarios, URLs, precios, pasos, nombres de profesionales que no estén en el contexto.',
+            '- Si el dato no está en el contexto: decilo brevemente ("No tengo ese dato puntual") y ofrecé lo relacionado que sí esté, o hacé una repregunta corta.',
+            '- NUNCA menciones "el contexto", "los documentos", "las fuentes" ni IDs — presentá los datos como conocimiento propio.',
+            '- Omitir datos que SÍ están en el contexto es tan grave como inventar: si el dato está, usalo.',
+          ].join('\n'),
           temperature: 0.7,
           maxTokens: 800,
         },
@@ -132,6 +141,7 @@ export class AiConfigService implements OnModuleInit {
       tone: row.tone,
       specialtyMapping: row.specialtyMapping,
       customRules: row.customRules,
+      ragGrounding: row.ragGrounding,
       temperature: row.temperature,
       maxTokens: row.maxTokens,
       quickButtons: row.quickButtons,
