@@ -2,7 +2,8 @@ import { Controller, Post, Body, Res, Logger, OnModuleInit } from '@nestjs/commo
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { GeminiService } from './gemini.service';
-import { GroqService } from './groq.service';
+import { GroqService, RateLimitError } from './groq.service';
+import { XAIService } from './xai.service';
 import { OllamaService } from './ollama.service';
 import { ChatRequestDto } from './dto/ai.dto';
 import { Public } from '../auth/decorators/public.decorator';
@@ -23,8 +24,9 @@ export class AiController implements OnModuleInit {
   private readonly logger = new Logger(AiController.name);
 
   constructor(
-    private readonly geminiService: GeminiService,
     private readonly groqService: GroqService,
+    private readonly xaiService: XAIService,
+    private readonly geminiService: GeminiService,
     private readonly ollamaService: OllamaService,
     private readonly aiConfigService: AiConfigService,
     private readonly quickReplyService: QuickReplyService,
@@ -53,14 +55,8 @@ export class AiController implements OnModuleInit {
   }
 
   /**
-   * Endpoint unificado — cascada:
-   * QuickReply → RAG (topic-classifier + retrieval + offtopic semántico) → Groq → Gemini → Ollama (streaming) → Ollama retry → Fallback
-   *
-   * El guard off-topic lo resuelve íntegramente el RagService:
-   *   - TopicClassifierService: similitud semántica vs centroides del KB (+ LLM judge en zona ambigua)
-   *   - OfftopicDetectorService: multi-señal sobre el retrieval (vec/FTS/overlap/concentración)
-   *   - OfftopicResponderService: respuesta contextual en vez de un string fijo
-   * Ya no hay keyword matching hardcodeado.
+   * Cascada de providers: QuickReply → RAG → Groq (key1+key2) → xAI → Gemini → Ollama → Fallback
+   * Cada provider lanza RateLimitError en 429/timeout para pasar al siguiente.
    */
   @Post('chat')
   async chat(@Body() body: ChatRequestDto, @Res() res: Response) {
@@ -71,7 +67,7 @@ export class AiController implements OnModuleInit {
     const failures: Array<{ stage: string; message: string }> = [];
 
     try {
-      // 1. Quick reply — instantáneo, 0ms, sin IA
+      // 1. Quick reply — sin IA, instantáneo
       const quickReply = this.quickReplyService.match(body.newMessage);
       if (quickReply) {
         writeSSEChunked(res, quickReply);
@@ -80,7 +76,7 @@ export class AiController implements OnModuleInit {
         return;
       }
 
-      // 2. RAG — clasificador semántico + retrieval híbrido + off-topic contextual
+      // 2. RAG — clasificador semántico + retrieval + off-topic contextual
       const rag = await this.ragService.prepare({
         query: body.newMessage,
         history,
@@ -96,93 +92,65 @@ export class AiController implements OnModuleInit {
       }
 
       const { prompt, apiMaxTokens } = this.buildPromptWithLength(rag.systemPrompt, config.maxTokens);
+      const args = [history, body.newMessage, prompt, config.temperature, apiMaxTokens] as const;
 
-      // 3. Groq (primario) — API externa, rápida
+      // 3. Groq — primario, pool de 2 keys (failover interno entre key1/key2)
       try {
-        const response = await this.groqService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
-        if (response) {
-          writeSSEChunked(res, response);
+        writeSSEChunked(res, await this.groqService.generateResponse(...args));
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Groq agotado: ${msg}`);
+        failures.push({ stage: 'groq', message: msg });
+      }
+
+      // 4. Gemini — segundo provider, cuota muy generosa (1M tokens/min free)
+      if (this.geminiService.available) {
+        try {
+          writeSSEChunked(res, await this.geminiService.generateResponse(...args));
           res.write('data: [DONE]\n\n');
           res.end();
           return;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`Gemini agotado: ${msg}`);
+          failures.push({ stage: 'gemini', message: msg });
         }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Groq failed: ${message}`);
-        failures.push({ stage: 'groq', message });
       }
 
-      // 4. Gemini — API externa, segundo intento
-      try {
-        this.logger.log('Falling back to Gemini...');
-        const response = await this.geminiService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
-        if (response) {
-          writeSSEChunked(res, response);
+      // 5. xAI (Grok) — tercer provider, cuota independiente
+      if (this.xaiService.available) {
+        try {
+          writeSSEChunked(res, await this.xaiService.generateResponse(...args));
           res.write('data: [DONE]\n\n');
           res.end();
           return;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`xAI agotado: ${msg}`);
+          failures.push({ stage: 'xai', message: msg });
         }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Gemini failed: ${message}`);
-        failures.push({ stage: 'gemini', message });
       }
 
-      // 5. Ollama fallback (self-hosted) — streaming con early-stop
+      // 6. Ollama — local, sin límite de tokens
       try {
-        this.logger.log('Falling back to Ollama streaming...');
+        this.logger.log('Fallback a Ollama...');
         let hasContent = false;
         let accumulated = '';
-        for await (const chunk of this.ollamaService.generateResponseStream(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        )) {
+        for await (const chunk of this.ollamaService.generateResponseStream(...args)) {
           hasContent = true;
           accumulated += chunk;
           res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-
-          // Early stop: detección de basura de phi3
-          if (accumulated.includes('\n---') || accumulated.includes('\n\n\n')) {
-            break;
-          }
+          if (accumulated.includes('\n---') || accumulated.includes('\n\n\n')) break;
         }
-
         if (hasContent) {
           res.write('data: [DONE]\n\n');
           res.end();
           return;
         }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Ollama streaming failed: ${message}`);
-        failures.push({ stage: 'ollama-stream', message });
-      }
-
-      // 6. Ollama retry sin streaming
-      try {
-        this.logger.log('Retrying Ollama without streaming...');
-        const response = await this.ollamaService.generateResponse(
-          history,
-          body.newMessage,
-          prompt,
-          config.temperature,
-          apiMaxTokens,
-        );
+        const response = await this.ollamaService.generateResponse(...args);
         if (response && response !== 'Sin respuesta de Ollama.') {
           writeSSEChunked(res, response);
           res.write('data: [DONE]\n\n');
@@ -190,12 +158,12 @@ export class AiController implements OnModuleInit {
           return;
         }
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        this.logger.warn(`Ollama retry failed: ${message}`);
-        failures.push({ stage: 'ollama-retry', message });
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Ollama falló: ${msg}`);
+        failures.push({ stage: 'ollama', message: msg });
       }
 
-      // 7. Fallback final con info de contacto + diagnóstico para la consola del front
+      // 7. Fallback final
       if (failures.length > 0) {
         res.write(`data: ${JSON.stringify({ warning: 'ai-cascade-failed', failures })}\n\n`);
       }

@@ -1,15 +1,24 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
+import { RateLimitError } from './groq.service';
 
 const GEMINI_TIMEOUT_MS = 20_000;
 
+const RATE_LIMIT_STATUSES = new Set([429, 413, 503]);
+
 @Injectable()
 export class GeminiService {
+  private readonly logger = new Logger(GeminiService.name);
   private readonly apiKey: string;
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GEMINI_API_KEY', '');
+    if (this.apiKey) this.logger.log('GeminiService: key configurada (gemini-2.5-flash)');
+  }
+
+  get available(): boolean {
+    return !!this.apiKey;
   }
 
   async generateResponse(
@@ -19,8 +28,8 @@ export class GeminiService {
     temperature = 0.7,
     maxTokens = 800,
   ): Promise<string> {
-    if (!this.apiKey) {
-      throw new InternalServerErrorException('Gemini API key not configured');
+    if (!this.available) {
+      throw new RateLimitError('GEMINI_API_KEY no configurada');
     }
 
     const contents = [
@@ -51,21 +60,16 @@ export class GeminiService {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new InternalServerErrorException(
-          `Gemini API error: ${res.status} - ${JSON.stringify(errData)}`,
-        );
+        throw new RateLimitError(`Gemini API error: ${res.status} - ${JSON.stringify(errData)}`);
       }
 
       const data: any = await res.json();
       return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.';
     } catch (e) {
-      if (e instanceof InternalServerErrorException) throw e;
-      throw new InternalServerErrorException(
-        'Error al consultar Gemini: ' + (e instanceof Error ? e.message : e),
-      );
+      if (e instanceof RateLimitError) throw e;
+      throw new RateLimitError('Error al consultar Gemini: ' + (e instanceof Error ? e.message : e));
     } finally {
       clearTimeout(timer);
     }
   }
-
 }

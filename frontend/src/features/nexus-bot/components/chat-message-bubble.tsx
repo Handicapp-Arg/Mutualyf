@@ -1,12 +1,10 @@
 import { memo } from 'react';
 import { FileText, Download } from 'lucide-react';
-import { AnalyzingOrderLoader } from './analyzing-order-loader';
 import type { ChatMessage, ChatAttachment } from '@/types';
 import { BACKEND_URL } from '@/lib/constants';
 
 interface ChatMessageBubbleProps {
   message: ChatMessage;
-  uploadProgress: number;
   isLoading: boolean;
   onOptionClick: (value: string, label: string) => void;
   cleanMarkdown: (text: string) => string;
@@ -53,7 +51,6 @@ function AttachmentPreview({ attachment }: { attachment: ChatAttachment }) {
 
 export const ChatMessageBubble = memo(function ChatMessageBubble({
   message,
-  uploadProgress,
   isLoading,
   onOptionClick,
   cleanMarkdown,
@@ -72,10 +69,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
               : 'rounded-[20px] rounded-tl-sm bg-white text-slate-700'
           }`}
         >
-          {message.content.startsWith('__ANALYZING_ORDER__') ? (
-            <AnalyzingOrderLoader progress={uploadProgress} />
-          ) : (
-            <>
+          <>
               {message.content && (
                 <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
                   {cleanMarkdown(message.content)}
@@ -85,7 +79,6 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                 <AttachmentPreview attachment={message.attachment} />
               )}
             </>
-          )}
         </div>
 
         {message.options && message.options.length > 0 && (

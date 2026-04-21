@@ -1,6 +1,7 @@
+import { useRef } from 'react';
 import {
   MessageSquare, FileText, TrendingUp, Download, Trash2, Radio,
-  LogIn, LogOut, SendHorizontal,
+  LogIn, LogOut, SendHorizontal, Paperclip, Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { apiClient } from '@/lib/api-client';
@@ -15,13 +16,22 @@ export function Conversations() {
   const canDelete = hasPermission('conversations:delete');
   const canTakeover = hasPermission('conversations:takeover');
 
+  const adminFileInputRef = useRef<HTMLInputElement>(null);
+
   const {
     conversations, stats, isLoading, liveSessions, liveSessionIds,
     selectedConversation, setSelectedConversation,
     adminChatSessionId, adminMessage, setAdminMessage,
-    isSendingAdmin, adminMessagesEndRef,
-    joinChat, leaveChat, sendAdminMessage, loadData,
+    isSendingAdmin, isSendingAdminFile, adminMessagesEndRef,
+    joinChat, leaveChat, sendAdminMessage, sendAdminAttachment, loadData,
   } = useConversations();
+
+  const handleAdminFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    sendAdminAttachment(file);
+    e.target.value = '';
+  };
 
   const downloadCSV = () => {
     const csv = [
@@ -220,6 +230,25 @@ export function Conversations() {
                   </div>
                   {adminChatSessionId === selectedConversation.sessionId && canTakeover && (
                     <div className="mt-4 flex items-center gap-2 border-t pt-4">
+                      <input
+                        type="file"
+                        ref={adminFileInputRef}
+                        onChange={handleAdminFileChange}
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => adminFileInputRef.current?.click()}
+                        disabled={isSendingAdminFile}
+                        title="Adjuntar archivo"
+                        className="rounded-lg border border-slate-200 p-2 text-slate-400 hover:border-corporate/30 hover:text-corporate disabled:opacity-40"
+                      >
+                        {isSendingAdminFile
+                          ? <Loader2 size={18} className="animate-spin" />
+                          : <Paperclip size={18} />
+                        }
+                      </button>
                       <input type="text" value={adminMessage}
                         onChange={(e) => setAdminMessage(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && sendAdminMessage()}
