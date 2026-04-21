@@ -34,6 +34,8 @@ export class EmbeddingsService implements OnModuleInit {
   private readonly embedModel: string;
   private readonly modelVersion: string;
   private readonly geminiKey: string;
+  /** Modelos Gemini que ya fallaron con 404 — se saltan en llamadas futuras de la misma sesión */
+  private readonly geminiFailedModels = new Set<string>();
 
   constructor(
     private readonly config: ConfigService,
@@ -275,23 +277,81 @@ export class EmbeddingsService implements OnModuleInit {
   ): Promise<Float32Array[]> {
     const taskType =
       kind === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT";
-    // Paralelo: el endpoint embedContent es 1 doc por request, pero podemos hacerlos
-    // concurrentes en lugar de seriales para reducir latencia x16.
+
+    // Candidatos en orden de preferencia. Si uno falla con 404 (error permanente para
+    // esta API key), se marca como fallido y se salta en todas las llamadas siguientes.
+    const allCandidates = [
+      "https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent",
+    ];
+
+    // Filtramos los modelos ya conocidos como no disponibles para evitar logs repetidos
+    const candidates = allCandidates.filter((u) => !this.geminiFailedModels.has(u));
+    if (candidates.length === 0) {
+      throw new Error(
+        "Gemini embed: ningún modelo disponible para esta API key. " +
+        "Habilitá la Generative Language API en console.cloud.google.com o levantá Ollama.",
+      );
+    }
+
+    // Resolvemos el modelo activo en la primera llamada del batch y lo reutilizamos
+    // para todos los textos. Así evitamos O(n_textos * n_candidatos) requests de prueba.
+    let activeUrl: string | null = null;
+    for (const baseUrl of candidates) {
+      const probe = await fetchWithTimeout(
+        `${baseUrl}?key=${this.geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: { parts: [{ text: "probe" }] }, taskType }),
+        },
+        GEMINI_TIMEOUT_MS,
+      );
+      if (probe.status === 404) {
+        const errBody = await probe.text().catch(() => "");
+        const modelName = baseUrl.split("/models/")[1]?.split(":")[0] ?? baseUrl;
+        this.logger.warn(`Gemini embed 404 en ${modelName} — no disponible para esta key. Body: ${errBody.slice(0, 150)}`);
+        this.geminiFailedModels.add(baseUrl);
+        continue;
+      }
+      if (!probe.ok) {
+        const errBody = await probe.text().catch(() => "");
+        throw new Error(`Gemini embed ${probe.status}: ${errBody.slice(0, 300)}`);
+      }
+      // Probe exitoso — verificamos que devuelva un vector válido
+      const probeData: any = await probe.json();
+      const probeVec: number[] = probeData?.embedding?.values || [];
+      if (probeVec.length) {
+        activeUrl = baseUrl;
+        this.logger.log(`Gemini embed activo: ${baseUrl.split("/models/")[1]?.split(":")[0]}`);
+        break;
+      }
+    }
+
+    if (!activeUrl) {
+      throw new Error(
+        "Gemini embed: ningún modelo disponible para esta API key. " +
+        "Habilitá la Generative Language API en console.cloud.google.com o levantá Ollama.",
+      );
+    }
+
+    const url = activeUrl;
     return Promise.all(
       texts.map(async (t) => {
         const res = await fetchWithTimeout(
-          `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${this.geminiKey}`,
+          `${url}?key=${this.geminiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: { parts: [{ text: t }] },
-              taskType,
-            }),
+            body: JSON.stringify({ content: { parts: [{ text: t }] }, taskType }),
           },
           GEMINI_TIMEOUT_MS,
         );
-        if (!res.ok) throw new Error(`Gemini embed ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "");
+          throw new Error(`Gemini embed ${res.status}: ${errBody.slice(0, 300)}`);
+        }
         const data: any = await res.json();
         const v: number[] = data?.embedding?.values || [];
         if (!v.length) throw new Error("Gemini embed: empty vector");

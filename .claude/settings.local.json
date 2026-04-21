@@ -11,7 +11,8 @@
       "Bash(find C:\\\\Users\\\\Alejo Maros\\\\desktop\\\\Desarollos\\\\app-mutualyf\\\\app\\\\backend\\\\src *)",
       "Bash(grep *)",
       "Bash(find \"C:\\\\Users\\\\Alejo Maros\\\\desktop\\\\Desarollos\\\\app-mutualyf\\\\app\\\\backend\\\\src\" -name \"*.ts\" -exec grep -l \"interface\\\\|type.*=\" {} \\\\;)",
-      "Bash(find . -name \"*.ts\" -exec grep -l \"ws-jwt\\\\|WsJwt\\\\|LoginDto\" {} \\\\;)"
+      "Bash(find . -name \"*.ts\" -exec grep -l \"ws-jwt\\\\|WsJwt\\\\|LoginDto\" {} \\\\;)",
+      "Bash(node -e ' *)"
     ]
   }
 }

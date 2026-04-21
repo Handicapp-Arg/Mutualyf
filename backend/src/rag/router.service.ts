@@ -143,8 +143,7 @@ export class RouterService {
     if (CHITCHAT_RE.test(trimmed) && trimmed.length < 40) {
       return { kind: "chitchat", categoryConfident: false };
     }
-    // Meta-preguntas sobre el bot: se tratan como chitchat (sin retrieval,
-    // el LLM responde usando el BASE_SYSTEM_PROMPT que ya describe su rol).
+    // Meta-preguntas sobre el bot: se tratan como chitchat (sin retrieval).
     if (META_RE.test(trimmed) && trimmed.length < 80) {
       return { kind: "chitchat", categoryConfident: false };
     }

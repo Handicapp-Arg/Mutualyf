@@ -81,6 +81,8 @@ export class RagConfig {
   readonly chunkerTimeoutMs: number; // RAG_CHUNKER_TIMEOUT_MS (default 15000)
   readonly chunkerMinFactChars: number; // RAG_CHUNKER_MIN_FACT_CHARS (default 15)
   readonly chunkerMaxFactChars: number; // RAG_CHUNKER_MAX_FACT_CHARS (default 1200)
+  readonly docAnalysisTimeoutMs: number; // RAG_DOC_ANALYSIS_TIMEOUT_MS — timeout para la fase 0 de análisis del documento (default 15000)
+  readonly chunkerInterCallDelayMs: number; // RAG_CHUNKER_INTER_CALL_DELAY_MS — delay entre segmentos para no saturar TPM de Groq (default 2000)
 
   // --- Enrichment (pre-chunker, solo si se detectan problemas de calidad) ---
   readonly enableEnrichment: boolean; // RAG_ENABLE_ENRICHMENT (default true)
@@ -156,6 +158,8 @@ export class RagConfig {
     this.chunkerTimeoutMs = num("RAG_CHUNKER_TIMEOUT_MS", 15_000);
     this.chunkerMinFactChars = num("RAG_CHUNKER_MIN_FACT_CHARS", 15);
     this.chunkerMaxFactChars = num("RAG_CHUNKER_MAX_FACT_CHARS", 1_200);
+    this.docAnalysisTimeoutMs = num("RAG_DOC_ANALYSIS_TIMEOUT_MS", 15_000);
+    this.chunkerInterCallDelayMs = num("RAG_CHUNKER_INTER_CALL_DELAY_MS", 2_000);
 
     this.enableEnrichment = bool("RAG_ENABLE_ENRICHMENT", true);
     this.enrichmentTimeoutMs = num("RAG_ENRICHMENT_TIMEOUT_MS", 25_000);
