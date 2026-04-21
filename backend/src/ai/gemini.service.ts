@@ -10,15 +10,17 @@ const RATE_LIMIT_STATUSES = new Set([429, 413, 503]);
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
-  private readonly apiKey: string;
+  private readonly keys: string[];
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GEMINI_API_KEY', '');
-    if (this.apiKey) this.logger.log('GeminiService: key configurada (gemini-2.5-flash)');
+    const k1 = this.configService.get<string>('GEMINI_API_KEY', '');
+    const k2 = this.configService.get<string>('GEMINI_API_KEY_2', '');
+    this.keys = [k1, k2].filter(Boolean);
+    if (this.keys.length) this.logger.log(`GeminiService: ${this.keys.length} key(s) configurada(s) (gemini-2.5-flash)`);
   }
 
   get available(): boolean {
-    return !!this.apiKey;
+    return this.keys.length > 0;
   }
 
   async generateResponse(
@@ -41,35 +43,47 @@ export class GeminiService {
       { role: 'user', parts: [{ text: newMessage }] },
     ];
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+    let lastErr: Error | null = null;
+    for (const key of this.keys) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents,
+              generationConfig: { temperature, maxOutputTokens: maxTokens },
+            }),
+            signal: controller.signal,
+          },
+        );
 
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents,
-            generationConfig: { temperature, maxOutputTokens: maxTokens },
-          }),
-          signal: controller.signal,
-        },
-      );
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const err = new RateLimitError(`Gemini API error: ${res.status} - ${JSON.stringify(errData)}`);
+          if (RATE_LIMIT_STATUSES.has(res.status) && this.keys.indexOf(key) < this.keys.length - 1) {
+            lastErr = err;
+            this.logger.warn(`Gemini key[${this.keys.indexOf(key)}] rate limited, intentando siguiente key`);
+            continue;
+          }
+          throw err;
+        }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new RateLimitError(`Gemini API error: ${res.status} - ${JSON.stringify(errData)}`);
+        const data: any = await res.json();
+        return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.';
+      } catch (e) {
+        if (e instanceof RateLimitError) {
+          lastErr = e;
+          continue;
+        }
+        throw new RateLimitError('Error al consultar Gemini: ' + (e instanceof Error ? e.message : e));
+      } finally {
+        clearTimeout(timer);
       }
-
-      const data: any = await res.json();
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta de Gemini.';
-    } catch (e) {
-      if (e instanceof RateLimitError) throw e;
-      throw new RateLimitError('Error al consultar Gemini: ' + (e instanceof Error ? e.message : e));
-    } finally {
-      clearTimeout(timer);
     }
+    throw lastErr ?? new RateLimitError('Todas las keys de Gemini fallaron');
   }
 }
