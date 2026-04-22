@@ -160,7 +160,7 @@ model ChatAttachment {
 model AiConfig {
   id            Int      @id @default(autoincrement())
   key           String   @unique @default("default")
-  systemPrompt  String   @map("system_prompt") @db.Text
+  systemPrompt  String   @default("") @map("system_prompt") @db.Text
   temperature   Float    @default(0.7)
   maxTokens     Int      @default(800) @map("max_tokens")
   quickButtons  String   @default("[]") @map("quick_buttons") // JSON array de {icon, label, prompt}
