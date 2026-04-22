@@ -147,7 +147,7 @@ export class RagConfig {
     this.topicLlmJudgeTimeoutMs = num("TOPIC_LLM_TIMEOUT_MS", 1500);
     this.topicCacheMax = num("TOPIC_CACHE_MAX", 5000);
     this.topicCacheTtlMs = num("TOPIC_CACHE_TTL_MS", 3_600_000);
-    this.topicMinChunksPerCategory = num("TOPIC_MIN_CHUNKS", 2);
+    this.topicMinChunksPerCategory = num("TOPIC_MIN_CHUNKS", 1);
     this.topicIntentThreshold = num("TOPIC_INTENT_T", 0.55);
     this.offtopicGenTimeoutMs = num("OFFTOPIC_GEN_TIMEOUT_MS", 2500);
 

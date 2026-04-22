@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { LRUCache } from "lru-cache";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmbeddingsService } from "./embeddings.service";
-import { GroqService } from "../ai/groq.service";
+import { GroqService, GROQ_JUDGE_MODEL } from "../ai/groq.service";
 import { RagConfig } from "./rag.config";
 import { normalizeText } from "./text-utils";
 import { INTENT_ANCHORS, IntentKind } from "./intent-anchors";
@@ -431,7 +431,7 @@ Sin puntuación, sin comillas, sin explicación: SÓLO la palabra.`;
 
     try {
       const raw = await Promise.race([
-        this.groq.generateResponse([], query, system, 0, 6),
+        this.groq.generateResponse([], query, system, 0, 6, { model: GROQ_JUDGE_MODEL }),
         new Promise<string>((_, rej) =>
           setTimeout(() => rej(new Error("llm-judge-timeout")), this.cfg.topicLlmJudgeTimeoutMs),
         ),

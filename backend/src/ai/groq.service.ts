@@ -3,7 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import fetch from 'node-fetch';
 
 const DEFAULT_TIMEOUT_MS = 15_000;
-const GROQ_MODEL = 'llama-3.1-8b-instant';
+
+/** Modelo principal para respuestas de chat (alta calidad). */
+const GROQ_CHAT_MODEL = 'llama-3.3-70b-versatile';
+
+/** Modelo ligero para clasificación (LLM judge, ~6 tokens output). */
+export const GROQ_JUDGE_MODEL = 'llama-3.1-8b-instant';
+
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const RATE_LIMIT_STATUSES = new Set([429, 413]);
 
@@ -16,6 +22,8 @@ export class RateLimitError extends Error {
 
 export interface LlmCallOptions {
   timeoutMs?: number;
+  /** Sobreescribe el modelo para este call específico (ej: judge usa 8b, chat usa 70b). */
+  model?: string;
 }
 
 @Injectable()
@@ -29,7 +37,7 @@ export class GroqService {
       configService.get<string>('GROQ_API_KEY_2', ''),
     ].filter(Boolean);
 
-    this.logger.log(`GroqService: ${this.keys.length} key(s) configurada(s)`);
+    this.logger.log(`GroqService: ${this.keys.length} key(s) configurada(s), chat=${GROQ_CHAT_MODEL}`);
   }
 
   get available(): boolean {
@@ -48,12 +56,13 @@ export class GroqService {
       throw new RateLimitError('No hay keys de Groq configuradas');
     }
 
+    const model = opts.model ?? GROQ_CHAT_MODEL;
     const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     let lastError: Error = new Error('unknown');
 
     for (const key of this.keys) {
       try {
-        return await this.callGroq(key, history, newMessage, systemPrompt, temperature, maxTokens, timeoutMs);
+        return await this.callGroq(key, history, newMessage, systemPrompt, temperature, maxTokens, timeoutMs, model);
       } catch (e) {
         lastError = e as Error;
         if (e instanceof RateLimitError) {
@@ -75,6 +84,7 @@ export class GroqService {
     temperature: number,
     maxTokens: number,
     timeoutMs: number,
+    model: string,
   ): Promise<string> {
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -89,7 +99,7 @@ export class GroqService {
       const res = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: GROQ_MODEL, messages, max_tokens: maxTokens, temperature }),
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature }),
         signal: controller.signal,
       });
 

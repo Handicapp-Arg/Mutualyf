@@ -151,7 +151,11 @@ TONO: amable, breve, rioplatense.`;
     if (chunks.length === 0) {
       return `${base}
 
-NOTA DE ESTE TURNO: No recuperaste documentos específicos para esta consulta. Respondé igual siguiendo tu misión: aprovechá lo que sabés del dominio de MutuaLyF en general, guiá por autogestión si aplica, o hacé una repregunta corta para poder ayudar mejor. No inventes datos puntuales.`;
+NOTA DE ESTE TURNO: No encontraste información específica para esta consulta en la base de conocimiento.
+INSTRUCCIÓN: Respondé exactamente con una de estas dos opciones:
+1. Si la consulta es muy general o ambigua → hacé UNA repregunta corta para entender mejor qué necesita el usuario.
+2. Si la consulta es específica pero no tenés el dato → decí "No tengo esa información disponible en este momento." y ofrecé que consulte en la sede o se comunique con MutuaLyF directamente.
+PROHIBIDO ABSOLUTO: inventar teléfonos, URLs, emails, horarios, nombres de profesionales o cualquier dato concreto que no esté en el contexto.`;
     }
 
     // Token budget: cortar desde el final si excede

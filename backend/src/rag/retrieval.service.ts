@@ -142,6 +142,26 @@ export class RetrievalService {
       } catch { /* ya logueado arriba */ }
     }
 
+    // Red de seguridad para KB pequeñas: si vec+FTS siguen sin encontrar nada
+    // (query phrased de forma diferente al contenido), devolvemos los chunks
+    // activos de la DB como candidatos con score decreciente.
+    // Para KBs grandes esto nunca activa porque vec+FTS siempre matchean algo.
+    // El offtopic detector ya aceptó la query en la etapa anterior, así que
+    // el LLM puede usar este contexto para decidir si responde o no.
+    if (!ftsHits.length && !vecHits.length) {
+      const fallback = await this.prisma.knowledgeChunk.findMany({
+        where: { doc: { status: "active" } },
+        take: k,
+        orderBy: { ord: "asc" },
+      });
+      if (fallback.length) {
+        ftsHits = fallback.map((r, i) => ({ chunkId: r.id, score: 1 / (i + 2) }));
+        this.logger.warn(
+          `small-KB fallback: vec+FTS devolvieron 0 — usando ${fallback.length} chunk(s) de DB para query="${rewritten.slice(0, 60)}"`,
+        );
+      }
+    }
+
     const fused = rrfFuse(vecHits, ftsHits, this.cfg.rrfK).slice(0, k);
     const topScore = fused[0]?.score ?? 0;
 

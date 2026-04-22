@@ -92,9 +92,9 @@ export class RagModule implements OnModuleInit {
         `Auto-rebuilding ${stale} stale chunks → ${currentModel} (background)...`,
       );
       const t0 = Date.now();
-      const { rebuilt } = await this.ingestion.rebuildIndex();
+      const { rebuilt, ftsOnly } = await this.ingestion.rebuildIndex();
       this.logger.log(
-        `Auto-rebuild done: ${rebuilt} chunks in ${Date.now() - t0}ms`,
+        `Auto-rebuild done: ${rebuilt} vectorized, ${ftsOnly} fts-only in ${Date.now() - t0}ms`,
       );
       await this.topic.rebuildCentroids().catch(() => {});
     } catch (e) {

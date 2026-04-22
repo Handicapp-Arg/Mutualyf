@@ -233,9 +233,11 @@ export class IngestionService {
       });
       if (chunks.length === 0) return;
 
-      // Detectar chunks sin vector en kb_vectors
+      // Detectar chunks sin vector VÁLIDO en kb_vectors.
+      // Filtramos embedding IS NOT NULL: chunks insertados como FTS-only
+      // tienen embedding=NULL y deben re-vectorizarse en el próximo arranque.
       const indexed = await this.prisma.$queryRaw<{ chunk_id: number }[]>`
-        SELECT chunk_id FROM kb_vectors
+        SELECT chunk_id FROM kb_vectors WHERE embedding IS NOT NULL
       `;
       const indexedIds = new Set(indexed.map((r) => r.chunk_id));
       const missing = chunks.filter((c) => !indexedIds.has(c.id));
@@ -292,12 +294,13 @@ export class IngestionService {
     this.logger.log(`fill-missing completado: ${done} chunks procesados`);
   }
 
-  async rebuildIndex(): Promise<{ rebuilt: number }> {
+  async rebuildIndex(): Promise<{ rebuilt: number; ftsOnly: number }> {
     await this.vec.recreateIndices();
     const chunks = await this.prisma.knowledgeChunk.findMany({
       where: { doc: { status: "active" } },
     });
     let done = 0;
+    let ftsOnly = 0;
     const currentModel = this.emb.model;
     for (let i = 0; i < chunks.length; i += this.cfg.embedBatchSize) {
       const batch = chunks.slice(i, i + this.cfg.embedBatchSize);
@@ -313,24 +316,30 @@ export class IngestionService {
             }),
           ),
         );
+        // Solo marcamos embModel cuando el vector se guardó correctamente.
         await this.prisma.knowledgeChunk.updateMany({
           where: { id: { in: batch.map((c) => c.id) } },
           data: { embModel: currentModel },
         });
+        done += batch.length;
       } catch (embErr) {
         this.logger.warn(
-          `rebuildIndex embed falló batch ${i}: ${(embErr as Error).message} — insertando solo FTS`,
+          `rebuildIndex embed falló batch ${i}: ${(embErr as Error).message} — insertando solo FTS (se reintentará al reiniciar)`,
         );
+        // NO actualizamos embModel: en el próximo arranque onModuleInit detectará
+        // embedding IS NULL y reintentará la vectorización automáticamente.
         await Promise.all(
           batch.map((c) =>
             this.vec.upsertChunkFtsOnly({ id: c.id, category: c.category, content: c.contentClean }),
           ),
         );
+        ftsOnly += batch.length;
       }
-      done += batch.length;
     }
     this.invalidateDerived();
-    this.logger.log(`rebuilt index with ${done} chunks (model=${currentModel})`);
-    return { rebuilt: done };
+    this.logger.log(
+      `rebuilt index: ${done} vectorized, ${ftsOnly} fts-only (model=${currentModel})`,
+    );
+    return { rebuilt: done, ftsOnly };
   }
 }
