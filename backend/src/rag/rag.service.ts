@@ -1,21 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { RetrievalService } from "./retrieval.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { RagConfig } from "./rag.config";
-import { HydratedChunk, Intent, RetrievalResult, ChatMsg } from "./rag.types";
+import { HydratedChunk, RetrievalResult, ChatMsg } from "./rag.types";
 import { escapeXmlAttr } from "./sanitizer";
-import { TopicClassifierService, TopicResult } from "./topic-classifier.service";
-import { OfftopicResponderService } from "./offtopic-responder.service";
-import { TopicClassifierDebug } from "./rag.metrics";
 
 @Injectable()
 export class RagService {
   private readonly logger = new Logger(RagService.name);
 
   constructor(
-    private readonly retrieval: RetrievalService,
+    private readonly prisma: PrismaService,
     private readonly cfg: RagConfig,
-    private readonly topic: TopicClassifierService,
-    private readonly offtopicResponder: OfftopicResponderService,
   ) {}
 
   async prepare(opts: {
@@ -27,135 +22,40 @@ export class RagService {
     systemPrompt: string;
     retrieval: RetrievalResult | null;
     shortCircuit?: string;
-    topic?: TopicResult;
   }> {
-    // 1. Clasificador semántico — reemplaza al keyword guard hardcodeado.
-    //    Acepta embeddings fallidos / KB vacío / follow-ups con degradación graceful.
-    const topic = await this.topic.classify(opts.query, {
-      hasHistory: opts.history.length > 0,
+    // Carga directa de todos los chunks activos — sin embeddings ni vector search.
+    // Apropiado para KBs pequeñas donde todo el contenido entra en el prompt.
+    const rows = await this.prisma.knowledgeChunk.findMany({
+      where: { doc: { status: "active" } },
+      include: { doc: true },
+      orderBy: [{ docId: "asc" }, { ord: "asc" }],
     });
 
-    const topicDebug: TopicClassifierDebug = {
-      decision: topic.decision,
-      score: topic.score,
-      bestCategory: topic.bestCategory,
-      source: topic.source,
-      latencyMs: topic.latencyMs,
-      reason: topic.reason,
-    };
+    const chunks: HydratedChunk[] = rows.map((r) => ({
+      id: r.id,
+      content: r.content,
+      contentClean: r.contentClean,
+      category: r.category,
+      source: r.doc.source,
+      docTitle: r.doc.title,
+      tokens: r.tokens,
+    }));
 
-    // Short-circuit sólo cuando hay SEÑAL CLARA de off-topic (no por ausencia
-    // de señal). Zona ambigua NO corta — se envía al retrieval y que el
-    // multi-signal detector decida con evidencia real de la KB.
-    if (topic.decision === "OFF_TOPIC") {
-      const reply = await this.offtopicResponder.respond({
-        query: opts.query,
-        topCategory: topic.bestCategory,
-      });
-      return {
-        systemPrompt: opts.basePrompt,
-        retrieval: null,
-        shortCircuit: reply,
-        topic,
-      };
-    }
-
-    // 2. Shortcut para meta/chitchat detectado por intent prototypes —
-    //    no tiene sentido correr retrieval para "sos una IA?" o "hola".
-    //    El LLM responde con el base prompt (ya sabe que es MutuaBot).
-    if (topic.intentKind === "meta" || topic.intentKind === "chitchat") {
-      const systemPrompt = this.buildConversationalPrompt(
-        opts.basePrompt,
-        topic.intentKind,
-      );
-      return { systemPrompt, retrieval: null, topic };
-    }
-
-    // 3. Retrieval con reuso del embedding del clasificador.
-    let retrieval: RetrievalResult;
-    try {
-      retrieval = await this.retrieval.search({
-        query: opts.query,
-        history: opts.history,
-        sessionId: opts.sessionId,
-        precomputedQueryEmbedding: topic.queryEmbedding,
-        topicDebug,
-      });
-    } catch (e) {
-      this.logger.warn(
-        `retrieval failed, degrading to base prompt: ${(e as Error).message}`,
-      );
-      return { systemPrompt: opts.basePrompt, retrieval: null, topic };
-    }
-
-    // 4. El multi-signal detector puede seguir declarando off-topic con
-    //    evidencia concreta de vec+FTS. En ese caso también usamos la
-    //    respuesta inteligente, no un string fijo.
-    if (retrieval.intent.kind === "offtopic") {
-      const reply = await this.offtopicResponder.respond({
-        query: opts.query,
-        topCategory: topic.bestCategory ?? retrieval.intent.category ?? null,
-      });
-      return {
-        systemPrompt: opts.basePrompt,
-        retrieval,
-        shortCircuit: reply,
-        topic,
-      };
-    }
-
-    const systemPrompt = this.buildSystemPrompt(
-      opts.basePrompt,
-      retrieval.chunks,
-      retrieval.intent,
+    this.logger.debug(
+      `direct-load: ${chunks.length} chunks para query="${opts.query.slice(0, 60)}"`,
     );
-    return { systemPrompt, retrieval, topic };
+
+    const systemPrompt = this.buildSystemPrompt(opts.basePrompt, chunks);
+    return { systemPrompt, retrieval: null };
   }
 
-  /**
-   * Prompt para conversación natural (meta/chitchat). El base prompt ya
-   * describe al bot; acá ajustamos el tono para que NUNCA diga "no puedo
-   * ayudarte" frente a un saludo y siempre se identifique en primera persona.
-   */
-  private buildConversationalPrompt(base: string, intentKind: "meta" | "chitchat"): string {
-    if (intentKind === "meta") {
-      return `${base}
-
-NOTA DE ESTE TURNO — Pregunta META sobre vos (identidad, capacidades, naturaleza):
-- Hablá SIEMPRE en primera persona ("Soy MutuaBot", NUNCA "Sos").
-- Presentate explícitamente como MutuaBot, el asistente virtual de MutuaLyF.
-- 1-2 oraciones máx, español rioplatense (usá "acá" no "aquí"), tono cálido y natural.
-- Cerrá invitando a consultar — por ejemplo "¿En qué te puedo ayudar?".
-- PROHIBIDO: decir "no puedo", citar documentos, derivar al 0800, usar emojis, repetir la pregunta.`;
-    }
-    return `${base}
-
-NOTA DE ESTE TURNO — Saludo, agradecimiento o despedida:
-- Devolvé el saludo (o reconocé el agradecimiento) en 1 oración natural rioplatense.
-- SIEMPRE invitá al usuario a contarte en qué podés ayudarlo (ej: "¿En qué te puedo ayudar hoy?").
-- PROHIBIDO ABSOLUTO: decir "no puedo ayudarte" o cualquier negativa frente a un saludo. Un "hola" se contesta con otro "hola" + ofrecimiento de ayuda.
-- PROHIBIDO: citar documentos, derivar al 0800, usar emojis, dar respuestas largas.`;
-  }
-
-  private buildSystemPrompt(
-    base: string,
-    chunks: HydratedChunk[],
-    intent: Intent,
-  ): string {
-    if (intent.kind === "chitchat") {
-      return `${base}
-
-TONO: amable, breve, rioplatense.`;
-    }
-
+  private buildSystemPrompt(base: string, chunks: HydratedChunk[]): string {
     if (chunks.length === 0) {
       return `${base}
 
-NOTA DE ESTE TURNO: No encontraste información específica para esta consulta en la base de conocimiento.
-INSTRUCCIÓN: Respondé exactamente con una de estas dos opciones:
-1. Si la consulta es muy general o ambigua → hacé UNA repregunta corta para entender mejor qué necesita el usuario.
-2. Si la consulta es específica pero no tenés el dato → decí "No tengo esa información disponible en este momento." y ofrecé que consulte en la sede o se comunique con MutuaLyF directamente.
-PROHIBIDO ABSOLUTO: inventar teléfonos, URLs, emails, horarios, nombres de profesionales o cualquier dato concreto que no esté en el contexto.`;
+NOTA DE ESTE TURNO: No hay información en la base de conocimiento todavía.
+INSTRUCCIÓN: Indicá al usuario que aún no tenés datos cargados y que puede contactar a MutuaLyF directamente.
+PROHIBIDO ABSOLUTO: inventar teléfonos, URLs, emails, horarios, nombres de profesionales o cualquier dato concreto.`;
     }
 
     // Token budget: cortar desde el final si excede

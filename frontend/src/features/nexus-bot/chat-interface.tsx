@@ -157,6 +157,7 @@ export function ChatInterface({ onClose }: ChatInterfaceProps) {
 
       for await (const chunk of chatService.current.sendMessage(promptText)) {
         if (isFirstChunk) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           setIsLoading(false);
           isFirstChunk = false;
         }
