@@ -35,6 +35,7 @@ export class GroqService {
     this.keys = [
       configService.get<string>('GROQ_API_KEY', ''),
       configService.get<string>('GROQ_API_KEY_2', ''),
+      configService.get<string>('GROQ_API_KEY_3', ''),
     ].filter(Boolean);
 
     this.logger.log(`GroqService: ${this.keys.length} key(s) configurada(s), chat=${GROQ_CHAT_MODEL}`);
