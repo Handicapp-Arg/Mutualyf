@@ -1,5 +1,5 @@
 /** Max conversation history messages sent to the LLM */
-export const MAX_HISTORY_MESSAGES = 6;
+export const MAX_HISTORY_MESSAGES = 0;
 
 // El guard off-topic ahora lo maneja RagService (TopicClassifierService +
 // OfftopicDetectorService + OfftopicResponderService). Ya no existen listas
