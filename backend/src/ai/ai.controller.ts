@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { GeminiService } from './gemini.service';
 import { GroqService, RateLimitError } from './groq.service';
 import { XAIService } from './xai.service';
+import { OpenAIService } from './openai.service';
 import { OllamaService } from './ollama.service';
 import { ChatRequestDto } from './dto/ai.dto';
 import { Public } from '../auth/decorators/public.decorator';
@@ -24,6 +25,7 @@ export class AiController implements OnModuleInit {
   private readonly logger = new Logger(AiController.name);
 
   constructor(
+    private readonly openAIService: OpenAIService,
     private readonly groqService: GroqService,
     private readonly xaiService: XAIService,
     private readonly geminiService: GeminiService,
@@ -94,7 +96,21 @@ export class AiController implements OnModuleInit {
       const { prompt, apiMaxTokens } = this.buildPromptWithLength(rag.systemPrompt, config.maxTokens);
       const args = [history, body.newMessage, prompt, config.temperature, apiMaxTokens] as const;
 
-      // 3. Groq — primario, pool de 2 keys (failover interno entre key1/key2)
+      // 3. OpenAI — primario
+      if (this.openAIService.available) {
+        try {
+          writeSSEChunked(res, await this.openAIService.generateResponse(...args));
+          res.write('data: [DONE]\n\n');
+          res.end();
+          return;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.logger.warn(`OpenAI agotado: ${msg}`);
+          failures.push({ stage: 'openai', message: msg });
+        }
+      }
+
+      // 4. Groq — segundo provider, pool de keys con failover interno
       try {
         writeSSEChunked(res, await this.groqService.generateResponse(...args));
         res.write('data: [DONE]\n\n');
@@ -106,7 +122,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'groq', message: msg });
       }
 
-      // 4. Gemini — segundo provider, cuota muy generosa (1M tokens/min free)
+      // 5. Gemini — tercer provider, cuota muy generosa (1M tokens/min free)
       if (this.geminiService.available) {
         try {
           writeSSEChunked(res, await this.geminiService.generateResponse(...args));
@@ -120,7 +136,7 @@ export class AiController implements OnModuleInit {
         }
       }
 
-      // 5. xAI (Grok) — tercer provider, cuota independiente
+      // 6. xAI (Grok) — cuarto provider, cuota independiente
       if (this.xaiService.available) {
         try {
           writeSSEChunked(res, await this.xaiService.generateResponse(...args));
@@ -134,7 +150,7 @@ export class AiController implements OnModuleInit {
         }
       }
 
-      // 6. Ollama — local, sin límite de tokens
+      // 7. Ollama — local, sin límite de tokens
       try {
         this.logger.log('Fallback a Ollama...');
         let hasContent = false;
@@ -163,7 +179,7 @@ export class AiController implements OnModuleInit {
         failures.push({ stage: 'ollama', message: msg });
       }
 
-      // 7. Fallback final
+      // 8. Fallback final
       if (failures.length > 0) {
         res.write(`data: ${JSON.stringify({ warning: 'ai-cascade-failed', failures })}\n\n`);
       }
